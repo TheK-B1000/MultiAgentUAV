@@ -45,6 +45,10 @@ LR = 3e-4
 CLIP = 1.0
 FIT_MIN_AGREEMENT = 0.50
 OBS_KEYS = ("grid", "vec", "agent_mask", "mask", "global_state")
+# Optional suite / entity-repair keys: loaded when present in the dataset.
+OPTIONAL_OBS_KEYS = (
+    "teammates", "teammates_valid", "enemies", "enemies_valid", "roles", "assignment",
+)
 
 
 def _now() -> str:
@@ -102,6 +106,11 @@ class Batches:
 def to_torch(arr, idx, device):
     import torch
     obs = {k: torch.as_tensor(arr[k][idx], dtype=torch.float32, device=device) for k in OBS_KEYS}
+    for k in OPTIONAL_OBS_KEYS:
+        if k not in arr:
+            continue
+        dtype = torch.bool if k.endswith("_valid") else torch.float32
+        obs[k] = torch.as_tensor(arr[k][idx], dtype=dtype, device=device)
     dm = torch.as_tensor(arr["decision_mask"][idx], dtype=torch.bool, device=device)
     return obs, dm
 

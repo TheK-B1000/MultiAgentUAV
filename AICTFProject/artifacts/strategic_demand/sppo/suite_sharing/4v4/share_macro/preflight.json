@@ -1,0 +1,25 @@
+{
+  "record": "suite share_macro 4v4 preflight",
+  "utc": "2026-09-25T15:10:59Z",
+  "checks": {
+    "dataset_both_poles": true,
+    "teacher_self_kl_zero": true,
+    "z_changes_logits": true,
+    "shared_modules_identity_and_arithmetic": true,
+    "macro_head_tied_target_head_private": true,
+    "shared_set_proper_superset_of_rung2": true,
+    "loss_finite_positive": true,
+    "grad_shared_and_both_private_none_critic": true,
+    "step_moves_shared_and_private_critic_still": true,
+    "roundtrip": true
+  },
+  "passed": "10/10",
+  "initial_loss": 0.904381513595581,
+  "unique_actor_params": 3531371,
+  "branch_seeds": [
+    22583001,
+    22583002
+  ],
+  "rung": 3,
+  "VERDICT": "PASS"
+}

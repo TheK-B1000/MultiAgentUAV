@@ -1,0 +1,91 @@
+{
+  "record_id": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_EVAL",
+  "utc": "2026-09-24T18:15:00Z",
+  "classification": "DIAGNOSTIC / EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL.",
+  "authorized_by": "PI path: fill professor table \u0394 cells for suite 4v4 sharing arms after imitation freeze. 2026-09-25: depth extension adds Share-Backbone / Share-Macro.",
+  "parent": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#EVALUATION_locked",
+  "THE_QUESTION": "Under forced z and matched seeds, do the distilled 4v4 sharing students still express complementary specialization (\u0394_A>0 & LCB95>0 and \u0394_B symmetric)?",
+  "ARMS": {
+    "fully_shared_z": {
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing/4v4/fully_shared_z/ckpts/final_fully_shared_z_4v4.pt",
+      "sha256": "dfa82051b1bba15a5e512c20c134bbd3fa3744287ce9af3028b56c1fbe0a6f15",
+      "format": "suite_fully_shared_z_v1",
+      "label_exploratory": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY"
+    },
+    "share_encoder": {
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_encoder/ckpts/final_share_encoder_4v4.pt",
+      "sha256": "43e1a0033229201007ed2bc72488b4a1073090670c91b51c9560115ae896fb70",
+      "format": "sharing_ladder_rung1_v1",
+      "label_exploratory": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY"
+    },
+    "share_backbone": {
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_backbone/ckpts/final_share_backbone_4v4.pt",
+      "sha256": "01c084c25512597641a78052208e10273e2b86e30e9eac6f19cecd9cd86ddbc4",
+      "format": "sharing_ladder_rung2_v1",
+      "label_exploratory": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY",
+      "note": "sha256 filled from STUDENT_FROZEN.json after distill"
+    },
+    "share_macro": {
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_macro/ckpts/final_share_macro_4v4.pt",
+      "sha256": "12e66d98fd3710466c70ef04b6c27fb1e4ab7fe1e8109384e84eb2f1e48b4ccb",
+      "format": "sharing_ladder_rung3_v1",
+      "label_exploratory": "SUITE_SHARE_MACRO_4V4_EXPLORATORY",
+      "note": "sha256 filled from STUDENT_FROZEN.json after distill"
+    }
+  },
+  "EVALUATION": {
+    "cells": [
+      "z0@PoleA",
+      "z1@PoleA",
+      "z0@PoleB",
+      "z1@PoleB"
+    ],
+    "delta_A": "V(z0,A) - V(z1,A)",
+    "delta_B": "V(z1,B) - V(z0,B)",
+    "gate": "mean(Delta)>0 AND LCB95(Delta)>0 on BOTH poles",
+    "bootstrap": {
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    },
+    "matched_seeds_across_z_and_poles": true,
+    "forced_z": true,
+    "no_router": true,
+    "entity_repair_obs": "required (teachers/students are entity-repair)",
+    "role_conditioning": "NOT required on distilled students (architecture has role_conditioning_enabled=False); CLOSEST_DEFENDS shaped the training-state set, not the eval forward path",
+    "deterministic": true
+  },
+  "SEEDS": {
+    "fully_shared_z_exploratory": "22510001..22510064",
+    "share_encoder_exploratory": "22511001..22511064",
+    "share_backbone_exploratory": "22513001..22513064",
+    "share_macro_exploratory": "22514001..22514064",
+    "n_exploratory": 64,
+    "confirmatory_later_if_needed": "22512001..22512128 (NOT authorized by this freeze)",
+    "disjointness": "22510001/064 22511001/064 22513001/064 22514001/064 CLEAN vs prior suite spends; 22512001/128 confirmatory reserved"
+  },
+  "POLES": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      }
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {
+        "lock_defender": 10,
+        "enable_2v1": true,
+        "min_alive_for_defender": 4
+      }
+    }
+  },
+  "RUNNER": "experiments/eval_suite_sharing_crossover_4v4.py",
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "confirmatory n=128 seed spend",
+    "claiming PAPER-FAITHFUL",
+    "reinterpreting Separated confirmatory seeds as these arms' eval"
+  ],
+  "SEQUENCE": "freeze -> dry-run -> exploratory n=64 Fully Shared+z / Share-Encoder (done 2026-09-25 FLAG) -> distill+eval Share-Backbone / Share-Macro -> update professor table"
+}

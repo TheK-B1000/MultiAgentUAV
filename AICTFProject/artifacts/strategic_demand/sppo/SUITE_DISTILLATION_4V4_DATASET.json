@@ -1,0 +1,1991 @@
+{
+  "record": "Suite distillation state set (4v4)",
+  "status": "FROZEN_DATASET",
+  "utc": "2026-09-24T14:24:25Z",
+  "implements": "SUITE_DISTILLATION_4V4_SPEC.json#DATASET",
+  "team_size": 4,
+  "allocator": {
+    "rule": "CLOSEST_DEFENDS",
+    "k_defend": 2,
+    "fixed_for_episode": true,
+    "hold_ticks_H_r": 8
+  },
+  "acting": {
+    "Pole_A": "DEFEND_ATTACK_SPLIT(pi_D + frozen_attack)",
+    "Pole_B": "pi_B entity-repair",
+    "pi_D": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1/ckpts/final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+      "sha256": "b538cdf4ba5d2c5d2834c2307285b7bef6f8ab7232e5471798bd52e42d734f2c"
+    },
+    "frozen_attack": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "pi_B": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+    }
+  },
+  "teachers": {
+    "pi_A": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "pi_B": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+    }
+  },
+  "seeds": {
+    "A": [
+      22520001,
+      22520096
+    ],
+    "B": [
+      22520101,
+      22520196
+    ]
+  },
+  "device": "cuda",
+  "decision_rows_only": true,
+  "stored_entity_tensors": true,
+  "stored_roles": true,
+  "totals": {
+    "A": {
+      "episodes": 96,
+      "steps": 20434,
+      "decision_rows": 19904,
+      "wins": 67,
+      "teacher_deployment_win_rate": 0.6979166666666666
+    },
+    "B": {
+      "episodes": 96,
+      "steps": 22369,
+      "decision_rows": 19949,
+      "wins": 74,
+      "teacher_deployment_win_rate": 0.7708333333333334
+    }
+  },
+  "shards": [
+    {
+      "pole": "A",
+      "episode": 0,
+      "seed": 22520001,
+      "steps": 240,
+      "decision_rows": 239,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520001.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 1,
+      "seed": 22520002,
+      "steps": 240,
+      "decision_rows": 239,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520002.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 2,
+      "seed": 22520003,
+      "steps": 240,
+      "decision_rows": 226,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520003.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 3,
+      "seed": 22520004,
+      "steps": 176,
+      "decision_rows": 176,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520004.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 4,
+      "seed": 22520005,
+      "steps": 114,
+      "decision_rows": 113,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520005.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 5,
+      "seed": 22520006,
+      "steps": 240,
+      "decision_rows": 240,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520006.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 6,
+      "seed": 22520007,
+      "steps": 240,
+      "decision_rows": 240,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520007.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 7,
+      "seed": 22520008,
+      "steps": 155,
+      "decision_rows": 154,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520008.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 8,
+      "seed": 22520009,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520009.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 9,
+      "seed": 22520010,
+      "steps": 240,
+      "decision_rows": 223,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520010.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 10,
+      "seed": 22520011,
+      "steps": 240,
+      "decision_rows": 230,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520011.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 11,
+      "seed": 22520012,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520012.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 12,
+      "seed": 22520013,
+      "steps": 240,
+      "decision_rows": 240,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520013.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 13,
+      "seed": 22520014,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520014.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 14,
+      "seed": 22520015,
+      "steps": 240,
+      "decision_rows": 227,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520015.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 15,
+      "seed": 22520016,
+      "steps": 240,
+      "decision_rows": 234,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520016.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 16,
+      "seed": 22520017,
+      "steps": 240,
+      "decision_rows": 229,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520017.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 17,
+      "seed": 22520018,
+      "steps": 128,
+      "decision_rows": 125,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520018.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 18,
+      "seed": 22520019,
+      "steps": 240,
+      "decision_rows": 239,
+      "blue": 1,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520019.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 19,
+      "seed": 22520020,
+      "steps": 240,
+      "decision_rows": 223,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520020.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 20,
+      "seed": 22520021,
+      "steps": 240,
+      "decision_rows": 237,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520021.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 21,
+      "seed": 22520022,
+      "steps": 203,
+      "decision_rows": 200,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520022.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 22,
+      "seed": 22520023,
+      "steps": 126,
+      "decision_rows": 126,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520023.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 23,
+      "seed": 22520024,
+      "steps": 240,
+      "decision_rows": 222,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520024.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 24,
+      "seed": 22520025,
+      "steps": 240,
+      "decision_rows": 226,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520025.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 25,
+      "seed": 22520026,
+      "steps": 124,
+      "decision_rows": 124,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520026.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 26,
+      "seed": 22520027,
+      "steps": 193,
+      "decision_rows": 190,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520027.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 27,
+      "seed": 22520028,
+      "steps": 215,
+      "decision_rows": 211,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520028.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 28,
+      "seed": 22520029,
+      "steps": 195,
+      "decision_rows": 193,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520029.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 29,
+      "seed": 22520030,
+      "steps": 182,
+      "decision_rows": 179,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520030.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 30,
+      "seed": 22520031,
+      "steps": 240,
+      "decision_rows": 220,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520031.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 31,
+      "seed": 22520032,
+      "steps": 240,
+      "decision_rows": 224,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520032.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 32,
+      "seed": 22520033,
+      "steps": 221,
+      "decision_rows": 221,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520033.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 33,
+      "seed": 22520034,
+      "steps": 159,
+      "decision_rows": 156,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520034.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 34,
+      "seed": 22520035,
+      "steps": 171,
+      "decision_rows": 169,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520035.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 35,
+      "seed": 22520036,
+      "steps": 240,
+      "decision_rows": 234,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520036.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 36,
+      "seed": 22520037,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520037.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 37,
+      "seed": 22520038,
+      "steps": 240,
+      "decision_rows": 237,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520038.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 38,
+      "seed": 22520039,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520039.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 39,
+      "seed": 22520040,
+      "steps": 175,
+      "decision_rows": 175,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520040.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 40,
+      "seed": 22520041,
+      "steps": 206,
+      "decision_rows": 204,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520041.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 41,
+      "seed": 22520042,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520042.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 42,
+      "seed": 22520043,
+      "steps": 188,
+      "decision_rows": 186,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520043.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 43,
+      "seed": 22520044,
+      "steps": 119,
+      "decision_rows": 119,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520044.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 44,
+      "seed": 22520045,
+      "steps": 240,
+      "decision_rows": 239,
+      "blue": 0,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520045.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 45,
+      "seed": 22520046,
+      "steps": 214,
+      "decision_rows": 214,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520046.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 46,
+      "seed": 22520047,
+      "steps": 209,
+      "decision_rows": 203,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520047.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 47,
+      "seed": 22520048,
+      "steps": 202,
+      "decision_rows": 197,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520048.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 48,
+      "seed": 22520049,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520049.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 49,
+      "seed": 22520050,
+      "steps": 231,
+      "decision_rows": 228,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520050.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 50,
+      "seed": 22520051,
+      "steps": 240,
+      "decision_rows": 240,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520051.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 51,
+      "seed": 22520052,
+      "steps": 140,
+      "decision_rows": 139,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520052.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 52,
+      "seed": 22520053,
+      "steps": 240,
+      "decision_rows": 233,
+      "blue": 1,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520053.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 53,
+      "seed": 22520054,
+      "steps": 178,
+      "decision_rows": 175,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520054.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 54,
+      "seed": 22520055,
+      "steps": 240,
+      "decision_rows": 231,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520055.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 55,
+      "seed": 22520056,
+      "steps": 240,
+      "decision_rows": 231,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520056.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 56,
+      "seed": 22520057,
+      "steps": 240,
+      "decision_rows": 231,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520057.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 57,
+      "seed": 22520058,
+      "steps": 232,
+      "decision_rows": 232,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520058.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 58,
+      "seed": 22520059,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520059.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 59,
+      "seed": 22520060,
+      "steps": 148,
+      "decision_rows": 147,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520060.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 60,
+      "seed": 22520061,
+      "steps": 144,
+      "decision_rows": 143,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520061.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 61,
+      "seed": 22520062,
+      "steps": 240,
+      "decision_rows": 227,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520062.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 62,
+      "seed": 22520063,
+      "steps": 239,
+      "decision_rows": 236,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520063.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 63,
+      "seed": 22520064,
+      "steps": 240,
+      "decision_rows": 231,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520064.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 64,
+      "seed": 22520065,
+      "steps": 240,
+      "decision_rows": 215,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520065.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 65,
+      "seed": 22520066,
+      "steps": 240,
+      "decision_rows": 239,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520066.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 66,
+      "seed": 22520067,
+      "steps": 171,
+      "decision_rows": 170,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520067.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 67,
+      "seed": 22520068,
+      "steps": 240,
+      "decision_rows": 232,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520068.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 68,
+      "seed": 22520069,
+      "steps": 240,
+      "decision_rows": 236,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520069.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 69,
+      "seed": 22520070,
+      "steps": 222,
+      "decision_rows": 222,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520070.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 70,
+      "seed": 22520071,
+      "steps": 166,
+      "decision_rows": 164,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520071.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 71,
+      "seed": 22520072,
+      "steps": 131,
+      "decision_rows": 130,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520072.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 72,
+      "seed": 22520073,
+      "steps": 240,
+      "decision_rows": 240,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520073.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 73,
+      "seed": 22520074,
+      "steps": 240,
+      "decision_rows": 239,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520074.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 74,
+      "seed": 22520075,
+      "steps": 240,
+      "decision_rows": 213,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520075.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 75,
+      "seed": 22520076,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520076.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 76,
+      "seed": 22520077,
+      "steps": 220,
+      "decision_rows": 220,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520077.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 77,
+      "seed": 22520078,
+      "steps": 240,
+      "decision_rows": 237,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520078.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 78,
+      "seed": 22520079,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520079.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 79,
+      "seed": 22520080,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520080.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 80,
+      "seed": 22520081,
+      "steps": 240,
+      "decision_rows": 237,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520081.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 81,
+      "seed": 22520082,
+      "steps": 226,
+      "decision_rows": 226,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520082.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 82,
+      "seed": 22520083,
+      "steps": 210,
+      "decision_rows": 208,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520083.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 83,
+      "seed": 22520084,
+      "steps": 145,
+      "decision_rows": 142,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520084.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 84,
+      "seed": 22520085,
+      "steps": 240,
+      "decision_rows": 231,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520085.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 85,
+      "seed": 22520086,
+      "steps": 240,
+      "decision_rows": 233,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520086.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 86,
+      "seed": 22520087,
+      "steps": 240,
+      "decision_rows": 240,
+      "blue": 0,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520087.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 87,
+      "seed": 22520088,
+      "steps": 198,
+      "decision_rows": 197,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520088.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 88,
+      "seed": 22520089,
+      "steps": 126,
+      "decision_rows": 121,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520089.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 89,
+      "seed": 22520090,
+      "steps": 137,
+      "decision_rows": 137,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520090.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 90,
+      "seed": 22520091,
+      "steps": 240,
+      "decision_rows": 214,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520091.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 91,
+      "seed": 22520092,
+      "steps": 240,
+      "decision_rows": 223,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520092.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 92,
+      "seed": 22520093,
+      "steps": 191,
+      "decision_rows": 189,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520093.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 93,
+      "seed": 22520094,
+      "steps": 172,
+      "decision_rows": 167,
+      "blue": 2,
+      "red": 3,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520094.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 94,
+      "seed": 22520095,
+      "steps": 240,
+      "decision_rows": 238,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520095.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 95,
+      "seed": 22520096,
+      "steps": 172,
+      "decision_rows": 170,
+      "blue": 1,
+      "red": 3,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\A_22520096.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 0,
+      "seed": 22520101,
+      "steps": 230,
+      "decision_rows": 200,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520101.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 1,
+      "seed": 22520102,
+      "steps": 240,
+      "decision_rows": 220,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520102.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 2,
+      "seed": 22520103,
+      "steps": 240,
+      "decision_rows": 211,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520103.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 3,
+      "seed": 22520104,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520104.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 4,
+      "seed": 22520105,
+      "steps": 210,
+      "decision_rows": 184,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520105.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 5,
+      "seed": 22520106,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520106.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 6,
+      "seed": 22520107,
+      "steps": 240,
+      "decision_rows": 213,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520107.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 7,
+      "seed": 22520108,
+      "steps": 240,
+      "decision_rows": 224,
+      "blue": 0,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520108.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 8,
+      "seed": 22520109,
+      "steps": 240,
+      "decision_rows": 210,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520109.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 9,
+      "seed": 22520110,
+      "steps": 177,
+      "decision_rows": 159,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520110.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 10,
+      "seed": 22520111,
+      "steps": 95,
+      "decision_rows": 85,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520111.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 11,
+      "seed": 22520112,
+      "steps": 240,
+      "decision_rows": 192,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520112.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 12,
+      "seed": 22520113,
+      "steps": 240,
+      "decision_rows": 211,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520113.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 13,
+      "seed": 22520114,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520114.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 14,
+      "seed": 22520115,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520115.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 15,
+      "seed": 22520116,
+      "steps": 240,
+      "decision_rows": 225,
+      "blue": 0,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520116.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 16,
+      "seed": 22520117,
+      "steps": 223,
+      "decision_rows": 196,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520117.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 17,
+      "seed": 22520118,
+      "steps": 240,
+      "decision_rows": 228,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520118.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 18,
+      "seed": 22520119,
+      "steps": 240,
+      "decision_rows": 220,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520119.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 19,
+      "seed": 22520120,
+      "steps": 240,
+      "decision_rows": 228,
+      "blue": 0,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520120.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 20,
+      "seed": 22520121,
+      "steps": 240,
+      "decision_rows": 214,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520121.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 21,
+      "seed": 22520122,
+      "steps": 142,
+      "decision_rows": 122,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520122.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 22,
+      "seed": 22520123,
+      "steps": 240,
+      "decision_rows": 222,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520123.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 23,
+      "seed": 22520124,
+      "steps": 240,
+      "decision_rows": 194,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520124.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 24,
+      "seed": 22520125,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520125.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 25,
+      "seed": 22520126,
+      "steps": 240,
+      "decision_rows": 212,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520126.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 26,
+      "seed": 22520127,
+      "steps": 240,
+      "decision_rows": 221,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520127.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 27,
+      "seed": 22520128,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520128.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 28,
+      "seed": 22520129,
+      "steps": 240,
+      "decision_rows": 221,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520129.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 29,
+      "seed": 22520130,
+      "steps": 240,
+      "decision_rows": 222,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520130.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 30,
+      "seed": 22520131,
+      "steps": 240,
+      "decision_rows": 221,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520131.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 31,
+      "seed": 22520132,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520132.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 32,
+      "seed": 22520133,
+      "steps": 238,
+      "decision_rows": 211,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520133.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 33,
+      "seed": 22520134,
+      "steps": 240,
+      "decision_rows": 220,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520134.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 34,
+      "seed": 22520135,
+      "steps": 240,
+      "decision_rows": 167,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520135.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 35,
+      "seed": 22520136,
+      "steps": 240,
+      "decision_rows": 209,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520136.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 36,
+      "seed": 22520137,
+      "steps": 240,
+      "decision_rows": 221,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520137.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 37,
+      "seed": 22520138,
+      "steps": 134,
+      "decision_rows": 112,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520138.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 38,
+      "seed": 22520139,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520139.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 39,
+      "seed": 22520140,
+      "steps": 240,
+      "decision_rows": 223,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520140.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 40,
+      "seed": 22520141,
+      "steps": 240,
+      "decision_rows": 226,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520141.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 41,
+      "seed": 22520142,
+      "steps": 240,
+      "decision_rows": 215,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520142.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 42,
+      "seed": 22520143,
+      "steps": 214,
+      "decision_rows": 200,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520143.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 43,
+      "seed": 22520144,
+      "steps": 240,
+      "decision_rows": 226,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520144.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 44,
+      "seed": 22520145,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520145.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 45,
+      "seed": 22520146,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520146.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 46,
+      "seed": 22520147,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520147.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 47,
+      "seed": 22520148,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520148.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 48,
+      "seed": 22520149,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520149.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 49,
+      "seed": 22520150,
+      "steps": 240,
+      "decision_rows": 220,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520150.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 50,
+      "seed": 22520151,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520151.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 51,
+      "seed": 22520152,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520152.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 52,
+      "seed": 22520153,
+      "steps": 240,
+      "decision_rows": 209,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520153.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 53,
+      "seed": 22520154,
+      "steps": 240,
+      "decision_rows": 230,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520154.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 54,
+      "seed": 22520155,
+      "steps": 240,
+      "decision_rows": 223,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520155.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 55,
+      "seed": 22520156,
+      "steps": 230,
+      "decision_rows": 212,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520156.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 56,
+      "seed": 22520157,
+      "steps": 240,
+      "decision_rows": 210,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520157.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 57,
+      "seed": 22520158,
+      "steps": 183,
+      "decision_rows": 142,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520158.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 58,
+      "seed": 22520159,
+      "steps": 240,
+      "decision_rows": 221,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520159.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 59,
+      "seed": 22520160,
+      "steps": 240,
+      "decision_rows": 212,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520160.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 60,
+      "seed": 22520161,
+      "steps": 240,
+      "decision_rows": 221,
+      "blue": 0,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520161.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 61,
+      "seed": 22520162,
+      "steps": 240,
+      "decision_rows": 217,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520162.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 62,
+      "seed": 22520163,
+      "steps": 240,
+      "decision_rows": 226,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520163.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 63,
+      "seed": 22520164,
+      "steps": 240,
+      "decision_rows": 224,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520164.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 64,
+      "seed": 22520165,
+      "steps": 196,
+      "decision_rows": 171,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520165.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 65,
+      "seed": 22520166,
+      "steps": 240,
+      "decision_rows": 229,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520166.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 66,
+      "seed": 22520167,
+      "steps": 240,
+      "decision_rows": 221,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520167.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 67,
+      "seed": 22520168,
+      "steps": 240,
+      "decision_rows": 205,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520168.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 68,
+      "seed": 22520169,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520169.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 69,
+      "seed": 22520170,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520170.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 70,
+      "seed": 22520171,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520171.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 71,
+      "seed": 22520172,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520172.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 72,
+      "seed": 22520173,
+      "steps": 240,
+      "decision_rows": 222,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520173.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 73,
+      "seed": 22520174,
+      "steps": 239,
+      "decision_rows": 222,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520174.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 74,
+      "seed": 22520175,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520175.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 75,
+      "seed": 22520176,
+      "steps": 240,
+      "decision_rows": 224,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520176.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 76,
+      "seed": 22520177,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520177.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 77,
+      "seed": 22520178,
+      "steps": 240,
+      "decision_rows": 217,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520178.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 78,
+      "seed": 22520179,
+      "steps": 240,
+      "decision_rows": 230,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520179.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 79,
+      "seed": 22520180,
+      "steps": 240,
+      "decision_rows": 205,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520180.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 80,
+      "seed": 22520181,
+      "steps": 240,
+      "decision_rows": 222,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520181.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 81,
+      "seed": 22520182,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520182.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 82,
+      "seed": 22520183,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520183.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 83,
+      "seed": 22520184,
+      "steps": 240,
+      "decision_rows": 217,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520184.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 84,
+      "seed": 22520185,
+      "steps": 240,
+      "decision_rows": 215,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520185.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 85,
+      "seed": 22520186,
+      "steps": 240,
+      "decision_rows": 226,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520186.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 86,
+      "seed": 22520187,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520187.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 87,
+      "seed": 22520188,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520188.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 88,
+      "seed": 22520189,
+      "steps": 237,
+      "decision_rows": 213,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520189.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 89,
+      "seed": 22520190,
+      "steps": 240,
+      "decision_rows": 214,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520190.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 90,
+      "seed": 22520191,
+      "steps": 181,
+      "decision_rows": 166,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520191.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 91,
+      "seed": 22520192,
+      "steps": 240,
+      "decision_rows": 215,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520192.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 92,
+      "seed": 22520193,
+      "steps": 240,
+      "decision_rows": 215,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520193.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 93,
+      "seed": 22520194,
+      "steps": 240,
+      "decision_rows": 217,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520194.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 94,
+      "seed": 22520195,
+      "steps": 240,
+      "decision_rows": 203,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520195.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 95,
+      "seed": 22520196,
+      "steps": 240,
+      "decision_rows": 178,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4\\states\\B_22520196.npz"
+    }
+  ]
+}

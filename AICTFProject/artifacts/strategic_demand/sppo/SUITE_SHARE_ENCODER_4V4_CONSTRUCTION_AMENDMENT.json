@@ -1,0 +1,70 @@
+{
+  "record_id": "SUITE_SHARE_ENCODER_4V4_CONSTRUCTION_AMENDMENT",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-24T17:45:00Z",
+  "classification": "DIAGNOSTIC / EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL.",
+  "authorized_by": "PI path: suite next step after 4v4 Fully Shared+z freeze — distill Share-Encoder on the SAME SUITE_DISTILLATION_4V4_DATASET under CLOSEST_DEFENDS(k=2).",
+  "amends": [
+    "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#FOUR_ARMS_locked.C_partial_share",
+    "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#INVENTORY_AMENDMENT_2026_09_24"
+  ],
+  "parent_construction": "RUNG1_CONSTRUCTION_AMENDMENT.json (shared CNN only; private body+heads per z)",
+
+  "THE_QUESTION": "Under CLOSEST_DEFENDS(k=2) and the same 4v4 teacher-state set as Fully Shared+z, does retaining private per-z MLP bodies/heads (Share-Encoder) preserve specialization better than a single fully shared concat-z network?",
+
+  "CONSTRUCTION_locked": {
+    "architecture": "rl.ladder_rung1.Rung1Model / build_rung1 — identical sharing rule to 2v2 Rung-1",
+    "shared": "actor_cnn only (parameter tying by module identity)",
+    "private_per_z": ["latent_actor.body", "latent_actor.action_head", "critic.*"],
+    "branch_arch": "specialists' own architecture from KL teacher pi_A (entity_repair_enabled inherited; role_conditioning_enabled=False)",
+    "entity_kwargs_forward": "Rung1Model.policy_logits forwards teammates/enemies kwargs so entity-repair branches match teacher query path",
+    "initialisation": {
+      "branch_z0_seed": 22581001,
+      "branch_z1_seed": 22581002,
+      "fresh_random": true,
+      "not_warm_start": true
+    }
+  },
+
+  "IDENTITY_WITH_FULLY_SHARED_locked": {
+    "same_teachers": "SUITE_DISTILLATION_4V4_DATASET.json#teachers (entity-repair pi_A / pi_B)",
+    "same_states": "SUITE_DISTILLATION_4V4_DATASET.json (CLOSEST_DEFENDS k=2 collection)",
+    "same_objective": "0.5*KL(pi_A||z0) + 0.5*KL(pi_B||z1), decision-eligible only",
+    "same_budget": "20 epochs, batch 256, Adam lr 3e-4, grad-norm clip 1.0, no weight decay, terminal weights only",
+    "only_difference": "sharing structure (Share-Encoder vs Fully Shared+z concat)"
+  },
+
+  "DATASET": {
+    "manifest": "SUITE_DISTILLATION_4V4_DATASET.json",
+    "status_required": "FROZEN_DATASET"
+  },
+
+  "PREFLIGHT_REQUIRED": [
+    "dataset both poles + holdout non-empty",
+    "encoder shared by identity + unique-param arithmetic OK",
+    "teacher self-KL = 0",
+    "z changes logits (mixed-z)",
+    "initial loss finite positive",
+    "grad on shared CNN + both private stacks; none on critic",
+    "optimizer step moves shared + both private; critic immobile",
+    "save/load round-trip logits both z"
+  ],
+
+  "OUTPUTS": {
+    "preflight": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_encoder/preflight.json",
+    "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_encoder/ckpts/final_share_encoder_4v4.pt",
+    "frozen": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_encoder/STUDENT_FROZEN.json",
+    "format": "sharing_ladder_rung1_v1 (same as 2v2 Rung-1; suite provenance in payload)"
+  },
+
+  "RUNNER": "experiments/run_suite_sharing_distillation.py --arm share_encoder --team-size 4",
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "reinterpreting old RUNG1_6V6 as this suite cell",
+    "changing CLOSEST_DEFENDS k or the frozen dataset",
+    "claiming PAPER-FAITHFUL"
+  ],
+  "NOTE_2026_09_25": "Share-Backbone / Share-Macro at 4v4 authorized separately via SUITE_SHARE_BACKBONE_4V4_CONSTRUCTION_AMENDMENT.json and SUITE_SHARE_MACRO_4V4_CONSTRUCTION_AMENDMENT.json (PI depth extension).",
+
+  "SEQUENCE": "freeze this amendment -> preflight -> 20-epoch distill -> freeze STUDENT_FROZEN -> (later) matched suite eval"
+}

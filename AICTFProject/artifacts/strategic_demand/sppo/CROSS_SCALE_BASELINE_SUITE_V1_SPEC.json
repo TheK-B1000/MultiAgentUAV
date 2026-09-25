@@ -98,7 +98,18 @@
   "DEPTH_VS_BREADTH": {
     "breadth": "this suite: four arms x three scales",
     "depth_2v2_only": "existing Share-0 -> Share-Encoder -> Share-Backbone -> Share-Macro ladder remains the deep ablation at 2v2",
-    "do_not": "rebuild Backbone/Macro at 4v4 or 6v6 as suite requirements"
+    "do_not_default": "rebuild Backbone/Macro at 4v4 or 6v6 as suite *requirements* for the four-curve plot",
+    "DEPTH_EXTENSION_4V4_2026_09_25": {
+      "status": "AUTHORIZED_DIAGNOSTIC",
+      "utc": "2026-09-25T15:00:00Z",
+      "arms": ["Share-Backbone", "Share-Macro"],
+      "dataset": "SUITE_DISTILLATION_4V4_DATASET under CLOSEST_DEFENDS(k=2)",
+      "amendments": [
+        "SUITE_SHARE_BACKBONE_4V4_CONSTRUCTION_AMENDMENT.json",
+        "SUITE_SHARE_MACRO_4V4_CONSTRUCTION_AMENDMENT.json"
+      ],
+      "note": "Optional depth fill for the professor table; not required for the four-curve cross-scale figure. Still NOT authorized at 6v6."
+    }
   },
 
   "RELATION_TO_PRIOR_ONE_OFF_SPECS": {
@@ -140,8 +151,8 @@
     },
     "4v4": {
       "Separated": "SEALED PASS (DEFEND_ATTACK_SPLIT confirmatory)",
-      "Fully_Shared_z": "BLOCKED on SUITE_DISTILLATION_4V4_DATASET under CLOSEST_DEFENDS(k=2)",
-      "Share_Encoder": "BLOCKED on that same state set",
+      "Fully_Shared_z": "FROZEN_STUDENT (agree 0.895/0.856; unique actor params 3468503; sha256 dfa82051…)",
+      "Share_Encoder": "FROZEN_STUDENT (agree 0.914/0.876; unique actor params 3636592; sha256 43e1a003…)",
       "Generalist": "STILL TO FILL"
     },
     "6v6": {
@@ -167,7 +178,7 @@
   "NOT_AUTHORIZED_BY_THIS_SPEC": [
     "any training or sealed eval seed spend",
     "launching Fully Shared PPO on this PC while CLOSEST_SPLIT / school-PC 6v6 owns the GPU",
-    "rebuilding the full 2v2 Backbone/Macro ladder at 4v4 or 6v6",
+    "rebuilding Backbone/Macro at 6v6 (4v4 depth extension authorized 2026-09-25 via dedicated amendments)",
     "claiming PAPER-FAITHFUL / Summer-faithful for this suite",
     "reinterpreting old RUNG1_6V6 FAIL as a suite Share-Encoder cell",
     "changing CLOSEST_DEFENDS k pins or inventing a new allocator"

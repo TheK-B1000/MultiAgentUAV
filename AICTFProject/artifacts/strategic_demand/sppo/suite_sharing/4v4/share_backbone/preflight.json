@@ -1,0 +1,23 @@
+{
+  "record": "suite share_backbone 4v4 preflight",
+  "utc": "2026-09-25T15:04:43Z",
+  "checks": {
+    "dataset_both_poles": true,
+    "teacher_self_kl_zero": true,
+    "z_changes_logits": true,
+    "shared_modules_identity_and_arithmetic": true,
+    "loss_finite_positive": true,
+    "grad_shared_and_both_private_none_critic": true,
+    "step_moves_shared_and_private_critic_still": true,
+    "roundtrip": true
+  },
+  "passed": "8/8",
+  "initial_loss": 0.9071342945098877,
+  "unique_actor_params": 3532656,
+  "branch_seeds": [
+    22582001,
+    22582002
+  ],
+  "rung": 2,
+  "VERDICT": "PASS"
+}

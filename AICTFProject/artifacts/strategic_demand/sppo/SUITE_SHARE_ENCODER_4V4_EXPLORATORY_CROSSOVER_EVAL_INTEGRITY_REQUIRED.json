@@ -1,0 +1,13 @@
+{
+  "record": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-25T06:45:22Z",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.359375,
+    "delta_B": -0.21875
+  },
+  "raw_rows": "artifacts\\strategic_demand\\sppo\\suite_share_encoder_4v4_exploratory_crossover_eval_rows.csv"
+}

@@ -16,6 +16,80 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
+> **Last updated:** 2026-09-25 — **4v4 Share-Backbone / Share-Macro depth extension IN FLIGHT.**
+> PI-authorized diagnostic (same `SUITE_DISTILLATION_4V4` under CD \(k=2\)).
+> Construction amendments frozen; suite distill runner extended.
+> Watch: `suite_sharing/4v4/depth_extension_watch.log` and
+> `suite_sharing/4v4/share_backbone/distill.log`.
+> After both freeze: pin sha → exploratory crossover → fill professor table.
+>
+> ---
+>
+> Prior — 2026-09-25 — **4v4 suite exploratory crossovers DONE (both FLAGGED).**
+> Fully Shared+\(z\): Δ_A=+0.281 [+0.125,+0.438], Δ_B=−0.109 [−0.219,0.000] — FLAG on Δ_B.
+> Share-Encoder: Δ_A=+0.359 [+0.188,+0.516], Δ_B=−0.219 [−0.344,−0.109] — FLAG on Δ_B.
+> n=64 exploratory; records:
+> `SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json`,
+> `SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json`.
+> Professor table filled:
+> [`paper/data/SHARING_TRADEOFF_2V2_4V4_FOR_PROFESSOR.md`](../paper/data/SHARING_TRADEOFF_2V2_4V4_FOR_PROFESSOR.md),
+> [`paper/data/sharing_params_tradeoff_2v2_4v4.json`](../paper/data/sharing_params_tradeoff_2v2_4v4.json).
+> Next suite blockers: 6v6 Separated seal; confirmatory n=128 not authorized.
+>
+> ---
+>
+> Prior — 2026-09-24 — **4v4 suite crossover evals IN FLIGHT**
+> (exploratory n=64) for Fully Shared+\(z\) then Share-Encoder to fill Δ cells.
+> Spec: [`SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json`](../artifacts/strategic_demand/sppo/SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json).
+>
+> ---
+>
+> Prior — 2026-09-24 — **4v4 Share-Encoder distilled student FROZEN.**
+> Holdout agree \(0.914/0.876\), unique actor params \(3{,}636{,}592\), sha256
+> `43e1a003…`. Record:
+> `artifacts/strategic_demand/sppo/suite_sharing/4v4/share_encoder/STUDENT_FROZEN.json`.
+> Same dataset as Fully Shared+\(z\) (`SUITE_DISTILLATION_4V4` under CD \(k=2\)).
+> 4v4 sharing-family distill arms both frozen. Next suite blockers: 6v6 Separated
+> seal, then Generalists / matched evals.
+>
+> ---
+>
+> Prior — 2026-09-24 — **4v4 Share-Encoder distillation IN FLIGHT**
+> on the same `SUITE_DISTILLATION_4V4_DATASET` (CD \(k=2\)). Construction:
+> [`SUITE_SHARE_ENCODER_4V4_CONSTRUCTION_AMENDMENT.json`](../artifacts/strategic_demand/sppo/SUITE_SHARE_ENCODER_4V4_CONSTRUCTION_AMENDMENT.json).
+> Preflight PASS; unique params \(\approx 3.64\)M (shared CNN). Watch terminal `5534`.
+>
+> ---
+>
+> Prior — 2026-09-24 — **4v4 Fully Shared+\(z\) distilled student FROZEN.**
+> Holdout agree \(0.895/0.856\), unique actor params \(3{,}468{,}503\), sha256
+> `dfa82051…`. Record:
+> `artifacts/strategic_demand/sppo/suite_sharing/4v4/fully_shared_z/STUDENT_FROZEN.json`.
+> Dataset: `SUITE_DISTILLATION_4V4_DATASET` under CD \(k=2\). Next suite step:
+> Share-Encoder at 4v4 on the same frozen set (after construction amendment).
+>
+> ---
+>
+> Prior — 2026-09-24 — **SUITE_DISTILLATION_4V4_DATASET FROZEN** under
+> `CLOSEST_DEFENDS(k=2)`. Manifest:
+> [`SUITE_DISTILLATION_4V4_DATASET.json`](../artifacts/strategic_demand/sppo/SUITE_DISTILLATION_4V4_DATASET.json)
+> (192 shards; A 19904 / B 19949 decision rows; seeds `22520001..096` /
+> `22520101..196`). Next: distill Fully Shared+\(z\) then Share-Encoder on that
+> same set via `experiments/run_suite_sharing_distillation.py --team-size 4`.
+>
+> ---
+>
+> Prior — 2026-09-24 — **SUITE_DISTILLATION_4V4 collection IN FLIGHT**
+> under `CLOSEST_DEFENDS(k=2)`. Spec frozen:
+> [`SUITE_DISTILLATION_4V4_SPEC.json`](../artifacts/strategic_demand/sppo/SUITE_DISTILLATION_4V4_SPEC.json).
+> Collector: `experiments/collect_suite_distillation_states_4v4.py` (Pole A =
+> sealed DEFEND_ATTACK_SPLIT composite; Pole B = entity-repair `pi_B`; entities +
+> roles stored). Seeds `22520001..096` / `22520101..196`. Smoke plumbing PASS.
+> When the manifest freezes, distill Fully Shared+\(z\) then Share-Encoder on that
+> same set.
+>
+> ---
+>
 > Prior — 2026-09-24 — **2v2 Fully Shared+\(z\) distilled student FROZEN.**
 > Holdout agree \(0.965/0.988\), unique actor params \(3{,}456{,}599\), sha256
 > `4aebecd8…`. Record:

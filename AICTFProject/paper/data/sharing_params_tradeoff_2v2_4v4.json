@@ -1,18 +1,19 @@
 {
-  "record": "Unique-actor parameter tradeoff vs Share-0, with 4v4 update",
-  "utc": "2026-09-23",
+  "record": "Unique-actor parameter tradeoff vs Share-0 / Separated — 2v2 sealed ladder + 4v4 suite update",
+  "utc": "2026-09-25T07:25:00Z",
   "units": {
     "params": "unique deployed actor parameters (float32 elements)",
-    "reduction": "1 - n_unique / n_Share0_reference_at_that_scale",
-    "imitation_agreement": "holdout argmax agreement z0↔π_A / z1↔π_B (Share-0 is exact dispatch = 1.0/1.0)"
+    "reduction": "1 - n_unique / n_reference_at_that_scale (Share-0 at 2v2; Separated composite at 4v4)",
+    "imitation_agreement": "holdout argmax agreement z0↔π_A / z1↔π_B (Share-0 / Separated = exact or non-distilled)",
+    "delta": "forced-z crossover: Δ_A=V(z0,A)-V(z1,A); Δ_B=V(z1,B)-V(z0,B); paired percentile bootstrap n_boot=20000 alpha=0.05 rng=7"
   },
-  "scale_invariance_note": "For a fixed sharing architecture the actor is per-agent weight-shared, so unique actor parameter count does not change with team size. The sealed 2v2 Share-0/Encoder/Backbone/Macro counts therefore apply to the same architectures at 4v4. What changes at 4v4 is which architectures have sealed specialization outcomes.",
+  "honest_gaps": {
+    "4v4_Share_Backbone_Macro": "NOT BUILT — suite locks Share-Encoder as the only partial-share arm at 4v4/6v6",
+    "2v2_Fully_Shared_z_Delta": "2v2 Fully Shared+z imitation frozen; sealed crossover Δ not yet run",
+    "4v4_distilled_Delta_status": "exploratory n=64 crossover DONE for Share-Encoder and Fully Shared+z; both FLAGGED on Δ_B reversal (no FROZEN_RESULT seal). Confirmatory n=128 not authorized."
+  },
   "2v2": {
-    "share0_reference": {
-      "n_unique": 6947184,
-      "params_M": 6.947,
-      "definition": "two verbatim specialist actors behind z-dispatch (zero tied modules)"
-    },
+    "share0_reference_n_unique": 6947184,
     "rows": [
       {
         "condition": "Share-0",
@@ -20,7 +21,6 @@
         "n_unique": 6947184,
         "reduction_pct": 0.0,
         "imitation_agreement": "1.000 / 1.000",
-        "imitation_note": "exact specialist dispatch (not distilled)",
         "delta_A": {"mean": 0.2891, "lcb95": 0.1641, "ucb95": 0.4062},
         "delta_B": {"mean": 0.2578, "lcb95": 0.1406, "ucb95": 0.3750},
         "gate": "PASS",
@@ -35,8 +35,7 @@
         "delta_A": {"mean": 0.2656, "lcb95": 0.1484, "ucb95": 0.3828},
         "delta_B": {"mean": 0.1641, "lcb95": 0.0469, "ucb95": 0.2812},
         "gate": "PASS",
-        "n": 128,
-        "source": "RUNG1_STUDENT_FROZEN.json / RUNG1_LADDER_EVAL_RESULT.json"
+        "n": 128
       },
       {
         "condition": "Share-Backbone",
@@ -47,8 +46,7 @@
         "delta_A": {"mean": 0.1484, "lcb95": 0.0234, "ucb95": 0.2656},
         "delta_B": {"mean": 0.1406, "lcb95": 0.0156, "ucb95": 0.2656},
         "gate": "PASS",
-        "n": 128,
-        "source": "RUNG2_STUDENT_FROZEN.json / RUNG2_LADDER_EVAL_RESULT.json"
+        "n": 128
       },
       {
         "condition": "Share-Macro",
@@ -60,58 +58,92 @@
         "delta_B": {"mean": 0.1562, "lcb95": 0.0312, "ucb95": 0.2812},
         "gate": "FAIL",
         "n": 128,
-        "source": "RUNG3_STUDENT_FROZEN.json / RUNG3_LADDER_EVAL_RESULT.json",
-        "note": "imitation outside fidelity band; LCB95(Δ_A)=0"
+        "note": "LCB95(Δ_A)=0"
+      },
+      {
+        "condition": "Fully Shared+z",
+        "params_M": 3.457,
+        "n_unique": 3456599,
+        "reduction_pct": 50.2,
+        "imitation_agreement": "0.965 / 0.988",
+        "delta_A": null,
+        "delta_B": null,
+        "gate": "IMITATION ONLY (crossover not yet sealed)",
+        "n": null,
+        "source": "suite_sharing/2v2/fully_shared_z/STUDENT_FROZEN.json"
       }
     ]
   },
   "4v4": {
-    "status": "partial — classic Share-Encoder/Backbone/Macro ladder not run at 4v4",
-    "share0_analogue": {
-      "condition": "Separated (CLOSEST_DEFENDS composite)",
-      "definition": "pi_A_frozen ATTACK + pi_D DEFEND under CLOSEST_DEFENDS k=2 — physically separate networks (zero parameter sharing between roles)",
-      "n_unique": 6929006,
-      "params_M": 6.929,
-      "breakdown": {
-        "pi_A_frozen_actor": 3464375,
-        "pi_D_actor": 3464631,
-        "source_ckpts": [
-          "final_pi_A_specialist_4v4_b3_entity_repair.zip",
-          "final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip"
-        ]
+    "separated_reference_n_unique": 6929006,
+    "allocator": "CLOSEST_DEFENDS(k=2)",
+    "rows": [
+      {
+        "condition": "Separated (Share-0 analogue)",
+        "params_M": 6.929,
+        "n_unique": 6929006,
+        "reduction_pct": 0.0,
+        "imitation_agreement": "— (not distilled)",
+        "delta_A": {"mean": 0.1563, "lcb95": 0.0391, "ucb95": 0.2734},
+        "delta_B": {"mean": 0.4063, "lcb95": 0.2969, "ucb95": 0.5078},
+        "gate": "PASS",
+        "n": 128,
+        "source": "DEFEND_ATTACK_SPLIT confirmatory"
       },
-      "reduction_pct": 0.0,
-      "imitation_agreement": "— (not distilled)",
-      "delta_A": {"mean": 0.15625, "lcb95": 0.0390625, "ucb95": 0.2734375},
-      "delta_B": {"mean": 0.40625, "lcb95": 0.296875, "ucb95": 0.5078125},
-      "gate": "PASS",
-      "n": 128,
-      "source": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
-    },
-    "ladder_params_if_same_architecture": {
-      "note": "If the 2v2 sharing-ladder architectures were rebuilt at 4v4 without entity-repair, unique actor params would match the 2v2 sealed counts exactly (scale-invariant).",
-      "Share-0": {"params_M": 6.947, "reduction_pct": 0.0},
-      "Share-Encoder": {"params_M": 3.613, "reduction_pct": 48.0},
-      "Share-Backbone": {"params_M": 3.509, "reduction_pct": 49.5},
-      "Share-Macro": {"params_M": 3.508, "reduction_pct": 49.5},
-      "delta_and_imitation": "WITHHELD — no sealed 4v4 Share-* crossover or fidelity artifacts"
-    },
-    "fully_shared_z_conditioned": {
-      "condition": "Fully shared π_φ(a|o,z) under CLOSEST_DEFENDS",
-      "status": "SPEC frozen + plumbing READY; training deferred",
-      "params_M_estimate": 3.465,
-      "n_unique_estimate": 3464631,
-      "estimate_basis": "single role-conditioned actor ≈ sealed pi_D footprint (z embedding adds <<0.01M; not yet trained)",
-      "reduction_pct_vs_separated": 50.0,
-      "imitation_agreement": "— (deferred)",
-      "delta_A": null,
-      "delta_B": null,
-      "gate": "NOT RUN",
-      "spec": "FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC.json"
-    }
-  },
-  "headline": {
-    "2v2": "Share-Encoder cuts unique actor params by 48.0% while preserving the joint gate; deeper sharing adds ~1.5 pp more reduction and eventually fails.",
-    "4v4": "Separated CLOSEST_DEFENDS composite PASSes at 6.929M (0% sharing). Fully-shared z baseline targets ~50% reduction vs that separated ceiling; specialization outcome deferred."
+      {
+        "condition": "Share-Encoder",
+        "params_M": 3.637,
+        "n_unique": 3636592,
+        "reduction_pct": 47.5,
+        "imitation_agreement": "0.914 / 0.876",
+        "delta_A": {"mean": 0.359375, "lcb95": 0.1875, "ucb95": 0.515625},
+        "delta_B": {"mean": -0.21875, "lcb95": -0.34375, "ucb95": -0.109375},
+        "gate": "FLAGGED",
+        "n": 64,
+        "arm": "exploratory",
+        "note": "Δ_B reversal; INTEGRITY_REQUIRED (no FROZEN_RESULT). Pole wins: z0@A=0.719 z1@A=0.359 z0@B=0.969 z1@B=0.750",
+        "source": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "rows_csv": "suite_share_encoder_4v4_exploratory_crossover_eval_rows.csv",
+        "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
+        "checkpoint_sha256_prefix": "43e1a003"
+      },
+      {
+        "condition": "Share-Backbone",
+        "params_M": null,
+        "reduction_pct": null,
+        "imitation_agreement": "—",
+        "delta_A": null,
+        "delta_B": null,
+        "gate": "NOT BUILT (suite excludes)",
+        "n": null
+      },
+      {
+        "condition": "Share-Macro",
+        "params_M": null,
+        "reduction_pct": null,
+        "imitation_agreement": "—",
+        "delta_A": null,
+        "delta_B": null,
+        "gate": "NOT BUILT (suite excludes)",
+        "n": null
+      },
+      {
+        "condition": "Fully Shared+z",
+        "params_M": 3.469,
+        "n_unique": 3468503,
+        "reduction_pct": 49.9,
+        "imitation_agreement": "0.895 / 0.856",
+        "delta_A": {"mean": 0.28125, "lcb95": 0.125, "ucb95": 0.4375},
+        "delta_B": {"mean": -0.109375, "lcb95": -0.21875, "ucb95": 0.0},
+        "gate": "FLAGGED",
+        "n": 64,
+        "arm": "exploratory",
+        "note": "Δ_B reversal; INTEGRITY_REQUIRED (no FROZEN_RESULT). Pole wins: z0@A=0.828 z1@A=0.547 z0@B=0.938 z1@B=0.828",
+        "source": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "rows_csv": "suite_fully_shared_z_4v4_exploratory_crossover_eval_rows.csv",
+        "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
+        "checkpoint_sha256_prefix": "dfa82051"
+      }
+    ]
   }
 }

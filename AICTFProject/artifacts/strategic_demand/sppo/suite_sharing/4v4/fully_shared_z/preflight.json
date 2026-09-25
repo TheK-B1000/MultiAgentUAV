@@ -1,0 +1,17 @@
+{
+  "record": "suite fully_shared_z 4v4 preflight",
+  "utc": "2026-09-24T14:25:18Z",
+  "checks": {
+    "dataset_both_poles": true,
+    "teacher_self_kl_zero": true,
+    "z_changes_logits": true,
+    "single_actor_no_second_branch": true,
+    "loss_finite_positive": true,
+    "grad_actor_not_critic": true,
+    "roundtrip": true
+  },
+  "passed": "7/7",
+  "initial_loss": 0.9024947881698608,
+  "unique_actor_params": 3468503,
+  "VERDICT": "PASS"
+}

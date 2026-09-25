@@ -37,6 +37,44 @@ import torch
 __all__ = ["action_log_prob", "anchor_loss", "teacher_agreement"]
 
 
+def _entity_role_kwargs(model, obs) -> dict:
+    """Pass entity/role/assignment tensors only when the model requires them.
+
+    Entity-repair teachers need teammates/enemies in the obs dict; non-entity
+    students must NOT receive those kwargs (fail-closed if they do). Roles and
+    assignment follow the same gate. Keys present in ``obs`` but unused by the
+    model are ignored.
+    """
+    if not isinstance(obs, dict):
+        return {}
+    kw: dict = {}
+    entity_on = (
+        getattr(model, "entity_encoder", None) is not None
+        or bool(getattr(model, "entity_repair_enabled", False))
+    )
+    if entity_on:
+        for k in ("teammates", "teammates_valid", "enemies", "enemies_valid"):
+            if k not in obs:
+                raise ValueError(
+                    f"_masked_heads: model requires entity tensor {k!r} but obs is missing it"
+                )
+            kw[k] = obs[k]
+    if bool(getattr(model, "role_conditioning_enabled", False)):
+        if "roles" not in obs:
+            raise ValueError(
+                "_masked_heads: model requires obs['roles'] (role_conditioning_enabled=True)"
+            )
+        kw["roles"] = obs["roles"]
+    if bool(getattr(model, "assignment_conditioning_enabled", False)):
+        if "assignment" not in obs:
+            raise ValueError(
+                "_masked_heads: model requires obs['assignment'] "
+                "(assignment_conditioning_enabled=True)"
+            )
+        kw["assignment"] = obs["assignment"]
+    return kw
+
+
 def _masked_heads(model, obs, *, z_idx=None):
     """Action heads with the SAME legality masking PPO's own update applies.
 
@@ -54,14 +92,19 @@ def _masked_heads(model, obs, *, z_idx=None):
     Falls back to the unmasked distribution only when the model exposes no
     ``_mask_logits`` or the observation carries no mask, so stub models in unit
     tests still work.
+
+    Entity-repair / role-conditioned models receive the corresponding kwargs
+    extracted from ``obs`` (see ``_entity_role_kwargs``); non-entity students
+    ignore those keys so suite distillation can share one stored obs dict.
     """
+    kw = _entity_role_kwargs(model, obs)
     mask_fn = getattr(model, "_mask_logits", None)
     logits_fn = getattr(model, "policy_logits", None)
     obs_mask = obs.get("mask") if isinstance(obs, dict) else None
     if mask_fn is None or logits_fn is None or obs_mask is None:
-        return model.get_distribution(obs, z_idx=z_idx).heads
+        return model.get_distribution(obs, z_idx=z_idx, **kw).heads
     from rl.custom_ppo.distributions import ActionHead
-    flat = mask_fn(logits_fn(obs, z_idx=z_idx), obs_mask)
+    flat = mask_fn(logits_fn(obs, z_idx=z_idx, **kw), obs_mask)
     return [ActionHead(h) for h in torch.split(flat, list(model.action_dims), dim=-1)]
 
 
