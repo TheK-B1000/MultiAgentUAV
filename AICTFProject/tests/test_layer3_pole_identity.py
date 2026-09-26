@@ -43,10 +43,20 @@ def test_6v6_resolution_is_unchanged_by_the_repair():
         assert dict(resolve_pole_genome(p, 6).overlay) == dict(canon.overlay)
 
 
-def test_uncertified_scale_fails_closed():
-    """2v2 has no certification yet: resolution must refuse, not fall back."""
-    with pytest.raises(PoleAttestationError):
-        resolve_pole_genome("B", 2)
+@pytest.mark.parametrize("n", [2, 4, 6])
+def test_uncertified_scale_fails_closed(n, monkeypatch, tmp_path):
+    """No governing certification: resolution must refuse, not fall back to a default pole.
+
+    Was pinned to the real 2v2 state ("no certification yet") and went stale when 2v2 was
+    certified (5f7c6892). The governing record is forced MISSING instead, at every built
+    scale, so the refusal is tested independently of which scales happen to be certified.
+    """
+    import experiments.pole_attestation as PA
+    monkeypatch.setattr(PA, "governing_certification",
+                        lambda _n: ("MISSING", tmp_path / f"STRATEGIC_DEMAND_{_n}v{_n}_CERTIFICATION.json"))
+    for policy in ("A", "B"):
+        with pytest.raises(PoleAttestationError, match="MISSING, not CERTIFIED"):
+            resolve_pole_genome(policy, n)
 
 
 # ------------------------------------------------ static: real call nodes only ------
