@@ -50,6 +50,10 @@ FORBIDDEN = frozenset({
 })
 OUT = {
     "contract_result": SD / f"{LABEL}_CONTRACT_RESULT.json",
+    # Standing post-run attestation, written by the contract test. Kept separate from
+    # contract_result so a test run can never overwrite the PRE-RUN authorization record
+    # that evidences "contracts passed before any seed was spent".
+    "contract_attestation": SD / f"{LABEL}_CONTRACT_ATTESTATION.json",
     "agent_tick_rows": SD / "action_interface_commitment_mechanism_agent_tick_rows.csv",
     "episode_rows": SD / "action_interface_commitment_mechanism_episode_rows.csv",
     "result": SD / f"{LABEL}_RESULT.json",
@@ -394,16 +398,130 @@ def run_contracts() -> dict[str, Any]:
         "pass": HORIZON == 240 and len(ARMS) == 2,
         "horizon": HORIZON, "arms": list(ARMS),
     }
-    gates["G8_PRIOR_RUN_SEPARATION"] = {
-        "pass": not OUT["result"].exists() and not OUT["run_lock"].exists(),
-        "result_exists": OUT["result"].exists(), "run_lock_exists": OUT["run_lock"].exists(),
-    }
-    all_pass = all(bool(g["pass"]) for g in gates.values())
+    # G8 is a PRE-RUN authorization gate. Asking "does the result not exist?" is only
+    # meaningful before the probe has run; after a legitimate run it can never be true
+    # again, which made the standing contract test permanently red once the result was
+    # sealed. So the mode is resolved explicitly and G8 is marked not-applicable
+    # post-run, while the frozen intent it stands for -- SPEC
+    # #contracts_before_any_source_episode.G8: "uses a fresh Rule-9 exploratory block and
+    # never overwrites prior scale artifacts" -- is checked directly against the sealed
+    # result by G9. The launcher's own refusal (result-or-lock exists => SystemExit) is
+    # deliberately UNCHANGED and remains the thing that prevents a second run.
+    result_exists, lock_exists = OUT["result"].exists(), OUT["run_lock"].exists()
+    mode = "POST_RUN" if result_exists else ("IN_FLIGHT" if lock_exists else "PRE_RUN")
+
+    if mode == "PRE_RUN":
+        gates["G8_PRIOR_RUN_SEPARATION"] = {
+            "pass": True, "applicable": True, "mode": mode,
+            "result_exists": False, "run_lock_exists": False,
+            "detail": "no prior result and no run lock: a run is authorized to start",
+        }
+    elif mode == "IN_FLIGHT":
+        # A lock without a result is either a live run or a crashed one. Either way a
+        # second run must not start, so this stays a hard failure.
+        gates["G8_PRIOR_RUN_SEPARATION"] = {
+            "pass": False, "applicable": True, "mode": mode,
+            "result_exists": False, "run_lock_exists": True,
+            "detail": "run lock present with no sealed result: a run is in flight or "
+                      "crashed mid-run. Do not start another; resolve the lock first.",
+        }
+    else:
+        gates["G8_PRIOR_RUN_SEPARATION"] = {
+            "pass": True, "applicable": False, "mode": mode,
+            "result_exists": True, "run_lock_exists": lock_exists,
+            "detail": "NOT APPLICABLE: the probe has run and its result is sealed, so "
+                      "pre-run separation is no longer a checkable state. Re-running is "
+                      "still blocked by the launcher's own result-or-lock refusal, and "
+                      "the frozen intent is verified by G9 below.",
+        }
+        gates["G9_SEALED_RESULT_PROVENANCE"] = _sealed_result_gate(spec, lock_exists)
+
+    # `applicable: False` gates are reported but never gate the verdict.
+    all_pass = all(bool(g["pass"]) for g in gates.values() if g.get("applicable", True))
     return {
         "record_id": f"{LABEL}_CONTRACT_RESULT", "status": "PASS" if all_pass else "FAIL",
-        "utc": _now(), "device": "cpu", "gpu_used": False,
+        "utc": _now(), "device": "cpu", "gpu_used": False, "mode": mode,
         "gates": gates, "overall_pass": all_pass,
         "spec_sha256": _sha256(SPEC), "protected_sha256": hashes,
+        "mode_semantics": {
+            "PRE_RUN": "no result, no lock -- G8 gates; a run may start",
+            "IN_FLIGHT": "lock without result -- G8 fails; do not start another run",
+            "POST_RUN": "result sealed -- G8 not applicable; G9 verifies the sealed state",
+        },
+    }
+
+
+def _sealed_result_gate(spec: dict[str, Any], lock_exists: bool) -> dict[str, Any]:
+    """POST-RUN replacement for G8: verify the sealed result against the frozen spec.
+
+    Checks what G8's spec text actually promises, which the pre-run existence proxy could
+    only approximate: the seeds spent are exactly the registered Rule-9 block for this
+    experiment id, the sampling matches the frozen spec, every trace is complete, and the
+    run left no lock behind. Prior-scale artifacts being unmodified is already G0.
+    """
+    checks: dict[str, Any] = {}
+    try:
+        result = json.loads(OUT["result"].read_text(encoding="utf-8"))
+    except Exception as exc:                                    # noqa: BLE001
+        return {"pass": False, "applicable": True,
+                "detail": f"sealed result unreadable: {exc}"}
+
+    seeds = [int(s) for s in (result.get("seeds") or [])]
+    sampling = spec.get("sampling") or {}
+    want_n = int(sampling.get("n_seeds", -1))
+    want_class = str(sampling.get("seed_class", ""))
+
+    checks["seed_count_matches_spec"] = {
+        "pass": len(seeds) == want_n == int(result.get("n_seeds", -1)),
+        "spec_n_seeds": want_n, "result_n_seeds": result.get("n_seeds"),
+        "seeds_listed": len(seeds),
+    }
+    checks["arms_match_spec"] = {
+        "pass": list(result.get("arms") or []) == list(ARMS) == list(spec.get("arms") or {}),
+        "result_arms": result.get("arms"), "module_arms": list(ARMS),
+    }
+
+    # The Rule-9 block must be registered to THIS experiment, with the spec's class, and
+    # must cover exactly the seeds the sealed result reports.
+    reg: dict[str, Any] = {"pass": False, "detail": "registry entry not found"}
+    try:
+        from experiments.seed_registry import load as _load_registry      # noqa: PLC0415
+        blocks = [b for b in (_load_registry().get("blocks") or [])
+                  if b.get("experiment_id") == LABEL]
+        if blocks:
+            b = blocks[0]
+            covered = seeds and min(seeds) >= int(b["lo"]) and max(seeds) <= int(b["hi"])
+            reg = {
+                "pass": bool(covered) and str(b.get("seed_class")) == want_class
+                        and int(b.get("n", -1)) == len(seeds),
+                "block": [b.get("lo"), b.get("hi")], "n": b.get("n"),
+                "seed_class": b.get("seed_class"), "status": b.get("status"),
+                "spec_seed_class": want_class,
+                "seeds_within_block": bool(covered),
+            }
+    except ImportError as exc:
+        reg = {"pass": False, "detail": f"seed registry unavailable: {exc}"}
+    checks["seeds_are_registered_rule9_block"] = reg
+
+    manifest = result.get("manifest") or []
+    bad = [m for m in manifest
+           if int(m.get("n_ticks", -1)) != HORIZON or not str(m.get("trace_hash", ""))]
+    checks["traces_complete"] = {
+        "pass": bool(manifest) and not bad,
+        "n_traces": len(manifest), "n_incomplete": len(bad), "horizon": HORIZON,
+    }
+    checks["no_stale_run_lock"] = {
+        "pass": not lock_exists,
+        "detail": "a completed run removes its lock in the finally block",
+    }
+    return {
+        "pass": all(bool(c["pass"]) for c in checks.values()),
+        "applicable": True,
+        "verifies": "SPEC#contracts_before_any_source_episode.G8_PRIOR_RUN_SEPARATION "
+                    "('fresh Rule-9 exploratory block, never overwrites prior scale "
+                    "artifacts') against the sealed result. Prior-artifact protection "
+                    "itself is G0.",
+        "checks": checks,
     }
 
 
@@ -498,8 +616,16 @@ def main() -> int:
     args = ap.parse_args()
     if args.contracts or not args.promote:
         result = run_contracts()
-        OUT["contract_result"].write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-        print(json.dumps({"status": result["status"], "overall_pass": result["overall_pass"]}, indent=2))
+        # Only a PRE_RUN evaluation may write the authorization record: that file is the
+        # evidence that contracts passed BEFORE any seed was spent, and re-running
+        # --contracts after the probe had sealed its result is exactly how that evidence
+        # was destroyed once already (the committed record flipped PASS -> FAIL between
+        # a856469d and af8f76c2). Post-run evaluations go to the attestation file. The
+        # refusal logic below is unchanged.
+        target = OUT["contract_result"] if result["mode"] == "PRE_RUN" else OUT["contract_attestation"]
+        target.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps({"status": result["status"], "overall_pass": result["overall_pass"],
+                          "mode": result["mode"], "wrote": target.name}, indent=2))
         if not result["overall_pass"] or not args.promote:
             return 0 if result["overall_pass"] else 2
     contract = json.loads(OUT["contract_result"].read_text(encoding="utf-8"))
