@@ -1639,13 +1639,20 @@
       "lo": 23000001,
       "hi": 23000192,
       "n": 192,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-26T12:58:48Z"
+      "allocated_utc": "2026-09-26T12:58:48Z",
+      "spent_utc": "2026-09-26T14:53:04Z",
+      "notes": [
+        {
+          "utc": "2026-09-26T14:53:04Z",
+          "note": "2v2 certification sealed SEALED; VERDICT=CERTIFIED"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-26T12:58:48Z",
+  "updated_utc": "2026-09-26T14:53:04Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

@@ -1,0 +1,108 @@
+{
+  "record": "Strategic demand certification 2v2 (v1)",
+  "one_shot": true,
+  "utc": "2026-09-26T14:53:04Z",
+  "implements": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json#CERTIFICATION_PROTOCOL",
+  "governing_spec": "STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json",
+  "variant": "v1",
+  "supersedes": null,
+  "team_size": 2,
+  "device": "cpu",
+  "guard_defenders": 1,
+  "guard_defender_indices": [
+    1
+  ],
+  "seeds": {
+    "base": 23000001,
+    "n": 192,
+    "paired": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STRATEGIC_DEMAND_2V2_CERTIFICATION"
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "derived_from": "SDS_PARENT_OP6",
+      "base_opponent": "OP6",
+      "opening_hold_steps": 0,
+      "pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "min_alive_for_defender": 2,
+      "defender_zone_frac": 0.35,
+      "threat_radius": 0.0
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {},
+      "genome_id": "SDS_PARENT_OP7",
+      "derived_from": "OP7",
+      "base_opponent": "OP7",
+      "opening_hold_steps": 0,
+      "pole_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "min_alive_for_defender": 2,
+      "defender_zone_frac": 0.05,
+      "threat_radius": 12.0,
+      "lock_defender": 28,
+      "lock_attacker": 10,
+      "candidate_genome_id": null,
+      "candidate_source": null
+    }
+  },
+  "cell_win_rates": {
+    "poleA_guard_wr": 0.6041666666666666,
+    "poleA_breach_wr": 0.328125,
+    "poleB_guard_wr": 0.005208333333333333,
+    "poleB_breach_wr": 0.4322916666666667
+  },
+  "PRIMARY": {
+    "delta_A": {
+      "mean": 0.2760416666666667,
+      "lcb95": 0.18229166666666666,
+      "ucb95": 0.3697916666666667,
+      "n": 192
+    },
+    "delta_B": {
+      "mean": 0.4270833333333333,
+      "lcb95": 0.3541666666666667,
+      "ucb95": 0.5,
+      "n": 192
+    }
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "gate": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0",
+  "VERDICT": "CERTIFIED",
+  "VERDICT_vs_status": "VERDICT is the scientific result; 'status' is set by run_state.seal and says whether that result re-derives from the evidence on disk. Downstream stages require CERTIFIED and SEALED.",
+  "POLE_HANDOFF": {
+    "role": "the authoritative pole definition for every downstream stage at this team size; consumed through pole_attestation.resolve_pole_genome, which refuses unless VERDICT is CERTIFIED and the record is SEALED with a passing audit",
+    "team_size": 2,
+    "pole_config_hash": {
+      "A": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "B": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+    },
+    "hash_function": "experiments/pole_attestation.py::pole_config_hash",
+    "downstream_must": "record pole_identity(...) per pole, whose pole_config_hash must equal the value above and whose certification_sha256 is this file's sha256; Layer 3 of attest_cross_scale_identity checks it"
+  },
+  "rows_csv": "strategic_demand_2v2_certification_rows.csv",
+  "tie_reversal_audit": null,
+  "total_episodes": 768,
+  "note_if_not_certified": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json#NORMALIZATION_1_GUARD_PROBE records that multiple defenders CONVERGE on a single threat rather than covering distinct intruders. That stacking is a candidate explanation for a failure at N>2 and must be acknowledged before concluding the poles do not demand different behaviour.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-26T14:53:04Z",
+  "git_sha": "1e0486be81dfa4b99271871808d1123a74a0cfc7",
+  "AUDIT": {
+    "path": "STRATEGIC_DEMAND_2v2_CERTIFICATION_AUDIT.json",
+    "passed": true,
+    "n_checks": 16,
+    "n_gating": 14,
+    "failed_checks": [],
+    "rows_sha256": "bcbc85f8b38484d86ca60b49f539a6703b1727be3c28b3be0e5d4cbac4c25a95"
+  }
+}

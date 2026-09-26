@@ -1,0 +1,175 @@
+{
+  "record": "audit of STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+  "audit_utc": "2026-09-26T14:53:04Z",
+  "git_sha": "1e0486be81dfa4b99271871808d1123a74a0cfc7",
+  "passed": true,
+  "n_checks": 16,
+  "n_gating": 14,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 768,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_ANY_SEED'",
+      "spec": "STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json",
+      "sha256": "2c6430240de1ed036983f9062cd688b2e21759d8a60f4cb7b7fe11ef7aa1d529",
+      "status": "FROZEN_BEFORE_ANY_SEED"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "strategic_demand_2v2_certification_rows.csv (79536 bytes)",
+      "sha256": "bcbc85f8b38484d86ca60b49f539a6703b1727be3c28b3be0e5d4cbac4c25a95"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "768 rows, expected 768",
+      "found": 768,
+      "expected": 768
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "4 cells; 0 with a seed set != frozen block 23000001..23000192 (n=192)",
+      "n_cells": 4,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win takes values [0, 1]",
+      "field": "win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "derived::pole_config_hash",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pole_config_hash == pinned certified hash of the row's pole: 0 disagreement(s) in 768 rows",
+      "field": "pole_config_hash",
+      "definition": "pinned certified hash of the row's pole",
+      "n_disagreements": 0
+    },
+    {
+      "name": "derived::genome_id",
+      "gating": true,
+      "result": "PASS",
+      "detail": "genome_id == certified genome id of the row's pole: 0 disagreement(s) in 768 rows",
+      "field": "genome_id",
+      "definition": "certified genome id of the row's pole",
+      "n_disagreements": 0
+    },
+    {
+      "name": "invariant::verdict_matches_evidence",
+      "gating": true,
+      "result": "PASS",
+      "detail": "rows imply CERTIFIED (LCB95 delta_A +0.1823, delta_B +0.3542); record states CERTIFIED"
+    },
+    {
+      "name": "invariant::handoff_matches_consumer_rebuild",
+      "gating": true,
+      "result": "PASS",
+      "detail": "A: consumer rebuild da87ea17be2f == pinned da87ea17be2f; B: consumer rebuild a6bd288a6bc1 == pinned a6bd288a6bc1"
+    },
+    {
+      "name": "claim::delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.2760416666666667,
+        "lcb95": 0.18229166666666666,
+        "ucb95": 0.3697916666666667
+      },
+      "rederived": {
+        "mean": 0.276041667,
+        "lcb95": 0.182291667,
+        "ucb95": 0.369791667
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.4270833333333333,
+        "lcb95": 0.3541666666666667,
+        "ucb95": 0.5
+      },
+      "rederived": {
+        "mean": 0.427083333,
+        "lcb95": 0.354166667,
+        "ucb95": 0.5
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "split_half::delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.2500 | second half +0.3021",
+      "first_half": 0.25,
+      "second_half": 0.302083,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.4688 | second half +0.3854",
+      "first_half": 0.46875,
+      "second_half": 0.385417,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to STRATEGIC_DEMAND_2V2_CERTIFICATION (status RESERVED) -- same block, no conflict",
+      "seed_class": "sealed_confirmatory",
+      "experiment_id": "STRATEGIC_DEMAND_2V2_CERTIFICATION"
+    }
+  ]
+}
