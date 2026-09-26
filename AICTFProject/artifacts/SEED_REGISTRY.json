@@ -438,6 +438,26 @@
       "backfilled": true
     },
     {
+      "experiment_id": "STRATEGIC_DEMAND_4V4_POLE_B3_3_N192_CERTIFICATION",
+      "purpose": "4v4 Pole B3-3 N192 strategic-demand certification (the pinned legacy certification consumed by pole_attestation)",
+      "seed_class": "sealed_confirmatory",
+      "lo": 12460001,
+      "hi": 12460192,
+      "n": 192,
+      "status": "SPENT",
+      "spec": "4V4_POLE_B3_N192_CERTIFICATION_AMENDMENT.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T17:17:17Z",
+      "spent_utc": "2026-09-26T17:17:17Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [
+        "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "pole_attestation.LEGACY_UNSEALED_CERTIFICATIONS"
+      ],
+      "note": "Spent 2026-09-08 (record utc 2026-09-08T19:36:41Z, VERDICT CERTIFIED) without a registry entry; found during the 2026-09-26 Rule-9 audit. Registered retroactively for collision protection only: historically_pre_registered=false."
+    },
+    {
       "lo": 12800001,
       "hi": 12800064,
       "seed_class": "UNCLASSIFIED",
@@ -923,11 +943,18 @@
       "lo": 19100001,
       "hi": 19100064,
       "n": 64,
-      "status": "RETIRED_CONTAMINATED_BY_ROLE_TRAINING_SEED",
+      "status": "RETIRED",
       "spec": "B_GETFLAG_PRESERVE_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-17T15:00:22Z",
-      "retired_utc": "2026-09-17T20:40:00Z"
+      "retired_utc": "2026-09-17T20:40:00Z",
+      "retirement_reason": "CONTAMINATED_BY_ROLE_TRAINING_SEED",
+      "notes": [
+        {
+          "utc": "2026-09-26T17:19:54Z",
+          "note": "status normalized from the non-schema value RETIRED_CONTAMINATED_BY_ROLE_TRAINING_SEED to RETIRED (registry audit, 2026-09-26); the reason is kept verbatim in retirement_reason, retired_utc unchanged."
+        }
+      ]
     },
     {
       "experiment_id": "RULE_ROLE_4V4_CROSSOVER",
@@ -1664,7 +1691,7 @@
       "allocated_utc": "2026-09-26T16:33:06Z"
     }
   ],
-  "updated_utc": "2026-09-26T16:33:06Z",
+  "updated_utc": "2026-09-26T17:19:54Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
