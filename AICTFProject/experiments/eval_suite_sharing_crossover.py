@@ -33,12 +33,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from experiments import run_state as rs  # noqa: E402
+from experiments import seed_registry as sr  # noqa: E402
 from experiments.eval_hog_psp_v3 import _mean_ci  # noqa: E402
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 N_BOOT, ALPHA, BOOTSTRAP_SEED = 20_000, 0.05, 7
 BASE_KEY = {"A": "OP6", "B": "OP7"}
 SUPPORTED_TEAM_SIZES = (2, 4, 6)
+SEED_CLASS = "exploratory"
 #: CLOSEST_DEFENDS defender count per scale -- the one scale knob besides N.
 K_DEFEND_BY_SCALE = {2: 1, 4: 2, 6: 1}
 
@@ -102,12 +105,31 @@ def main() -> int:
     ROWS_CSV = SD / f"{label.lower()}_crossover_eval_rows.csv"
     PREAUDIT_FLAG = SD / f"{label}_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json"
     LOG = SD / "suite_sharing" / f"{N_AGENTS}v{N_AGENTS}" / args.arm / "crossover_eval.log"
+    EXP_ID = label
+    lo, hi = int(seeds[0]), int(seeds[-1])
 
     ck = ROOT / arm["checkpoint"]
     if not ck.is_file():
         raise SystemExit(f"REFUSING: checkpoint missing: {ck}")
     if _sha(ck) != arm["sha256"]:
         raise SystemExit(f"REFUSING: checkpoint sha mismatch vs SPEC pin")
+
+    ok, msg = sr.check_block(lo, hi, SEED_CLASS, experiment_id=EXP_ID)
+    if not ok:
+        raise SystemExit(f"REFUSING (Rule 9): {msg}")
+    if not any(b["experiment_id"] == EXP_ID for b in sr.load()["blocks"]):
+        if args.dry_run:
+            print(f"  Rule 9: block {lo}..{hi} free; would allocate as {EXP_ID} on real run")
+        else:
+            sr.allocate(
+                EXP_ID, lo, hi, SEED_CLASS,
+                purpose=f"Suite {N_AGENTS}v{N_AGENTS} {args.arm} forced-z crossover (exploratory)",
+                spec=SPEC_PATH.name,
+            )
+            print(f"  Rule 9: allocated {lo}..{hi} -> {EXP_ID} [{SEED_CLASS}/RESERVED]")
+    else:
+        print(f"  Rule 9: {msg}")
+
     if not args.dry_run and (OUT.is_file() or ROWS_CSV.is_file() or PREAUDIT_FLAG.is_file()):
         raise SystemExit(f"REFUSING: an output for label {label!r} already exists; one-shot")
 
@@ -264,6 +286,10 @@ def main() -> int:
         print("\n  --dry-run PASS: nothing written.")
         return 0
 
+    state = rs.RunState(SD, label)
+    state.begin(checkpoint=str(ck), seed_base=seeds[0], n_seeds=len(seeds),
+                team_size=N_AGENTS, arm=args.arm)
+
     LOG.parent.mkdir(parents=True, exist_ok=True)
     cells = [(z, pole, seed) for z in (0, 1) for pole in ("A", "B") for seed in seeds]
     rows = []
@@ -289,6 +315,14 @@ def main() -> int:
     delta_a["passes"] = bool(delta_a["mean"] > 0 and delta_a["lcb95"] > 0)
     delta_b["passes"] = bool(delta_b["mean"] > 0 and delta_b["lcb95"] > 0)
 
+    gate_passes = bool(delta_a["passes"] and delta_b["passes"])
+    print("\n  PRIMARY GATE")
+    print(f"    delta_A {delta_a['mean']:+.4f} [{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]"
+          f" {'PASS' if delta_a['passes'] else 'FAIL'}")
+    print(f"    delta_B {delta_b['mean']:+.4f} [{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]"
+          f" {'PASS' if delta_b['passes'] else 'FAIL'}")
+    print(f"\n  GATE: {'PASS' if gate_passes else 'FAIL'}")
+
     tie_or_reversal = [
         k for k, d in (("delta_A", delta_a), ("delta_B", delta_b)) if d["mean"] <= 0.0
     ]
@@ -300,21 +334,27 @@ def main() -> int:
             "point_estimates": {"delta_A": delta_a["mean"], "delta_B": delta_b["mean"]},
             "raw_rows": str(ROWS_CSV.relative_to(ROOT)),
         }, indent=2), encoding="utf-8")
-        print(f"\n  TIE/REVERSAL on {tie_or_reversal} -- integrity audit REQUIRED.")
+        print(f"  TIE/REVERSAL on {tie_or_reversal} -- integrity FLAG written; still sealing rows.")
         print(f"  -> {PREAUDIT_FLAG}")
-        return 0
 
-    gate_passes = bool(delta_a["passes"] and delta_b["passes"])
-    print("\n  PRIMARY GATE")
-    print(f"    delta_A {delta_a['mean']:+.4f} [{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]"
-          f" {'PASS' if delta_a['passes'] else 'FAIL'}")
-    print(f"    delta_B {delta_b['mean']:+.4f} [{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]"
-          f" {'PASS' if delta_b['passes'] else 'FAIL'}")
-    print(f"\n  GATE: {'PASS' if gate_passes else 'FAIL'}")
-
-    OUT.write_text(json.dumps({
+    ck_sha = _sha(ck)
+    claims = [
+        rs.Claim(name="delta_A", recorded={k: delta_a[k] for k in ("mean", "lcb95", "ucb95")},
+                 minuend={"z": 0, "pole": "A"}, subtrahend={"z": 1, "pole": "A"}, value_field="win"),
+        rs.Claim(name="delta_B", recorded={k: delta_b[k] for k in ("mean", "lcb95", "ucb95")},
+                 minuend={"z": 1, "pole": "B"}, subtrahend={"z": 0, "pole": "B"}, value_field="win"),
+    ]
+    plan = rs.AuditPlan(
+        rows_csv=ROWS_CSV, expected_rows=len(rows), expected_seeds=seeds,
+        group_by=("z", "pole"), seed_field="seed",
+        int_fields=("z", "seed", "blue", "red", "margin"), binary_fields=("win",), derived={},
+        checkpoints={"student": (ck, ck_sha)}, spec_path=SPEC_PATH, claims=claims,
+        n_boot=N_BOOT, alpha=ALPHA, rng_seed=BOOTSTRAP_SEED,
+        seed_class=SEED_CLASS, experiment_id=EXP_ID,
+    )
+    # status is owned by seal(); do not set it here. Sealed != gate PASS.
+    payload = {
         "record": f"{label} crossover EVAL",
-        "status": "FROZEN_RESULT",
         "one_shot": True,
         "utc": _now(),
         "arm": "EXPLORATORY",
@@ -324,9 +364,12 @@ def main() -> int:
         "team_size": N_AGENTS,
         "device": device,
         "checkpoint": str(ck.relative_to(ROOT)),
-        "checkpoint_sha256": _sha(ck),
-        "seeds": {"block": [seeds[0], seeds[-1]], "n": len(seeds),
-                  "shared_across_z_and_poles": True},
+        "checkpoint_sha256": ck_sha,
+        "seeds": {
+            "block": [seeds[0], seeds[-1]], "n": len(seeds),
+            "shared_across_z_and_poles": True,
+            "seed_class": SEED_CLASS, "registry_experiment_id": EXP_ID,
+        },
         "poles": {
             p: {
                 "base": BASE_KEY[p],
@@ -344,8 +387,13 @@ def main() -> int:
         "no_model_selection_occurred": True,
         "total_episodes": len(rows),
         "claim_boundary": "EXPLORATORY n=64; not confirmatory; not PAPER-FAITHFUL",
-    }, indent=2), encoding="utf-8")
-    print(f"\n  -> {OUT}")
+        "integrity_flag": (str(PREAUDIT_FLAG.relative_to(ROOT)) if tie_or_reversal else None),
+    }
+    rs.seal(out_path=OUT, payload=payload, plan=plan, state=state, strict=False)
+    sealed = json.loads(OUT.read_text(encoding="utf-8"))
+    sr.set_status(EXP_ID, "SPENT",
+                  note=f"sealed {sealed.get('status')}; gate_passes={gate_passes}")
+    print(f"\n  -> {OUT} ({sealed.get('status')})")
     return 0 if gate_passes else 1
 
 

@@ -39,6 +39,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from experiments import run_state as rs  # noqa: E402
+from experiments import seed_registry as sr  # noqa: E402
 from experiments.eval_hog_psp_v3 import _mean_ci  # noqa: E402
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
@@ -102,6 +104,8 @@ def main() -> int:
     N = int(args.team_size)
     label = str(args.label)
     seeds = list(range(int(args.seed_base), int(args.seed_base) + int(args.n_seeds)))
+    EXP_ID = f"{label}_SPECIALIST_CROSSOVER"
+    lo, hi = int(seeds[0]), int(seeds[-1])
 
     OUT = SD / f"{label}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
     ROWS_CSV = SD / f"{label.lower()}_specialist_crossover_eval_rows.csv"
@@ -114,6 +118,25 @@ def main() -> int:
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
     if not str(spec.get("status", "")).startswith("FROZEN"):
         raise SystemExit(f"REFUSING: spec not frozen: {spec.get('status')!r}")
+
+    seed_class = (
+        "sealed_confirmatory" if bool(spec.get("confirmatory", False)) else "exploratory"
+    )
+    ok, msg = sr.check_block(lo, hi, seed_class, experiment_id=EXP_ID)
+    if not ok:
+        raise SystemExit(f"REFUSING (Rule 9): {msg}")
+    if not any(b["experiment_id"] == EXP_ID for b in sr.load()["blocks"]):
+        if args.dry_run:
+            print(f"  Rule 9: block {lo}..{hi} free; would allocate as {EXP_ID} on real run")
+        else:
+            sr.allocate(
+                EXP_ID, lo, hi, seed_class,
+                purpose=f"{label} specialist crossover eval ({N}v{N})",
+                spec=spec_path.name,
+            )
+            print(f"  Rule 9: allocated {lo}..{hi} -> {EXP_ID} [{seed_class}/RESERVED]")
+    else:
+        print(f"  Rule 9: {msg}")
 
     paths = {}
     for name, p in (("pi_A", args.pi_a_path), ("pi_B", args.pi_b_path)):
@@ -378,6 +401,10 @@ def main() -> int:
 
     from experiments.tqdm_loop import set_postfix, tqdm_iter
 
+    state = rs.RunState(SD, EXP_ID)
+    state.begin(seed_base=seeds[0], n_seeds=len(seeds), team_size=N,
+                pi_a=str(paths["pi_A"]), pi_b=str(paths["pi_B"]))
+
     cells = [(name, pole, seed) for name in POLICIES for pole in ("A", "B") for seed in seeds]
     rows = []
     bar = tqdm_iter(cells, desc=f"{label} crossover", unit="ep")
@@ -404,6 +431,14 @@ def main() -> int:
     delta_a["passes"] = bool(delta_a["mean"] > 0 and delta_a["lcb95"] > 0)
     delta_b["passes"] = bool(delta_b["mean"] > 0 and delta_b["lcb95"] > 0)
 
+    gate_passes = bool(delta_a["passes"] and delta_b["passes"])
+    print("\n  PRIMARY GATE")
+    print(f"    delta_A_spec {delta_a['mean']:+.4f} [{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]"
+          f" {'PASS' if delta_a['passes'] else 'FAIL'}")
+    print(f"    delta_B_spec {delta_b['mean']:+.4f} [{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]"
+          f" {'PASS' if delta_b['passes'] else 'FAIL'}")
+    print(f"\n  GATE: {'PASS' if gate_passes else 'FAIL'}")
+
     tie_or_reversal = [k for k, d in (("delta_A", delta_a), ("delta_B", delta_b))
                        if d["mean"] <= 0.0]
     if tie_or_reversal:
@@ -413,29 +448,42 @@ def main() -> int:
             "implements": f"{spec_path.name}#EVALUATION.tie_or_reversal",
             "triggered_by": tie_or_reversal,
             "point_estimates": {"delta_A": delta_a["mean"], "delta_B": delta_b["mean"]},
-            "rule": "requires a row-level integrity audit before any verdict-bearing result. "
-                    f"Raw rows: {ROWS_CSV.name}.",
+            "rule": "requires a row-level integrity audit before any scientific interpretation. "
+                    f"Raw rows: {ROWS_CSV.name}. Sealing still proceeds for immutability.",
         }, indent=2), encoding="utf-8")
-        print(f"\n  TIE/REVERSAL on {tie_or_reversal} -- integrity audit REQUIRED.")
+        print(f"  TIE/REVERSAL on {tie_or_reversal} -- integrity FLAG written; still sealing rows.")
         print(f"  -> {PREAUDIT_FLAG}")
-        return 0
 
-    gate_passes = bool(delta_a["passes"] and delta_b["passes"])
-    print("\n  PRIMARY GATE")
-    print(f"    delta_A_spec {delta_a['mean']:+.4f} [{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]"
-          f" {'PASS' if delta_a['passes'] else 'FAIL'}")
-    print(f"    delta_B_spec {delta_b['mean']:+.4f} [{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]"
-          f" {'PASS' if delta_b['passes'] else 'FAIL'}")
-    print(f"\n  GATE: {'PASS' if gate_passes else 'FAIL'}")
-
-    OUT.write_text(json.dumps({
-        "record": f"{label} specialist crossover EVAL", "status": "FROZEN_RESULT",
+    claims = [
+        rs.Claim(name="delta_A", recorded={k: delta_a[k] for k in ("mean", "lcb95", "ucb95")},
+                 minuend={"policy": "pi_A", "pole": "A"},
+                 subtrahend={"policy": "pi_B", "pole": "A"}, value_field="win"),
+        rs.Claim(name="delta_B", recorded={k: delta_b[k] for k in ("mean", "lcb95", "ucb95")},
+                 minuend={"policy": "pi_B", "pole": "B"},
+                 subtrahend={"policy": "pi_A", "pole": "B"}, value_field="win"),
+    ]
+    plan = rs.AuditPlan(
+        rows_csv=ROWS_CSV, expected_rows=len(rows), expected_seeds=seeds,
+        group_by=("policy", "pole"), seed_field="seed",
+        int_fields=("seed", "blue", "red", "margin"), binary_fields=("win",), derived={},
+        checkpoints={n: (paths[n], _sha(paths[n])) for n in POLICIES},
+        spec_path=spec_path, claims=claims,
+        n_boot=N_BOOT, alpha=ALPHA, rng_seed=BOOTSTRAP_SEED,
+        seed_class=seed_class, experiment_id=EXP_ID,
+    )
+    # status is owned by seal(); do not set it here. Sealed != gate PASS.
+    payload = {
+        "record": f"{label} specialist crossover EVAL",
         "one_shot": True, "utc": _now(),
         "arm": spec.get("arm", "n/a"), "confirmatory": bool(spec.get("confirmatory", False)),
         "implements": f"{spec_path.name}#EVALUATION",
         "team_size": N, "device": device,
         "role_fixed_for_episode": bool(args.role_fixed_for_episode),
-        "seeds": {"block": [seeds[0], seeds[-1]], "n": len(seeds), "shared_across_policies": True},
+        "seeds": {
+            "block": [seeds[0], seeds[-1]], "n": len(seeds),
+            "shared_across_policies": True,
+            "seed_class": seed_class, "registry_experiment_id": EXP_ID,
+        },
         "poles": {p: {"base": BASE_KEY[p],
                       "overlay": dict((pole_A_genome(N) if p == "A" else pole_b_resolved).overlay or {}),
                       "candidate_genome_id": (pole_b_resolved.genome_id
@@ -455,8 +503,13 @@ def main() -> int:
         "bootstrap": {"procedure": "paired percentile bootstrap over evaluation seeds",
                       "samples": N_BOOT, "alpha": ALPHA, "rng_seed": BOOTSTRAP_SEED},
         "no_model_selection_occurred": True, "total_episodes": len(rows),
-    }, indent=2), encoding="utf-8")
-    print(f"\n  -> {OUT}")
+        "integrity_flag": (str(PREAUDIT_FLAG.relative_to(ROOT)) if tie_or_reversal else None),
+    }
+    rs.seal(out_path=OUT, payload=payload, plan=plan, state=state, strict=False)
+    sealed = json.loads(OUT.read_text(encoding="utf-8"))
+    sr.set_status(EXP_ID, "SPENT",
+                  note=f"sealed {sealed.get('status')}; gate_passes={gate_passes}")
+    print(f"\n  -> {OUT} ({sealed.get('status')})")
     return 0 if gate_passes else 1
 
 

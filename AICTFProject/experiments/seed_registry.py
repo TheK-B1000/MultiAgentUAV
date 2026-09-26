@@ -166,6 +166,61 @@ def allocate(experiment_id: str, lo: int, hi: int, seed_class: str, purpose: str
     return entry
 
 
+def reconcile_spent(
+    experiment_id: str,
+    lo: int,
+    hi: int,
+    seed_class: str,
+    purpose: str,
+    *,
+    spec: str | None = None,
+    cited_by: list[str] | None = None,
+    note: str | None = None,
+    arm: str | None = None,
+    registration_origin: str = "RETROACTIVE_RECONCILIATION",
+    historically_pre_registered: bool = False,
+) -> dict:
+    """Record a block already spent without prior reservation.
+
+    Collision protection going forward only. Does **not** pretend Rule 9 was
+    followed originally (``historically_pre_registered=false`` by default).
+    """
+    if seed_class not in CLASSES:
+        raise SystemExit(f"unknown seed class {seed_class!r}; expected one of {CLASSES}")
+    if lo > hi:
+        raise SystemExit(f"malformed block {lo}..{hi}")
+    doc = load()
+    if any(b["experiment_id"] == experiment_id for b in doc["blocks"]):
+        raise SystemExit(f"REFUSING: experiment_id {experiment_id!r} already registered")
+    ok, msg = check_block(lo, hi, seed_class, experiment_id=experiment_id)
+    if not ok:
+        raise SystemExit(f"REFUSING to reconcile: {msg}")
+    entry: dict[str, Any] = {
+        "experiment_id": experiment_id,
+        "purpose": purpose,
+        "seed_class": seed_class,
+        "lo": lo,
+        "hi": hi,
+        "n": hi - lo + 1,
+        "status": "SPENT",
+        "spec": spec,
+        "subdivides": None,
+        "allocated_utc": _now(),
+        "spent_utc": _now(),
+        "registration_origin": registration_origin,
+        "historically_pre_registered": historically_pre_registered,
+        "cited_by": list(cited_by or []),
+    }
+    if arm is not None:
+        entry["arm"] = arm
+    if note:
+        entry["note"] = note
+    doc["blocks"].append(entry)
+    doc["blocks"].sort(key=lambda b: (b["lo"], b["hi"]))
+    save(doc)
+    return entry
+
+
 def set_status(experiment_id: str, status: str, note: str | None = None) -> dict:
     if status not in STATUSES:
         raise SystemExit(f"unknown status {status!r}; expected {STATUSES}")

@@ -1497,6 +1497,87 @@
       "allocated_utc": "2026-09-23T21:43:06Z"
     },
     {
+      "experiment_id": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY",
+      "purpose": "Suite 4v4 Fully Shared+z forced-z crossover (exploratory); spent without prior registry reservation",
+      "seed_class": "exploratory",
+      "lo": 22510001,
+      "hi": 22510064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T05:34:47Z",
+      "spent_utc": "2026-09-26T05:34:47Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [
+        "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "suite_fully_shared_z_4v4_exploratory_crossover_eval_rows.csv"
+      ],
+      "arm": "fully_shared",
+      "note": "FLAGGED on delta_B (mean<=0). Rows on disk; RESULT used the pre-Rule-7 hand-written path. Retroactive reconciliation only."
+    },
+    {
+      "experiment_id": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY",
+      "purpose": "Suite 4v4 Share-Encoder forced-z crossover (exploratory); spent without prior registry reservation",
+      "seed_class": "exploratory",
+      "lo": 22511001,
+      "hi": 22511064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T05:34:47Z",
+      "spent_utc": "2026-09-26T05:34:47Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [
+        "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "suite_share_encoder_4v4_exploratory_crossover_eval_rows.csv"
+      ],
+      "arm": "share_encoder",
+      "note": "FLAGGED on delta_B (mean<=0). Rows on disk; pre-Rule-7 seal path. Retroactive reconciliation only."
+    },
+    {
+      "experiment_id": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY",
+      "purpose": "Suite 4v4 Share-Backbone forced-z crossover (exploratory); spent without prior registry reservation",
+      "seed_class": "exploratory",
+      "lo": 22513001,
+      "hi": 22513064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T05:34:47Z",
+      "spent_utc": "2026-09-26T05:34:47Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [
+        "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "suite_share_backbone_4v4_exploratory_crossover_eval_rows.csv"
+      ],
+      "arm": "share_backbone",
+      "note": "FLAGGED on delta_B (mean<=0). Rows on disk; pre-Rule-7 seal path. Retroactive reconciliation only."
+    },
+    {
+      "experiment_id": "SUITE_SHARE_MACRO_4V4_EXPLORATORY",
+      "purpose": "Suite 4v4 Share-Macro forced-z crossover (exploratory); spent without prior registry reservation",
+      "seed_class": "exploratory",
+      "lo": 22514001,
+      "hi": 22514064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T05:34:47Z",
+      "spent_utc": "2026-09-26T05:34:47Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [],
+      "arm": "share_macro",
+      "note": "Block committed to in-flight eval_suite_sharing_crossover_4v4.py --arm share_macro at reconciliation time. Rows/RESULT pending; will seal via run_state.seal after finish. Retroactive reconciliation only."
+    },
+    {
       "experiment_id": "SCALE_6V6_SPLIT_DEFEND_K1_V1_TRAINING",
       "purpose": "6v6 200k CLOSEST_DEFENDS(k=1) split after entity-repair foundation (school PC locked pipeline)",
       "seed_class": "exploratory",
@@ -1545,7 +1626,7 @@
       "allocated_utc": "2026-09-26T01:00:42Z"
     }
   ],
-  "updated_utc": "2026-09-26T01:00:42Z",
+  "updated_utc": "2026-09-26T05:34:47Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
