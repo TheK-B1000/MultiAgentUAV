@@ -16,7 +16,25 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-26 — **4v4 SUITE DISTILLED ARMS INVALIDATED (wrong Pole B); pole identity
+> **Last updated:** 2026-09-26 — **Pole certification is now a SEALED downstream handoff; fresh 2v2
+> certification ready to launch.** The certification record is written through `run_state.seal`
+> (Rule 7); `status` (SEALED/AUDIT_FAILED) is separate from the scientific `VERDICT`
+> (CERTIFIED/NOT_CERTIFIED), and downstream pole resolution requires **both** CERTIFIED and a SEALED
+> record with a passing audit. Legacy 4v4/6v6 governing records (hand-written, pre-seal) are trusted only
+> byte-for-byte against pinned hashes. The seal verifies seed block/count, the registered Rule-9 block,
+> episode completeness, per-episode pole identity, the frozen spec, re-derived statistics, the verdict, and
+> that the handoff hashes equal what downstream consumption rebuilds. `run_state.AuditPlan` gained a narrow
+> additive `invariants` hook for the last two (whole-row-set properties); negative controls — faked stats,
+> tampered row pole hash, missing seed, tampered handoff, tampered overlay, flipped verdict — each land in
+> AUDIT_FAILED, and a mutation check shows three of them seal cleanly without the hook. A bug found on the
+> way: `PoleAttestationError` subclasses `SystemExit`, so an invariant raising it escaped and would have
+> aborted the seal after all episodes with nothing recorded; the hook now catches it. Spec:
+> `STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json` (amended before any seed; launch command pinned); block
+> `23000001–23000192` reserved, **not yet spent**.
+>
+> ---
+>
+> Prior — 2026-09-26 — **4v4 SUITE DISTILLED ARMS INVALIDATED (wrong Pole B); pole identity
 > repaired and made a first-class invariant (Layer 3).** Found while preparing the 2v2 certification:
 > the 4v4 suite distillation dataset and all four student crossovers ran on **plain OP7**
 > (`pole_B_genome(4)`, hash `60324f4a…`) — the pole that failed 4v4 certification — while every frozen

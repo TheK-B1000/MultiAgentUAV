@@ -177,6 +177,12 @@ class AuditPlan:
     int_fields: Sequence[str] = ()              # parsed as int when reading rows
     binary_fields: Sequence[str] = ()           # must contain only {0, 1}
     derived: dict[str, Derived] = field(default_factory=dict)
+    #: Gating checks over the WHOLE row set, for properties no single row can express
+    #: (e.g. a certification verdict is a function of every seed; a pole handoff must match
+    #: what downstream resolution will rebuild). name -> fn(rows) -> (passed, detail).
+    #: Empty by default, so every existing sealer is unchanged. An invariant that raises
+    #: FAILS -- it is never skipped.
+    invariants: dict[str, Callable[[list[dict]], tuple[bool, str]]] = field(default_factory=dict)
     checkpoints: dict[str, tuple[Path, str]] = field(default_factory=dict)  # name -> (path, sha)
     spec_path: Path | None = None
     claims: Sequence[Claim] = ()
@@ -312,6 +318,23 @@ def run_audit(plan: AuditPlan) -> dict:
         add(f"derived::{f}", True, not bad,
             f"{f} == {rule.desc}: {len(bad)} disagreement(s) in {len(rows)} rows",
             field=f, definition=rule.desc, n_disagreements=len(bad))
+
+    # 6b -- caller-declared invariants over the whole row set. Fail closed: an
+    #       invariant that raises, or returns anything but (bool, str), fails.
+    for name, fn in plan.invariants.items():
+        try:
+            res = fn(rows)
+            if not (isinstance(res, tuple) and len(res) == 2 and isinstance(res[0], bool)):
+                raise TypeError(f"invariant must return (bool, str), got {res!r}")
+            ok, detail = res
+        # SystemExit is caught too: fail-closed guards in this project (e.g.
+        # pole_attestation.PoleAttestationError) subclass SystemExit so they end a CLI run,
+        # but INSIDE an invariant they are a failed check. Letting one escape would abort
+        # the seal with no record written -- the run's evidence unsealed and its outcome
+        # unrecorded. KeyboardInterrupt still propagates.
+        except (Exception, SystemExit) as exc:                  # noqa: BLE001 -- report, don't crash
+            ok, detail = False, f"invariant raised {type(exc).__name__}: {exc}"
+        add(f"invariant::{name}", True, ok, str(detail))
 
     # 7 -- the checkpoints on disk are still the ones the spec froze
     for name, (p, want_sha) in plan.checkpoints.items():

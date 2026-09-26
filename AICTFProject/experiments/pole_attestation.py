@@ -154,6 +154,94 @@ def governing_certification(n: int) -> tuple[str, Path]:
 
 
 # ------------------------------------------------------ certified resolution --
+#: Governing certification records written BEFORE certification went through
+#: run_state.seal (hand-written status "FROZEN_RESULT", no AUDIT block). They are trusted
+#: only while their content is byte-identical to these LF-normalized sha256 pins -- a
+#: legacy record cannot be edited into a different pole. Every NEW governing record must be
+#: SEALED with a passing audit; this list must never grow.
+LEGACY_UNSEALED_CERTIFICATIONS = {
+    "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json":
+        "236db1c24b2a212b7618b972cfa265f242ae6dad5106ac9de71f8bee0163d1cb",
+    "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json":
+        "7996126d831ca6506dd8e5d5afac79bdc42f21b9733873430e6c771b261adf6b",
+}
+
+
+def _lf_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def assert_certification_trustworthy(cert_path: Path) -> str:
+    """The governing record must be SEALED with a passing audit, or a pinned legacy record.
+
+    A CERTIFIED verdict is a scientific claim; SEALED is proof the claim re-derives from the
+    evidence on disk. Accepting VERDICT alone would let a hand-written or audit-failed record
+    define the poles every downstream stage consumes. Returns how trust was established.
+    """
+    cert_path = Path(cert_path)
+    rec = json.loads(cert_path.read_text(encoding="utf-8"))
+    audit = rec.get("AUDIT") if isinstance(rec.get("AUDIT"), dict) else {}
+    if rec.get("status") == "SEALED" and audit.get("passed") is True:
+        return "SEALED"
+    pinned = LEGACY_UNSEALED_CERTIFICATIONS.get(cert_path.name)
+    if pinned is not None:
+        got = _lf_sha256(cert_path)
+        if got == pinned:
+            return "LEGACY_PINNED"
+        raise PoleAttestationError(
+            f"FAIL-CLOSED: legacy certification {cert_path.name} has changed "
+            f"(content sha256 {got[:12]}... != pinned {pinned[:12]}...). A legacy record "
+            f"is trusted only byte-for-byte.")
+    raise PoleAttestationError(
+        f"FAIL-CLOSED: {cert_path.name} is not a trustworthy certification: status="
+        f"{rec.get('status')!r}, audit passed={audit.get('passed')!r}. A new governing record "
+        f"must be written through run_state.seal and its audit must pass.")
+
+
+def rebuild_certified_genome(policy: str, n: int, pole_spec: dict, *, source_name: str = ""):
+    """Rebuild the genome a certification's poles[policy] block certified.
+
+    Shared by the downstream consumer (certified_pole_genome) and by the certification
+    writer's pre-seal handoff check, so both rebuild a pole with IDENTICAL code. When the
+    block names a candidate genome file (candidate_source), that exact file is loaded -- the
+    bytes training loaded, including fields such as opening_hold_steps that an overlay block
+    does not carry. Otherwise the canonical size-normalized genome is used. The rebuilt
+    overlay must equal the block's overlay exactly, or this fails closed.
+    """
+    from experiments.opponent_spec import (
+        _with_full_team_defender_gate, pole_A_genome, pole_B_genome,
+    )
+    from experiments.sds_genome import SDSGenome
+
+    where = source_name or "certification"
+    want_overlay = _canonical_overlay(pole_spec.get("overlay"))
+    src = pole_spec.get("candidate_source")
+    if src:
+        p = Path(src)
+        if not p.is_absolute():
+            p = Path(__file__).resolve().parents[1] / p
+        if not p.is_file():
+            raise PoleAttestationError(
+                f"FAIL-CLOSED: {where} certified pole {policy} from candidate genome "
+                f"{src}, which is not on disk. The certified pole cannot be rebuilt.")
+        genome = _with_full_team_defender_gate(
+            SDSGenome.from_dict(json.loads(p.read_text(encoding="utf-8"))), int(n))
+        want_id = pole_spec.get("candidate_genome_id")
+        if want_id and genome.genome_id != want_id:
+            raise PoleAttestationError(
+                f"FAIL-CLOSED: {src} holds genome {genome.genome_id!r} but {where} "
+                f"certified {want_id!r}.")
+    else:
+        genome = pole_A_genome(int(n)) if str(policy) == "A" else pole_B_genome(int(n))
+
+    got = _canonical_overlay(genome.overlay)
+    if got != want_overlay:
+        raise PoleAttestationError(
+            f"FAIL-CLOSED: pole {policy} at {n}v{n} resolves to overlay {got}, but "
+            f"{where} certified {want_overlay}. Refusing to run on an uncertified pole.")
+    return genome
+
+
 def certified_pole_genome(policy: str, n: int):
     """THE single source of a pole's definition: the governing certification for ``n``.
 
@@ -161,50 +249,25 @@ def certified_pole_genome(policy: str, n: int):
     suite sharing evaluator -- resolves poles through here (via ``resolve_pole_genome``).
     Before 2026-09-26 the fallback was ``pole_B_genome(n)``, which at 4v4 is plain OP7: the
     pole that FAILED certification. Stages that passed ``--pole-b-genome-json`` got the
-    certified B3-3; stages that could not (the suite collector and sharing evaluator had no
-    such argument) silently got plain OP7 while their frozen specs named B3-3
-    (SUITE_4V4_POLE_B_IDENTITY_AUDIT.json). A pole is now whatever the certification
-    certified, or the resolution fails closed.
+    certified B3-3; stages that could not silently got plain OP7 while their frozen specs
+    named B3-3 (SUITE_4V4_POLE_B_IDENTITY_AUDIT.json).
 
-    When the certified pole came from a candidate genome file (``candidate_source``), that
-    exact file is loaded -- the same bytes training loaded, including fields such as
-    ``opening_hold_steps`` that the certification's overlay block does not carry.
-    Otherwise the canonical size-normalized genome is used. Either way the resolved
-    overlay must equal the certified overlay exactly, or this fails closed.
+    Three gates, all fail-closed: the governing record's VERDICT is CERTIFIED (a scientific
+    verdict); the record itself is trustworthy -- SEALED with a passing audit, or a pinned
+    legacy record (assert_certification_trustworthy); and the rebuilt pole's overlay equals
+    the certified one (rebuild_certified_genome).
     """
-    from experiments.opponent_spec import (
-        _with_full_team_defender_gate, pole_A_genome, pole_B_genome,
-    )
-    from experiments.sds_genome import SDSGenome
-
-    _verdict, cert_path = governing_certification(int(n))
-    cert = certified_pole(cert_path, str(policy), int(n))   # fails closed if absent/unreadable
-    src = cert.get("candidate_source")
-    if src:
-        p = Path(src)
-        if not p.is_absolute():
-            p = Path(__file__).resolve().parents[1] / p
-        if not p.is_file():
-            raise PoleAttestationError(
-                f"FAIL-CLOSED: {cert_path.name} certified pole {policy} from candidate genome "
-                f"{src}, which is not on disk. The certified pole cannot be rebuilt.")
-        genome = _with_full_team_defender_gate(
-            SDSGenome.from_dict(json.loads(p.read_text(encoding="utf-8"))), int(n))
-        want_id = cert.get("candidate_genome_id")
-        if want_id and genome.genome_id != want_id:
-            raise PoleAttestationError(
-                f"FAIL-CLOSED: {src} holds genome {genome.genome_id!r} but {cert_path.name} "
-                f"certified {want_id!r}.")
-    else:
-        genome = pole_A_genome(int(n)) if str(policy) == "A" else pole_B_genome(int(n))
-
-    got = _canonical_overlay(genome.overlay)
-    if got != cert["overlay"]:
+    verdict, cert_path = governing_certification(int(n))
+    # Only a CERTIFIED record may define a pole: otherwise a failed certification would hand
+    # its poles to every downstream stage, and "no valid certification => no canonical
+    # experiment" would not hold.
+    if str(verdict) != "CERTIFIED":
         raise PoleAttestationError(
-            f"FAIL-CLOSED: pole {policy} at {n}v{n} resolves to overlay {got}, but "
-            f"{cert_path.name} certified {cert['overlay']}. Refusing to run on an "
-            f"uncertified pole.")
-    return genome
+            f"FAIL-CLOSED: the governing record for {n}v{n} ({cert_path.name}) is "
+            f"{verdict}, not CERTIFIED. Only a CERTIFIED record can define a pole.")
+    assert_certification_trustworthy(cert_path)
+    cert = certified_pole(cert_path, str(policy), int(n))   # fails closed if absent/unreadable
+    return rebuild_certified_genome(policy, n, cert, source_name=cert_path.name)
 
 
 def pole_identity(policy: str, n: int, genome) -> dict:

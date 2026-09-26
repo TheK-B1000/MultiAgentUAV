@@ -1631,9 +1631,21 @@
           "note": "Superseded natural-setup 2v2 Fully Shared+z crossover, stopped 2026-09-26 by PI directive (one methodology across scales). 82 episodes were run on seeds 22900001..22900082 before the stop, so the block is partially spent: RETIRED, never RESERVED/free. No result sealed; never a paper row. Partial rows kept in suite_sharing/2v2/fully_shared_z/crossover_eval_PARTIAL.jsonl."
         }
       ]
+    },
+    {
+      "experiment_id": "STRATEGIC_DEMAND_2V2_CERTIFICATION",
+      "purpose": "Fresh standardized 2v2 pole certification (scripted GUARD/BREACH, n=192), one-shot; its record is the 2v2 pole handoff artifact",
+      "seed_class": "sealed_confirmatory",
+      "lo": 23000001,
+      "hi": 23000192,
+      "n": 192,
+      "status": "RESERVED",
+      "spec": "STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T12:58:48Z"
     }
   ],
-  "updated_utc": "2026-09-26T11:25:17Z",
+  "updated_utc": "2026-09-26T12:58:48Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

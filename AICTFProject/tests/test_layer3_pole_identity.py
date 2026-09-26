@@ -150,11 +150,68 @@ def test_certified_resolver_refuses_when_candidate_file_disagrees_with_cert(tmp_
                                       "overlay": {"lock_defender": 3, "enable_2v1": True},
                                       "opening_hold_steps": 0}), encoding="utf-8")
     real["poles"]["B"]["candidate_source"] = str(bad_genome)
-    cert = tmp_path / "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json"
-    cert.write_text(json.dumps(real), encoding="utf-8")
-    monkeypatch.setattr(P, "governing_certification", lambda n: ("CERTIFIED", cert))
+    # Drive the shared rebuild directly: since the 2026-09-26 trust gate, a tampered record
+    # under the legacy 4v4 filename is refused EARLIER (content != pin), which would hide
+    # this overlay check. The downstream consumer and the certification writer both rebuild
+    # through this function.
     with pytest.raises(PoleAttestationError, match="certified"):
-        certified_pole_genome("B", 4)
+        P.rebuild_certified_genome("B", 4, real["poles"]["B"], source_name="tampered cert")
+
+
+# ------------------------------------------------ trust gate: SEALED or pinned legacy
+def _cert_like(tmp_path, name, **fields):
+    import experiments.pole_attestation as P
+    base = json.loads((Path(P.__file__).resolve().parents[1] / "artifacts/strategic_demand/sppo/"
+                       "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json").read_text(encoding="utf-8"))
+    base.update(fields)
+    p = tmp_path / name
+    p.write_text(json.dumps(base), encoding="utf-8")
+    return p
+
+
+def test_hand_written_frozen_result_is_not_trusted(tmp_path):
+    """A new record that merely SAYS CERTIFIED, without a passing seal, must be refused."""
+    from experiments.pole_attestation import assert_certification_trustworthy
+    p = _cert_like(tmp_path, "STRATEGIC_DEMAND_2v2_CERTIFICATION.json", status="FROZEN_RESULT")
+    with pytest.raises(PoleAttestationError, match="run_state.seal"):
+        assert_certification_trustworthy(p)
+
+
+def test_audit_failed_record_is_not_trusted_even_if_certified(tmp_path):
+    from experiments.pole_attestation import assert_certification_trustworthy
+    p = _cert_like(tmp_path, "STRATEGIC_DEMAND_2v2_CERTIFICATION.json", VERDICT="CERTIFIED",
+                   status="AUDIT_FAILED", AUDIT={"passed": False, "failed_checks": ["claim::delta_B"]})
+    with pytest.raises(PoleAttestationError):
+        assert_certification_trustworthy(p)
+
+
+def test_sealed_with_passing_audit_is_trusted(tmp_path):
+    from experiments.pole_attestation import assert_certification_trustworthy
+    p = _cert_like(tmp_path, "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+                   status="SEALED", AUDIT={"passed": True})
+    assert assert_certification_trustworthy(p) == "SEALED"
+
+
+def test_sealed_status_with_failed_audit_block_is_not_trusted(tmp_path):
+    """status alone is not enough: the audit block must also say passed."""
+    from experiments.pole_attestation import assert_certification_trustworthy
+    p = _cert_like(tmp_path, "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+                   status="SEALED", AUDIT={"passed": False})
+    with pytest.raises(PoleAttestationError):
+        assert_certification_trustworthy(p)
+
+
+def test_legacy_record_trusted_only_byte_for_byte(tmp_path):
+    """The two pre-seal governing records are trusted only while unchanged."""
+    from experiments.pole_attestation import assert_certification_trustworthy
+    real = Path(__file__).resolve().parents[1] / ("artifacts/strategic_demand/sppo/"
+                                                  "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json")
+    assert assert_certification_trustworthy(real) == "LEGACY_PINNED"
+    edited = _cert_like(tmp_path, real.name, VERDICT="CERTIFIED")   # same name, different bytes
+    edited.write_text(edited.read_text(encoding="utf-8").replace('"lock_defender": 10', '"lock_defender": 9'),
+                      encoding="utf-8")
+    with pytest.raises(PoleAttestationError, match="has changed"):
+        assert_certification_trustworthy(edited)
 
 
 # ------------------------------------------------ runtime live check ----------------
@@ -197,3 +254,22 @@ def test_live_check_accepts_certified_B3_3(certified_4v4_B):
         assert chk["live"]["lock_defender"] == 10.0 and chk["live"]["enable_2v1"] is True
     finally:
         env.close()
+
+
+# ------------------------------------------------ only CERTIFIED defines a pole -----
+@pytest.mark.parametrize("verdict", ["NOT_CERTIFIED", "MISSING", "UNREADABLE", "UNKNOWN"])
+def test_non_certified_governing_record_cannot_define_a_pole(tmp_path, monkeypatch, verdict):
+    """A failed certification must not hand its poles downstream. Without this, the
+    safety property 'no valid certification => no canonical experiment' is false: the
+    collector and evaluators would consume the poles of a NOT_CERTIFIED record."""
+    import experiments.pole_attestation as P
+    real = json.loads((Path(P.__file__).resolve().parents[1] / "artifacts/strategic_demand/sppo/"
+                       "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json").read_text(encoding="utf-8"))
+    real["VERDICT"] = verdict
+    cert = tmp_path / "STRATEGIC_DEMAND_4v4_CERTIFICATION.json"
+    cert.write_text(json.dumps(real), encoding="utf-8")
+    monkeypatch.setattr(P, "governing_certification", lambda n: (verdict, cert))
+    with pytest.raises(PoleAttestationError, match="not CERTIFIED"):
+        certified_pole_genome("B", 4)
+    with pytest.raises(PoleAttestationError, match="not CERTIFIED"):
+        resolve_pole_genome("A", 4)
