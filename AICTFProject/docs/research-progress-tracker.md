@@ -16,7 +16,30 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-26 — **4v4 Share-Macro exploratory crossover DONE (FLAGGED); all four
+> **Last updated:** 2026-09-26 — **4v4 SUITE DISTILLED ARMS INVALIDATED (wrong Pole B); pole identity
+> repaired and made a first-class invariant (Layer 3).** Found while preparing the 2v2 certification:
+> the 4v4 suite distillation dataset and all four student crossovers ran on **plain OP7**
+> (`pole_B_genome(4)`, hash `60324f4a…`) — the pole that failed 4v4 certification — while every frozen
+> suite record names **certified B3-3** (`lock_defender=10, enable_2v1`, hash `ee1cab77…`). Cause: a silent
+> fallback in `pole_attestation.resolve_pole_genome` plus two suite stages that called `pole_B_genome()`
+> directly. **Scope** (`SUITE_4V4_POLE_B_IDENTITY_AUDIT.json`, every run classified from its own evidence,
+> 0 unknown): on B3-3 = π_B3 training + teacher-pair crossover (live-attested) and both Separated crossovers
+> (recorded); on plain OP7 = the dataset + the four student crossovers. Invalidation:
+> `SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION.json` — sealed records kept as provenance, excluded from
+> paper claims; the "students reproduce the teacher asymmetry" reading is **withdrawn**; repair needs
+> recollect-on-B3-3 → redistill → rerun (not yet authorized). **Code repair:** `certified_pole_genome` is
+> the single source of a pole (governing certification; fails closed); no silent fallback; trainer,
+> Separated evaluator, collector and sharing evaluator all resolve through it and record pole identity.
+> 6v6 verified unchanged (both poles identical); 2v2 fails closed until certified. **Layer 3** added to
+> the identity attestation; negative control feeds plain OP7 into a stage and proves it goes red; the
+> regression tests fail against a re-introduced fallback. Three `test_pole_certification_guard.py` tests
+> had used the fallback to *construct* the bad genome — now built explicitly, every protective assertion
+> kept (and verified to still fail against an accept-anything mutant). Code repair committed as
+> `f7177454`; this invalidation is committed separately.
+>
+> ---
+>
+> Prior — 2026-09-26 — **4v4 Share-Macro exploratory crossover DONE (FLAGGED); all four
 > 4v4 distilled arms now in.** Share-Macro (n=64, seeds 22514001–064, finished 02:14):
 > Δ_A=+0.281 [+0.125,+0.438], Δ_B=−0.156 [−0.266,−0.063] — FLAG on Δ_B, same pattern as Encoder,
 > Backbone and Fully Shared+\(z\). Cells z0@A 0.8125, z1@A 0.5312, z0@B 0.9688, z1@B 0.8125.

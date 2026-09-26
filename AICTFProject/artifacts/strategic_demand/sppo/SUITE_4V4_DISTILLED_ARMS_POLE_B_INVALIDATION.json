@@ -1,0 +1,108 @@
+{
+  "record_id": "SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION",
+  "status": "INVALIDATION",
+  "severity": "INVALIDATES_FOR_INTENDED_PROTOCOL",
+  "utc": "2026-09-26T13:30:00Z",
+  "discovered_by": "Claude, 2026-09-26, while preparing the fresh 2v2 pole certification: pole_B_genome(4) resolves to plain OP7 while every frozen 4v4 suite record names B3-3. Scope established by SUITE_4V4_POLE_B_IDENTITY_AUDIT.json (experiments/audit_4v4_pole_b_identity.py). Invalidation authorized by PI the same day.",
+  "THE_DEFECT": {
+    "summary": "The 4v4 suite distillation dataset was collected, and all four distilled students were evaluated, against plain OP7 (SDS_PARENT_OP7, overlay {min_alive_for_defender: 4}) -- the Pole B that FAILED 4v4 certification. The frozen protocol specifies the certified B3-3 Pole B (SDS2_B3_LOCKDEF10_2V1, overlay {lock_defender: 10, enable_2v1: true, min_alive_for_defender: 4}).",
+    "frozen_records_that_name_B3_3": [
+      "SUITE_DISTILLATION_4V4_SPEC.json#POLES.B",
+      "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json#POLES.B",
+      "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.B"
+    ],
+    "what_was_actually_installed": "opponent_spec.pole_B_genome(4), pole_config_hash 60324f4af93a..., vs certified B3-3 pole_config_hash ee1cab774896...",
+    "mechanism": "pole_attestation.resolve_pole_genome fell back silently to pole_B_genome(n) whenever --pole-b-genome-json was not passed. The suite collector and the suite sharing evaluator never passed it -- they did not even accept that argument -- and called pole_B_genome() directly. The specialist trainer and the Separated evaluator did pass it and also attested the live pole against the certification, which is why the teacher and Separated runs were correct.",
+    "why_no_check_caught_it": [
+      "run_state.seal's audit verifies rows, seed blocks, checkpoint pins and statistics; by its own statement it does not certify the experimental design, and pole identity is not among its checks",
+      "the Layer-2 cross-scale attestation checks that each stage is one module across scales; both pole paths ran through the same modules",
+      "the suite dataset manifest and the suite crossover records carried no pole identity at all, so nothing downstream could compare"
+    ],
+    "same_class_as": "PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json -- the same silent fallback, one stage further downstream"
+  },
+  "EVIDENCE": {
+    "audit_record": "SUITE_4V4_POLE_B_IDENTITY_AUDIT.json",
+    "on_plain_OP7": {
+      "SUITE_DISTILLATION_4V4 dataset collection": "CODE_PATH_NO_OVERRIDE: collect_suite_distillation_states_4v4.py @ ae89f636 (first commit; the file was untracked when it ran on 2026-09-24) installs pole_B_genome(N_AGENTS) and accepted only --device, --smoke, --n-per-pole. The manifest records no pole.",
+      "four student crossovers": "CODE_PATH_NO_OVERRIDE: eval_suite_sharing_crossover_4v4.py @ ae89f636 line 114 installs pole_B_genome(N_AGENTS) and accepted no Pole-B argument. opponent_spec.py unchanged since 81d0d6fe (2026-09-05), so pole_B_genome(4) returned plain OP7 throughout."
+    },
+    "evidence_class_caveat": "CODE_PATH_NO_OVERRIDE is the weakest evidence class: no run-time record of the instantiated pole exists for these stages. It is decisive here because the producing code had no mechanism by which any other pole could have been installed.",
+    "behavioural_consistency": "Student z0@PoleB win rates were 0.94-0.97 in all four arms, versus pi_A3's 0.74 on certified B3-3 -- consistent with an easier, non-demanding Pole B. Corroborating only; not used as evidence of the pole."
+  },
+  "WHAT_THIS_INVALIDATES": {
+    "for_the_intended_4v4_suite_comparison": [
+      "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+      "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+      "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+      "SUITE_SHARE_MACRO_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+      "SUITE_DISTILLATION_4V4_DATASET.json (Pole-B states)",
+      "the four distilled student checkpoints as suite arms (they were trained on the wrong Pole-B state distribution)"
+    ],
+    "why_re_evaluation_alone_would_not_repair_it": "The dataset itself was collected on plain OP7, so the students were TRAINED on the wrong Pole-B states, not merely scored on them. Re-running their crossover on B3-3 would evaluate students distilled from the wrong distribution. The dataset must be recollected and the students redistilled.",
+    "retracted_reading": "'The distilled students reproduce the teacher pair's 4v4 Pole-B asymmetry; these reversals are not by themselves evidence that sharing destroyed specialization.' This compared a teacher Delta_B measured on B3-3 (-0.156, live-attested) with student Delta_B measured on plain OP7. It is withdrawn. The student Delta_B reversal may be an artifact of the uncertified pole."
+  },
+  "WHAT_STAYS_VALID": {
+    "the_sealed_records_themselves": "The four sealed RESULT/AUDIT records are NOT edited or deleted. They remain valid, integrity-verified provenance of exactly what they measure: 'this checkpoint, evaluated on plain OP7 with these seeds, produced these numbers.' They are excluded from paper claims about the 4v4 suite.",
+    "pole_A_half": "The dataset's Pole-A states and the students' Pole-A cells used pole_A_genome(4), which equals the certified Pole A (hash 4194fe47...). Pole A was never wrong. This does not rescue the students, which were trained on both halves.",
+    "teachers_and_Separated": {
+      "pi_B3 corrected training": "certified B3-3 -- LIVE_ATTESTATION in its run_manifest (hash match)",
+      "teacher-pair crossover (Delta_B -0.156)": "certified B3-3 -- LIVE_ATTESTATION banner in corrected_crossover.log (hash ee1cab77 match)",
+      "Separated exploratory and confirmatory crossovers (the 4v4 reference PASS)": "certified B3-3 -- recorded in each result's poles.B"
+    }
+  },
+  "REPAIR_PLAN": {
+    "status": "code repaired 2026-09-26; data repair not yet run",
+    "code": [
+      "pole_attestation.certified_pole_genome: the single source of a pole -- the governing certification, rebuilding a candidate pole from its candidate_source file (the bytes training loaded) and failing closed on any overlay mismatch or missing certification",
+      "resolve_pole_genome no longer falls back silently: with no candidate it returns the certified pole",
+      "collector, sharing evaluator, Separated evaluator and specialist trainer all resolve both poles through it; the collector and sharing evaluator refuse to start if their frozen spec's POLES block disagrees with the certified pole, and every artifact now records the resolved pole identity",
+      "Layer 3 of the cross-scale identity attestation (resolved experimental-object identity) checks both the stage code paths and each artifact's recorded pole; a negative-control test feeds plain OP7 into a stage and proves it goes red"
+    ],
+    "data_if_authorized": [
+      "recollect SUITE_DISTILLATION_4V4 on certified B3-3 with the repaired collector (fresh registered seed block)",
+      "redistill Fully Shared+z and Share-Encoder (and Share-Backbone / Share-Macro only if the depth extension is still wanted)",
+      "rerun each forced-z crossover on B3-3 (fresh registered seed blocks) with the repaired, sealing evaluator"
+    ],
+    "not_authorized_by_this_record": "any seed spend; the data repair needs its own frozen spec and registered seed blocks"
+  },
+  "WHAT_MUST_NOT_BE_CONCLUDED_FROM_THE_INVALID_RUNS": [
+    "that sharing destroys Pole-B specialization at 4v4",
+    "that the distilled students reproduce the teacher pair's asymmetry",
+    "any comparison of these four arms against the Separated arm, which was evaluated on a different Pole B",
+    "anything about the 4v4 point on the cross-scale sharing figure"
+  ],
+  "EVIDENCE_STRENGTH": {
+    "why": "The plain-OP7 conclusion is decisive but RECONSTRUCTED, not observed at runtime. The distinction is kept explicit so no reader mistakes the two.",
+    "derived_from": "SUITE_4V4_POLE_B_IDENTITY_AUDIT.json (each status read from that record, not restated)",
+    "teacher_pair_pole_identity": {
+      "evidence": "DIRECT_RUNTIME_ATTESTATION",
+      "status": "MATCH",
+      "runs": 1,
+      "basis": "live resolved-profile attestation printed at launch in corrected_crossover.log; LIVE_HASH ee1cab77... == CERTIFIED_HASH"
+    },
+    "separated_pole_identity": {
+      "evidence": "RECORDED_RESULT_PROVENANCE",
+      "status": "MATCH",
+      "runs": 2,
+      "basis": "poles.B block, candidate_genome_id SDS2_B3_LOCKDEF10_2V1, written into each result record"
+    },
+    "distillation_dataset_pole_identity": {
+      "evidence": "RECONSTRUCTED_FROM_LAUNCH_CAPABILITY_AND_CODE",
+      "status": "MISMATCH",
+      "runs": 1,
+      "basis": "no runtime record of the instantiated pole exists; the collector (first committed ae89f636, untracked when it ran) installs pole_B_genome(4) and accepted no Pole-B argument, and opponent_spec.py is unchanged since 2026-09-05"
+    },
+    "student_eval_pole_identity": {
+      "evidence": "RECONSTRUCTED_FROM_LAUNCH_CAPABILITY_AND_CODE",
+      "status": "MISMATCH",
+      "runs": 4,
+      "basis": "no runtime record of the instantiated pole exists; the runner at ae89f636 installs pole_B_genome(4) and accepted no Pole-B argument"
+    },
+    "strength_order": [
+      "DIRECT_RUNTIME_ATTESTATION",
+      "RECORDED_RESULT_PROVENANCE",
+      "RECONSTRUCTED_FROM_LAUNCH_CAPABILITY_AND_CODE"
+    ],
+    "live_confirmation_2026_09_26": "Installing each resolver's genome in a live 4v4 env shows the old path yields lock_defender=28, enable_2v1=False (plain OP7) and the certified path yields 10 / True. This confirms what the old code produces TODAY; it is not a runtime record from the 2026-09-24/26 runs themselves."
+  }
+}

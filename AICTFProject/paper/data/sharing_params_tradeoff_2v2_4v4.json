@@ -10,10 +10,10 @@
   "honest_gaps": {
     "4v4_Share_Backbone_Macro": "PI-authorized depth extension (2026-09-25), outside the locked cross-scale suite. Both built on the same SUITE_DISTILLATION_4V4 dataset. Both crossovers DONE and FLAGGED on Δ_B reversal; row-level audit PASS for both.",
     "2v2_Fully_Shared_z_Delta": "2v2 Fully Shared+z imitation frozen; sealed crossover Δ not yet run",
-    "4v4_distilled_Delta_status": "exploratory n=64 crossover DONE for all four distilled arms; all four FLAGGED on Δ_B reversal, then SEALED together post-hoc via run_state.seal (13/13 gating each). Sealed = integrity verified, NOT a pass (scientific_verdict=FLAG) and NOT historical Rule-9 compliance (seed_registration_origin=RETROACTIVE_RECONCILIATION, historically_pre_registered=false). Confirmatory n=128 not authorized.",
-    "4v4_teacher_pair_confound": "The KL teachers for the 4v4 students (entity-repair pi_A3 -> z0, corrected pi_B3 -> z1) already fail Δ_B at 4v4 (Δ_A +0.273, Δ_B -0.156 [-0.266,-0.047], n=128, 4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json): pi_A3 wins on both poles. The student Δ_B reversal is consistent with imitating that pair and is not evidence that sharing removes Pole-B specialization. The Separated row is the split ATTACK/DEFEND composite, a different system. Teacher figures are on different seeds/n; Pole-B overlay equality not verified.",
+    "4v4_distilled_Delta_status": "INVALIDATED for the intended 4v4 suite comparison (SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION.json): the SUITE_DISTILLATION_4V4 dataset and all four student crossovers used plain OP7 instead of certified B3-3. The sealed records stay as provenance (measured on plain OP7) and are excluded from paper claims. Repair = recollect on B3-3, redistill, rerun crossover. Separated row and KL teacher pair were on B3-3 and remain valid.",
     "2v2_methodology_mismatch": "2026-09-26: every 2v2 row here is the natural 2v2 setup (no CLOSEST_DEFENDS allocator, teachers without entity repair, legacy TEACHER_DISTILLATION_DATASET). 4v4 rows use the allocator, entity-repair teachers and SUITE_DISTILLATION_4V4_DATASET. The contribution is one methodology at every team size, so 2v2 is to be redone through the same pipeline (SAME_METHODOLOGY_2V2_PORT_PLAN.json). The 2v2 and 4v4 blocks are not comparable rows of one figure until then.",
-    "2v2_Fully_Shared_z_Delta_update": "natural-setup sealed crossover (SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json, block 22900001..22900128) was stopped at 82/512 episodes on 2026-09-26 and superseded; block stays RESERVED and unspent; not a paper row."
+    "2v2_Fully_Shared_z_Delta_update": "natural-setup sealed crossover (SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json, block 22900001..22900128) was stopped at 82/512 episodes on 2026-09-26 and superseded; block stays RESERVED and unspent; not a paper row.",
+    "4v4_teacher_pair_reading_withdrawn": "The earlier reading that the students reproduce the teacher pair's asymmetry is WITHDRAWN: it compared teacher Delta_B on certified B3-3 with student Delta_B on plain OP7."
   },
   "2v2": {
     "share0_reference_n_unique": 6947184,
@@ -149,7 +149,7 @@
           "lcb95": -0.34375,
           "ucb95": -0.109375
         },
-        "gate": "SEALED_FLAG",
+        "gate": "INVALIDATED",
         "n": 64,
         "arm": "exploratory",
         "note": "Δ_B reversal; INTEGRITY_REQUIRED, then sealed post-hoc (integrity PASS, verdict FLAG). Pole wins: z0@A=0.719 z1@A=0.359 z0@B=0.969 z1@B=0.750",
@@ -164,6 +164,11 @@
           "audit": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
           "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
           "historically_pre_registered": false
+        },
+        "invalidation": {
+          "record": "SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION.json",
+          "reason": "dataset collected and crossover evaluated on plain OP7, not the certified B3-3 Pole B named by the frozen protocol; students trained on the wrong Pole-B states",
+          "values_are": "provenance only (measured on plain OP7); excluded from paper claims"
         }
       },
       {
@@ -182,7 +187,7 @@
           "lcb95": -0.421875,
           "ucb95": -0.125
         },
-        "gate": "SEALED_FLAG",
+        "gate": "INVALIDATED",
         "n": 64,
         "arm": "exploratory",
         "note": "Δ_B reversal; INTEGRITY_REQUIRED, then sealed post-hoc (integrity PASS, verdict FLAG). Pole wins: z0@A=0.875 z1@A=0.4375 z0@B=0.8906 z1@B=0.6094",
@@ -197,6 +202,11 @@
           "audit": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
           "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
           "historically_pre_registered": false
+        },
+        "invalidation": {
+          "record": "SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION.json",
+          "reason": "dataset collected and crossover evaluated on plain OP7, not the certified B3-3 Pole B named by the frozen protocol; students trained on the wrong Pole-B states",
+          "values_are": "provenance only (measured on plain OP7); excluded from paper claims"
         }
       },
       {
@@ -215,7 +225,7 @@
           "lcb95": -0.265625,
           "ucb95": -0.0625
         },
-        "gate": "SEALED_FLAG",
+        "gate": "INVALIDATED",
         "n": 64,
         "source": "SUITE_SHARE_MACRO_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
         "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
@@ -230,6 +240,11 @@
           "audit": "SUITE_SHARE_MACRO_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
           "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
           "historically_pre_registered": false
+        },
+        "invalidation": {
+          "record": "SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION.json",
+          "reason": "dataset collected and crossover evaluated on plain OP7, not the certified B3-3 Pole B named by the frozen protocol; students trained on the wrong Pole-B states",
+          "values_are": "provenance only (measured on plain OP7); excluded from paper claims"
         }
       },
       {
@@ -248,7 +263,7 @@
           "lcb95": -0.21875,
           "ucb95": 0.0
         },
-        "gate": "SEALED_FLAG",
+        "gate": "INVALIDATED",
         "n": 64,
         "arm": "exploratory",
         "note": "Δ_B reversal; INTEGRITY_REQUIRED, then sealed post-hoc (integrity PASS, verdict FLAG). Pole wins: z0@A=0.828 z1@A=0.547 z0@B=0.938 z1@B=0.828",
@@ -263,6 +278,11 @@
           "audit": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
           "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
           "historically_pre_registered": false
+        },
+        "invalidation": {
+          "record": "SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION.json",
+          "reason": "dataset collected and crossover evaluated on plain OP7, not the certified B3-3 Pole B named by the frozen protocol; students trained on the wrong Pole-B states",
+          "values_are": "provenance only (measured on plain OP7); excluded from paper claims"
         }
       }
     ]
