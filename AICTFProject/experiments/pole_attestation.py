@@ -153,6 +153,112 @@ def governing_certification(n: int) -> tuple[str, Path]:
     return _certification_verdict(int(n))
 
 
+# ------------------------------------------------------ certified resolution --
+def certified_pole_genome(policy: str, n: int):
+    """THE single source of a pole's definition: the governing certification for ``n``.
+
+    Every stage -- specialist training, the Separated evaluator, the suite collector, the
+    suite sharing evaluator -- resolves poles through here (via ``resolve_pole_genome``).
+    Before 2026-09-26 the fallback was ``pole_B_genome(n)``, which at 4v4 is plain OP7: the
+    pole that FAILED certification. Stages that passed ``--pole-b-genome-json`` got the
+    certified B3-3; stages that could not (the suite collector and sharing evaluator had no
+    such argument) silently got plain OP7 while their frozen specs named B3-3
+    (SUITE_4V4_POLE_B_IDENTITY_AUDIT.json). A pole is now whatever the certification
+    certified, or the resolution fails closed.
+
+    When the certified pole came from a candidate genome file (``candidate_source``), that
+    exact file is loaded -- the same bytes training loaded, including fields such as
+    ``opening_hold_steps`` that the certification's overlay block does not carry.
+    Otherwise the canonical size-normalized genome is used. Either way the resolved
+    overlay must equal the certified overlay exactly, or this fails closed.
+    """
+    from experiments.opponent_spec import (
+        _with_full_team_defender_gate, pole_A_genome, pole_B_genome,
+    )
+    from experiments.sds_genome import SDSGenome
+
+    _verdict, cert_path = governing_certification(int(n))
+    cert = certified_pole(cert_path, str(policy), int(n))   # fails closed if absent/unreadable
+    src = cert.get("candidate_source")
+    if src:
+        p = Path(src)
+        if not p.is_absolute():
+            p = Path(__file__).resolve().parents[1] / p
+        if not p.is_file():
+            raise PoleAttestationError(
+                f"FAIL-CLOSED: {cert_path.name} certified pole {policy} from candidate genome "
+                f"{src}, which is not on disk. The certified pole cannot be rebuilt.")
+        genome = _with_full_team_defender_gate(
+            SDSGenome.from_dict(json.loads(p.read_text(encoding="utf-8"))), int(n))
+        want_id = cert.get("candidate_genome_id")
+        if want_id and genome.genome_id != want_id:
+            raise PoleAttestationError(
+                f"FAIL-CLOSED: {src} holds genome {genome.genome_id!r} but {cert_path.name} "
+                f"certified {want_id!r}.")
+    else:
+        genome = pole_A_genome(int(n)) if str(policy) == "A" else pole_B_genome(int(n))
+
+    got = _canonical_overlay(genome.overlay)
+    if got != cert["overlay"]:
+        raise PoleAttestationError(
+            f"FAIL-CLOSED: pole {policy} at {n}v{n} resolves to overlay {got}, but "
+            f"{cert_path.name} certified {cert['overlay']}. Refusing to run on an "
+            f"uncertified pole.")
+    return genome
+
+
+def pole_identity(policy: str, n: int, genome) -> dict:
+    """The resolved experimental object, recorded by every stage that consumes a pole.
+
+    Layer 3 of the cross-scale identity attestation compares these across stages. The
+    config hash is the same function the live attestation uses, so a stage's recorded
+    identity is directly comparable to the certification's.
+    """
+    _verdict, cert_path = governing_certification(int(n))
+    ov = _canonical_overlay(genome.overlay)
+    return {
+        "policy": str(policy), "team_size": int(n),
+        "certification_record": cert_path.name,
+        "certification_sha256": hashlib.sha256(cert_path.read_bytes()).hexdigest()
+                                if cert_path.is_file() else None,
+        "genome_id": str(genome.genome_id),
+        "base_opponent": str(genome.base_opponent),
+        "overlay": ov,
+        "opening_hold_steps": int(getattr(genome, "opening_hold_steps", 0) or 0),
+        "pole_config_hash": pole_config_hash(policy, n, genome.genome_id, ov),
+        "lock_defender": ov.get("lock_defender"),
+        "enable_2v1": ov.get("enable_2v1"),
+        "min_alive_for_defender": ov.get("min_alive_for_defender"),
+    }
+
+
+def assert_live_matches_identity(core, identity: dict, *, context: str = "") -> dict:
+    """FAIL CLOSED unless EVERY certified overlay field is what the live env resolved.
+
+    Checking only min_alive_for_defender is not a pole check: it is 4 on both plain OP7
+    and certified B3-3 at 4v4, which is how a stage could print "pole B: min_alive=4 OK"
+    while running lock_defender=28 / enable_2v1=False instead of 10 / True. Reads the
+    live resolved behaviour-tree profile, never a config field.
+    """
+    t = core._bt_resolved_profile_tensors()
+    live: dict = {}
+    for key in identity["overlay"]:
+        v = t.get(key)
+        if v is None:
+            raise PoleAttestationError(
+                f"FAIL-CLOSED{(' (' + context + ')') if context else ''}: live profile has no "
+                f"field {key!r}; the certified pole cannot be verified")
+        live[key] = _scalar(v)
+    bad = {k: (live[k], identity["overlay"][k]) for k in identity["overlay"]
+           if not _values_equal(live[k], identity["overlay"][k])}
+    if bad:
+        raise PoleAttestationError(
+            f"FAIL-CLOSED{(' (' + context + ')') if context else ''}: live pole "
+            f"{identity['policy']} differs from the certified {identity['genome_id']} on "
+            f"{ {k: f'live={a!r} certified={b!r}' for k, (a, b) in bad.items()} }")
+    return {"verified_fields": sorted(live), "live": live}
+
+
 # ------------------------------------------------------------------- resolve --
 def resolve_pole_genome(policy: str, n: int, pole_b_genome_json: str | None = None):
     """Build the genome this run WILL actually instantiate.
@@ -172,7 +278,7 @@ def resolve_pole_genome(policy: str, n: int, pole_b_genome_json: str | None = No
                 "FAIL-CLOSED: --pole-b-genome-json was supplied for --policy A. "
                 "Pole A has no candidate-genome mechanism; this argument would be silently "
                 "ignored and the run would not be what the operator believes it is.")
-        return pole_A_genome(int(n))
+        return certified_pole_genome("A", int(n))
 
     if pole_b_genome_json:
         p = Path(pole_b_genome_json)
@@ -180,7 +286,8 @@ def resolve_pole_genome(policy: str, n: int, pole_b_genome_json: str | None = No
             raise PoleAttestationError(f"FAIL-CLOSED: --pole-b-genome-json not found: {p}")
         return _with_full_team_defender_gate(
             SDSGenome.from_dict(json.loads(p.read_text(encoding="utf-8"))), int(n))
-    return pole_B_genome(int(n))
+    # No explicit candidate: the certified pole, never a silent canonical fallback.
+    return certified_pole_genome("B", int(n))
 
 
 # ----------------------------------------------------- pre-GPU field equality --

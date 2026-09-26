@@ -142,8 +142,9 @@ def main() -> int:
     from experiments.opponent_spec import (
         assert_live_opponent_batch,
         install_keyed_opponent_overlays,
-        pole_A_genome,
-        pole_B_genome,
+    )
+    from experiments.pole_attestation import (
+        assert_live_matches_identity, pole_identity, resolve_pole_genome,
     )
     import experiments.phase0_collect_scorer_data as P0
     from experiments.tqdm_loop import tqdm_iter
@@ -152,6 +153,24 @@ def main() -> int:
     from rl.curriculum import phase_from_tag
     from rl.custom_ppo import load_custom_ppo_policy
     from rl.custom_ppo.rule_role_assignment import RoleHoldState, roles_from_core
+
+    # Poles come from the governing certification, never from pole_*_genome() directly:
+    # the 4v4 dataset was once collected on plain OP7 while this spec named B3-3
+    # (SUITE_4V4_POLE_B_IDENTITY_AUDIT.json). The frozen spec's own POLES block must also
+    # agree with the certified pole, or the collection refuses to start.
+    POLE_GENOMES = {p: resolve_pole_genome(p, N_AGENTS) for p in ("A", "B")}
+    POLE_IDENTITY = {p: pole_identity(p, N_AGENTS, g) for p, g in POLE_GENOMES.items()}
+    for p, spec_pole in (spec.get("POLES") or {}).items():
+        want = {k: (int(v) if isinstance(v, float) and float(v).is_integer() else v)
+                for k, v in sorted((spec_pole.get("overlay") or {}).items())}
+        if p in POLE_IDENTITY and POLE_IDENTITY[p]["overlay"] != want:
+            raise SystemExit(
+                f"FAIL-CLOSED: {SPEC_PATH.name} names pole {p} overlay {want}, but the "
+                f"certified pole resolves to {POLE_IDENTITY[p]['overlay']}. Spec and "
+                f"certification must agree before any state is collected.")
+    for p, ident in POLE_IDENTITY.items():
+        print(f"  pole {p}  {ident['genome_id']:<24} {ident['overlay']}  "
+              f"hash {ident['pole_config_hash'][:12]}  ({ident['certification_record']})")
 
     act = spec["ACTING_DEPLOYMENT_locked"]
     kl = spec["KL_TEACHERS_locked"]
@@ -248,8 +267,8 @@ def main() -> int:
                 core._bt_profile_override = None
                 core._sds_opening_hold_steps = 0
                 genomes = (
-                    {"OP6": pole_A_genome(N_AGENTS)} if pole == "A"
-                    else {"OP7": pole_B_genome(N_AGENTS)}
+                    {"OP6": POLE_GENOMES["A"]} if pole == "A"
+                    else {"OP7": POLE_GENOMES["B"]}
                 )
                 install_keyed_opponent_overlays(core, genomes)
                 key = P0.POLES[pole]
@@ -273,6 +292,10 @@ def main() -> int:
                         f"FAIL-CLOSED: pole {pole} min_alive_for_defender="
                         f"{got_val}, expected {N_AGENTS}"
                     )
+                # min_alive is 4 on BOTH plain OP7 and certified B3-3, so it is not a pole check.
+                assert_live_matches_identity(
+                    core, POLE_IDENTITY[pole],
+                    context=f"suite distill {N_AGENTS}v{N_AGENTS} {pole} seed {seed}")
 
                 rows = {k: [] for k in STORE_KEYS}
                 steps, terminal = 0, None
@@ -351,6 +374,9 @@ def main() -> int:
         "utc": _now(),
         "implements": f"{SPEC_PATH.name}#DATASET",
         "team_size": N_AGENTS,
+        # The resolved experimental object each pole's states were collected against --
+        # Layer 3 of the cross-scale identity attestation reads this.
+        "poles": POLE_IDENTITY,
         "allocator": {
             "rule": "CLOSEST_DEFENDS",
             "k_defend": K_DEFEND,

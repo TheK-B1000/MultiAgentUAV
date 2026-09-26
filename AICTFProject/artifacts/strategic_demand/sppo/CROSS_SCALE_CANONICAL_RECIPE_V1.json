@@ -79,6 +79,31 @@
     "allowed_to_differ": "only N, k, seeds, artifact paths, and tensor dimensions that follow mechanically from N"
   },
 
+  "RESOLVED_OBJECT_IDENTITY_required": {
+    "appended_utc": "2026-09-26T13:00:00Z",
+    "appended_by": "PI, 2026-09-26: add a third layer. Two stages can call the same function and still receive different genomes through different arguments -- which is exactly what happened: the 4v4 suite collector and sharing evaluator installed plain OP7 while their frozen specs, the teachers and the Separated arm used certified B3-3 (SUITE_4V4_POLE_B_IDENTITY_AUDIT.json). Layer 2 (same module) passed throughout.",
+    "rule": "Every pole-consuming stage obtains BOTH poles from the governing certification through experiments/pole_attestation.py::resolve_pole_genome (which delegates to certified_pole_genome), never from opponent_spec.pole_A_genome()/pole_B_genome() directly, and every stage artifact records the resolved pole identity. A recorded identity must equal the certified one; an artifact that records no identity is UNKNOWN, and UNKNOWN is not a match.",
+    "single_mechanism": "experiments/pole_attestation.py::certified_pole_genome -- rebuilds the pole the governing certification certified, loading its candidate_source genome file when it has one (the same bytes training loaded), and fails closed if the resolved overlay differs from the certified overlay or no certification exists",
+    "pole_consuming_stages": {
+      "specialist_trainer": "experiments/train_specialist_scale.py",
+      "separated_evaluator": "experiments/eval_specialist_crossover_scaled.py",
+      "dataset_collector": "experiments/collect_suite_distillation_states.py",
+      "sharing_evaluator": "experiments/eval_suite_sharing_crossover.py"
+    },
+    "exempt_pole_source": {
+      "module": "experiments/certify_strategic_demand_scaled.py",
+      "why": "it DEFINES the poles that a certification certifies, so it cannot resolve them from a certification that does not exist yet"
+    },
+    "forbidden_direct_calls": ["pole_A_genome", "pole_B_genome"],
+    "identity_fields": ["certification_record", "certification_sha256", "genome_id", "overlay", "pole_config_hash", "lock_defender", "enable_2v1", "min_alive_for_defender", "opening_hold_steps"],
+    "statuses": {
+      "MATCH": "recorded overlay equals the certified overlay",
+      "MISMATCH": "recorded overlay differs from the certified overlay -- a known-wrong pole",
+      "UNKNOWN": "the artifact records no pole identity -- an evidence gap; fails",
+      "PENDING": "the scale has no certification or the artifact is not built yet"
+    }
+  },
+
   "IDENTITY_ATTESTATION_required": {
     "emitter": "experiments/attest_cross_scale_identity.py",
     "when": "as a preflight after the shared runners are generalized, and again before any suite claim",

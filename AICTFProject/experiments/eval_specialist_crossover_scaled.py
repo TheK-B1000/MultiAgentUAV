@@ -166,7 +166,7 @@ def main() -> int:
     import torch
     from experiments.opponent_spec import (
         _with_full_team_defender_gate, assert_live_opponent_batch,
-        install_keyed_opponent_overlays, pole_A_genome, pole_B_genome,
+        install_keyed_opponent_overlays,
     )
     from experiments.sds_genome import SDSGenome
     import experiments.r2_learned_crossover as R2
@@ -191,13 +191,21 @@ def main() -> int:
     )
     _cert_verdict, _cert_path = governing_certification(N)
     pole_attestations = {}
+    # The genome each pole is ATTESTED against is the genome that gets INSTALLED. Resolving
+    # a second time for installation -- as this evaluator used to for Pole B, and as it did
+    # for Pole A via pole_A_genome() directly -- lets the attested object and the evaluated
+    # object diverge, which is how the 4v4 suite stages ended up on plain OP7.
+    _resolved = {}
     for _pol in ("A", "B"):
         _g = resolve_pole_genome(_pol, N, args.pole_b_genome_json if _pol == "B" else None)
+        _resolved[_pol] = _g
         pole_attestations[_pol] = assert_resolved_matches_certification(
             _pol, N, _cert_path, _g, is_smoke=False)
         print(f"  POLE {_pol} ATTESTATION vs {_cert_path.name}:")
         print(format_attestation_banner(pole_attestations[_pol]))
-    pole_b_resolved = resolve_pole_genome("B", N, args.pole_b_genome_json)
+    pole_a_resolved, pole_b_resolved = _resolved["A"], _resolved["B"]
+    from experiments.pole_attestation import pole_identity
+    POLE_IDENTITY = {p: pole_identity(p, N, g) for p, g in _resolved.items()}
 
     # Both poles resolved at the LIVE team size, with no team-size fork: pole_B_genome(2)
     # carries an empty overlay, so installing it at N=2 is inert. Verified by comparing all
@@ -205,7 +213,7 @@ def main() -> int:
     # (identical), which is why the former `if N != 2` branch could be removed without
     # changing the 2v2 evaluator's behaviour.
     genomes_by_pole = {
-        "A": {"OP6": pole_A_genome(N)},
+        "A": {"OP6": pole_a_resolved},
         "B": {"OP7": pole_b_resolved},
     }
 
@@ -218,7 +226,7 @@ def main() -> int:
               f"ATTACK slots -> frozen_attack_path={frozen_attack_ckpt_path}  "
               f"sha {_sha(frozen_attack_ckpt_path)[:12]}...")
     print(f"  seeds      {seeds[0]}..{seeds[-1]} (n={len(seeds)}), SHARED across policies and poles")
-    print(f"  poles      A: OP6+{dict(pole_A_genome(N).overlay or {})}   "
+    print(f"  poles      A: OP6+{dict(pole_a_resolved.overlay or {})}   "
           f"B: OP7+{dict(pole_b_resolved.overlay or {})}")
     print(f"  gate       delta_A_spec > 0 & LCB95 > 0; delta_B_spec symmetric")
     print(f"  bootstrap  n={N_BOOT}, alpha={ALPHA}, rng_seed={BOOTSTRAP_SEED}\n", flush=True)
@@ -485,10 +493,12 @@ def main() -> int:
             "seed_class": seed_class, "registry_experiment_id": EXP_ID,
         },
         "poles": {p: {"base": BASE_KEY[p],
-                      "overlay": dict((pole_A_genome(N) if p == "A" else pole_b_resolved).overlay or {}),
+                      "overlay": dict((pole_a_resolved if p == "A" else pole_b_resolved).overlay or {}),
                       "candidate_genome_id": (pole_b_resolved.genome_id
                                               if p == "B" and args.pole_b_genome_json else None)}
                   for p in ("A", "B")},
+        # Full resolved identity, comparable across stages (Layer 3 reads this).
+        "pole_identity": POLE_IDENTITY,
         "pole_attestations": {p: {k: pole_attestations[p][k] for k in (
             "certification_record", "certified_genome_id", "live_genome_id",
             "certified_overlay", "live_overlay", "certified_config_hash",

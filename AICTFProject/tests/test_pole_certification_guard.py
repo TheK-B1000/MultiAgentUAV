@@ -10,6 +10,16 @@ GPU-hours were spent answering the wrong experiment.
 The rule these tests enforce: no experiment may start unless the live resolved
 environment is proven identical to the governing certified configuration.
 Launch arguments alone are never evidence of correctness.
+
+2026-09-26 design change (SUITE_4V4_POLE_B_IDENTITY_AUDIT.json): ``resolve_pole_genome``
+no longer falls back to the canonical genome when no candidate is passed; it resolves the
+certified pole from the governing certification. The same fallback that produced this
+incident later put the 4v4 suite collector and sharing evaluator on plain OP7. So the bad
+launch below -- policy B with no override -- now resolves to the CERTIFIED genome and can
+no longer happen. Tests that used ``resolve_pole_genome("B", 4, None)`` merely to obtain
+the canonical genome now build it explicitly with ``pole_B_genome(4)``; every protective
+assertion (the attestation refuses the canonical genome and names the certified one) is
+unchanged.
 """
 from __future__ import annotations
 
@@ -35,8 +45,18 @@ pytestmark = pytest.mark.skipif(
 
 # --------------------------------------------------------- 1: the actual bug --
 def test_policy_B_without_certified_genome_override_fails_closed():
-    """THE REGRESSION. This is the launch that was actually run and must now be refused."""
-    genome = resolve_pole_genome("B", 4, None)          # canonical -- what the bad run used
+    """THE REGRESSION. The canonical genome is what the bad run used, and must be refused.
+
+    Stronger than before: the bad launch (policy B, no override) can no longer produce the
+    canonical genome at all -- it now resolves to the certified one and passes."""
+    no_flag = resolve_pole_genome("B", 4, None)
+    assert no_flag.genome_id == "SDS2_B3_LOCKDEF10_2V1", \
+        "policy B with no override must resolve to the CERTIFIED genome, not fall back"
+    assert assert_resolved_matches_certification("B", 4, B3_CERT, no_flag,
+                                                 is_smoke=False)["hashes_match"] is True
+
+    from experiments.opponent_spec import pole_B_genome
+    genome = pole_B_genome(4)                            # canonical -- what the bad run used
     assert genome.genome_id == "SDS_PARENT_OP7"
     with pytest.raises(PoleAttestationError) as exc:
         assert_resolved_matches_certification("B", 4, B3_CERT, genome, is_smoke=False)
@@ -97,7 +117,8 @@ def test_certification_mismatch_is_detected_without_building_an_environment(monk
         raise AssertionError("environment was constructed during a pre-GPU check")
 
     monkeypatch.setattr(ef, "build_training_env", _boom, raising=False)
-    genome = resolve_pole_genome("B", 4, None)
+    from experiments.opponent_spec import pole_B_genome
+    genome = pole_B_genome(4)                            # the canonical, uncertified genome
     with pytest.raises(PoleAttestationError):
         assert_resolved_matches_certification("B", 4, B3_CERT, genome, is_smoke=False)
 
@@ -122,7 +143,8 @@ def test_warm_start_cannot_silently_swap_the_opponent_definition():
     """A warm start re-resolves its pole and is attested like any other launch --
     inheriting weights from a checkpoint grants no exemption. The contaminated run
     was itself a warm start, so this is the path that actually failed."""
-    canonical = resolve_pole_genome("B", 4, None)
+    from experiments.opponent_spec import pole_B_genome
+    canonical = pole_B_genome(4)                         # the swap target: uncertified
     certified = resolve_pole_genome("B", 4, str(B3_GENOME))
     assert pole_config_hash("B", 4, canonical.genome_id, canonical.overlay) != \
            pole_config_hash("B", 4, certified.genome_id, certified.overlay), \

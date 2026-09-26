@@ -137,8 +137,9 @@ def main() -> int:
     from experiments.opponent_spec import (
         assert_live_opponent_batch,
         install_keyed_opponent_overlays,
-        pole_A_genome,
-        pole_B_genome,
+    )
+    from experiments.pole_attestation import (
+        assert_live_matches_identity, pole_identity, resolve_pole_genome,
     )
     import experiments.r2_learned_crossover as R2
     from experiments.tqdm_loop import set_postfix, tqdm_iter
@@ -147,9 +148,23 @@ def main() -> int:
 
     R2.AGENTS = N_AGENTS
     device = args.device if torch.cuda.is_available() or args.device == "cpu" else "cpu"
+    # Poles come from the governing certification, never from pole_*_genome() directly.
+    # This evaluator's 4v4 predecessor installed pole_B_genome(4) -- plain OP7 -- while its
+    # frozen spec named B3-3 (SUITE_4V4_POLE_B_IDENTITY_AUDIT.json). The spec's POLES
+    # block must also agree with the certified pole, or the evaluation refuses to start.
+    POLE_GENOMES = {p: resolve_pole_genome(p, N_AGENTS) for p in ("A", "B")}
+    POLE_IDENTITY = {p: pole_identity(p, N_AGENTS, g) for p, g in POLE_GENOMES.items()}
+    for p, spec_pole in (spec.get("POLES") or {}).items():
+        want = {k: (int(v) if isinstance(v, float) and float(v).is_integer() else v)
+                for k, v in sorted((spec_pole.get("overlay") or {}).items())}
+        if p in POLE_IDENTITY and POLE_IDENTITY[p]["overlay"] != want:
+            raise SystemExit(
+                f"FAIL-CLOSED: {SPEC_PATH.name} names pole {p} overlay {want}, but the "
+                f"certified pole resolves to {POLE_IDENTITY[p]['overlay']}. Spec and "
+                f"certification must agree before any seed is spent.")
     genomes_by_pole = {
-        "A": {"OP6": pole_A_genome(N_AGENTS)},
-        "B": {"OP7": pole_B_genome(N_AGENTS)},
+        "A": {"OP6": POLE_GENOMES["A"]},
+        "B": {"OP7": POLE_GENOMES["B"]},
     }
 
     print(f"SUITE {N_AGENTS}V{N_AGENTS} CROSSOVER EVAL  {label}  {_now()}  device={device}")
@@ -224,6 +239,9 @@ def main() -> int:
                 raise SystemExit(
                     f"FAIL-CLOSED: pole {pole} min_alive_for_defender={got_val}, expected {N_AGENTS}"
                 )
+            # min_alive is 4 on BOTH plain OP7 and certified B3-3, so it is not a pole check.
+            assert_live_matches_identity(core, POLE_IDENTITY[pole],
+                                         context=f"{label} z{z}@Pole{pole} seed {seed}")
             terminal = None
             for _ in range(R2.MAX_STEPS):
                 action, _ = policy.predict(obs, deterministic=True)
@@ -281,6 +299,10 @@ def main() -> int:
                       f"{'OK' if got_val == N_AGENTS else 'MISMATCH'}")
                 if got_val != N_AGENTS:
                     raise SystemExit("FAIL-CLOSED: dry-run pole mismatch")
+                chk = assert_live_matches_identity(core, POLE_IDENTITY[pole],
+                                                   context=f"dry-run pole {pole}")
+                print(f"  dry-run pole {pole}: LIVE == certified {POLE_IDENTITY[pole]['genome_id']} "
+                      f"on {chk['live']}")
             finally:
                 env.close()
         print("\n  --dry-run PASS: nothing written.")
@@ -370,15 +392,8 @@ def main() -> int:
             "shared_across_z_and_poles": True,
             "seed_class": SEED_CLASS, "registry_experiment_id": EXP_ID,
         },
-        "poles": {
-            p: {
-                "base": BASE_KEY[p],
-                "overlay": dict(
-                    (pole_A_genome(N_AGENTS) if p == "A" else pole_B_genome(N_AGENTS)).overlay or {}
-                ),
-            }
-            for p in ("A", "B")
-        },
+        # The resolved experimental object each pole was evaluated on (Layer 3 reads this).
+        "poles": POLE_IDENTITY,
         "PRIMARY_GATE": {"delta_A": delta_a, "delta_B": delta_b, "passes": gate_passes},
         "bootstrap": {
             "procedure": "paired percentile bootstrap over evaluation seeds",

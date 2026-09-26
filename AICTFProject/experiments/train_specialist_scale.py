@@ -105,13 +105,21 @@ def _certification_verdict(n: int) -> tuple[str, Path]:
 
 
 def assert_live_pole_matches_team_size(env, policy: str, n: int) -> dict:
-    """FAIL CLOSED on the LIVE resolved behaviour-tree profile, not on a config field."""
-    from experiments.opponent_spec import pole_A_genome, pole_B_genome
+    """FAIL CLOSED unless the LIVE resolved profile is size-normalized to ``n``.
 
+    This is a SIZE check only (min_alive_for_defender == team size), read from the live
+    behaviour-tree profile, not a config field. It is deliberately NOT a pole-identity
+    check: min_alive is ``n`` on every pole at a given size -- at 4v4 both plain OP7 and
+    certified B3-3 have 4 -- so it cannot tell the poles apart. Pole identity is verified
+    separately (pole_attestation.assert_resolved_matches_certification / attest_live_pole /
+    assert_live_matches_identity). Hence this function needs no genome and no certification,
+    and it reports only what it actually checks. (It used to report the canonical overlay as
+    "expected_overlay" even while training the certified B3-3 pole, which was misleading.)
+    """
     core = env.core
-    want = pole_A_genome(n) if policy == "A" else pole_B_genome(n)
     detail = {"policy": policy, "base_key": BASE_KEY[policy],
-              "expected_overlay": dict(want.overlay or {})}
+              "checks": "size normalization only; pole identity is attested separately",
+              "expected_min_alive_for_defender": int(n)}
 
     resolved = None
     for attr in ("_bt_resolved_profile_tensors",):
@@ -150,8 +158,8 @@ def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
     Pole-B candidate override could pass a "LIVE POLE CHECK: PASS" banner while
     training against canonical OP7 (PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json).
     """
-    from experiments.opponent_spec import (install_keyed_opponent_overlays, pole_A_genome,
-                                           pole_B_genome)
+    from experiments.opponent_spec import install_keyed_opponent_overlays
+    from experiments.pole_attestation import resolve_pole_genome
     from rl.training.env_factory import build_training_env
 
     env = None
@@ -171,7 +179,10 @@ def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
         # inert: verified empirically at both 2v2 and 4v4 by comparing all 36 fields of
         # core._bt_resolved_profile_tensors() with and without the non-live overlay
         # (identical in both cases), so this generalization does not change 4v4.
-        genomes = {"OP6": pole_A_genome(n), "OP7": pole_B_genome(n)}
+        # Both poles from the certification (single mechanism). The non-live pole is inert
+        # for results, but resolving it through a second path is exactly how a stage ends
+        # up holding a pole the certification never named.
+        genomes = {"OP6": resolve_pole_genome("A", n), "OP7": resolve_pole_genome("B", n)}
         if resolved_genome is not None:
             genomes[BASE_KEY[policy]] = resolved_genome
         install_keyed_opponent_overlays(core, genomes)

@@ -90,8 +90,18 @@ def _make_env(scale: int, style: str, seed: int, device: str = "cpu"):
     from gpu_env import GPUCTFVecEnv, GPUFieldConfig
 
     S.AGENTS = scale
-    pole_json = str(B3_GENOME) if scale == 4 else None
-    genome = resolve_pole_genome("B", scale, pole_json)
+    if scale == 2:
+        # This is a sealed, pre-suite diagnostic (2026-09-18). Its frozen spec used the
+        # natural canonical 2v2 Pole B, which it used to obtain through
+        # resolve_pole_genome's silent fallback. That fallback was removed on 2026-09-26
+        # (the certified resolver now fails closed at 2v2 until a fresh certification
+        # exists), so the historical pole is stated explicitly here. Object-identical to
+        # what the resolver returned before; not a suite stage.
+        from experiments.opponent_spec import pole_B_genome
+        genome = pole_B_genome(2)
+    else:
+        pole_json = str(B3_GENOME) if scale == 4 else None
+        genome = resolve_pole_genome("B", scale, pole_json)
     attestation = None
     if scale == 4:
         attestation = assert_resolved_matches_certification("B", 4, B3_CERT, genome)

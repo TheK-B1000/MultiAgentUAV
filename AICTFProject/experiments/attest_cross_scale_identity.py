@@ -294,6 +294,118 @@ def collect(scale: str, cfgdef: dict) -> dict:
     return {"row": row, "evidence": ev}
 
 
+# ---------------------------------------------------------------- layer 3 ----
+def _norm_overlay(o: dict | None) -> dict:
+    return {str(k): (int(v) if isinstance(v, float) and float(v).is_integer() else v)
+            for k, v in sorted((o or {}).items())}
+
+
+def static_pole_resolution(path: Path, forbidden: Sequence[str]) -> dict:
+    """AST check: a pole-consuming stage must not build poles via pole_*_genome() itself.
+
+    Real call nodes only -- a comment or docstring naming pole_B_genome is not a call, and a
+    grep would have flagged the explanatory comments this repair left behind.
+    """
+    import ast
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except Exception as exc:                                   # noqa: BLE001
+        return {"pass": False, "detail": f"unparseable: {exc}"}
+    calls, uses_resolver = [], False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if name in forbidden:
+                calls.append(f"line {node.lineno}: {name}()")
+            if name in ("resolve_pole_genome", "certified_pole_genome"):
+                uses_resolver = True
+    return {"pass": not calls and uses_resolver, "direct_pole_calls": calls,
+            "uses_certified_resolver": uses_resolver}
+
+
+def compare_pole_identity(recorded: dict | None, certified: dict | None) -> dict:
+    """MATCH / MISMATCH / UNKNOWN / PENDING. Only MATCH passes; UNKNOWN is not a match."""
+    if certified is None:
+        return {"status": "PENDING", "detail": "no certified pole at this scale"}
+    if recorded is None:
+        return {"status": "UNKNOWN", "detail": "artifact records no pole identity"}
+    got, want = _norm_overlay(recorded.get("overlay")), _norm_overlay(certified.get("overlay"))
+    out = {"recorded_overlay": got, "certified_overlay": want}
+    rh, ch = recorded.get("pole_config_hash"), certified.get("pole_config_hash")
+    if rh and ch:
+        out["hash_agrees"] = (rh == ch)
+    out["status"] = "MATCH" if got == want else "MISMATCH"
+    return out
+
+
+def _recorded_from_run_manifest(ckpt_rel: str) -> dict | None:
+    """The live pole a training run recorded at run time, or None if it recorded none."""
+    run_dir = (ROOT / ckpt_rel).parent.parent
+    m = run_dir / "run_manifest.json"
+    if not m.is_file():
+        return None
+    doc = json.loads(m.read_text(encoding="utf-8"))
+    stack = [doc]
+    while stack:
+        o = stack.pop()
+        if isinstance(o, dict):
+            if "live_overlay" in o:
+                return {"overlay": o["live_overlay"], "pole_config_hash": o.get("live_config_hash"),
+                        "source": f"{run_dir.name}/run_manifest.json (live attestation)"}
+            stack.extend(o.values())
+    return None
+
+
+def attest_resolved_objects(required: dict) -> dict:
+    """Layer 3: resolved experimental-object identity, per stage and per artifact."""
+    from experiments.pole_attestation import pole_identity, resolve_pole_genome
+
+    stages = {name: {"module": rel, **static_pole_resolution(ROOT / rel, required["forbidden_direct_calls"])}
+              for name, rel in required["pole_consuming_stages"].items()}
+
+    scales: dict = {}
+    for scale, cfg in SCALES.items():
+        n = cfg["N"]
+        certified = {}
+        for p in ("A", "B"):
+            try:
+                certified[p] = pole_identity(p, n, resolve_pole_genome(p, n))
+            except BaseException:                              # noqa: BLE001 -- fails closed = PENDING here
+                certified[p] = None
+        arts = []
+        for role, rel in (cfg["base"] or {}).items():
+            pol = "B" if role == "pi_B" else "A"
+            built = (ROOT / rel).is_file()
+            rec = _recorded_from_run_manifest(rel) if built else None
+            cmp = compare_pole_identity(rec, certified[pol]) if built else {"status": "PENDING",
+                                                                            "detail": "not built"}
+            arts.append({"artifact": f"{role} training", "pole": pol,
+                         "source": (rec or {}).get("source"), **cmp})
+        for role, rel in (cfg["split"] or {}).items():
+            built = (ROOT / rel).is_file()
+            rec = _recorded_from_run_manifest(rel) if built else None
+            cmp = compare_pole_identity(rec, certified["A"]) if built else {"status": "PENDING",
+                                                                            "detail": "not built"}
+            arts.append({"artifact": f"{role} training", "pole": "A",
+                         "source": (rec or {}).get("source"), **cmp})
+        if cfg["dataset"]:
+            man_p = SD / cfg["dataset"]
+            man = json.loads(man_p.read_text(encoding="utf-8")) if man_p.is_file() else {}
+            for p in ("A", "B"):
+                rec = (man.get("poles") or {}).get(p)
+                arts.append({"artifact": f"distillation dataset", "pole": p,
+                             "source": f"{cfg['dataset']}#poles.{p}" if rec else None,
+                             **compare_pole_identity(rec, certified[p])})
+        scales[scale] = {"certified": certified, "artifacts": arts}
+
+    stage_fail = sorted(k for k, v in stages.items() if not v["pass"])
+    art_fail = [{"scale": s, **a} for s, v in scales.items() for a in v["artifacts"]
+                if a["status"] in ("MISMATCH", "UNKNOWN")]
+    return {"stages": stages, "scales": scales, "stage_failures": stage_fail,
+            "artifact_failures": art_fail,
+            "pass": not stage_fail and not art_fail}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true", help="print the record instead of the table")
@@ -377,6 +489,25 @@ def main() -> int:
         if rec["verdict"] == "MISSING":
             print(f"           -> {rec['detail']}")
 
+    # ---- layer 3: resolved experimental-object identity -------------------------
+    obj_req = recipe.get("RESOLVED_OBJECT_IDENTITY_required")
+    if obj_req is None:
+        raise SystemExit("FAIL-CLOSED: frozen recipe carries no RESOLVED_OBJECT_IDENTITY_required")
+    objs = attest_resolved_objects(obj_req)
+    print(f"\n  LAYER 3 -- resolved experimental-object identity (poles)")
+    for name, st in objs["stages"].items():
+        print(f"    [{'ok  ' if st['pass'] else 'FAIL'}] {name:<22} {st['module']}"
+              + ("" if st["pass"] else f"  direct={st['direct_pole_calls']} resolver={st['uses_certified_resolver']}"))
+    for scale, v in objs["scales"].items():
+        cert = v["certified"]
+        cb = cert.get("B")
+        print(f"    {scale}: certified B = "
+              + (f"{cb['genome_id']} {cb['overlay']} hash {cb['pole_config_hash'][:12]}" if cb else "PENDING (no certification)"))
+        for a in v["artifacts"]:
+            mark = {"MATCH": "ok      ", "MISMATCH": "MISMATCH", "UNKNOWN": "UNKNOWN ", "PENDING": "pending "}[a["status"]]
+            extra = f"  recorded {a.get('recorded_overlay')}" if a["status"] == "MISMATCH" else ""
+            print(f"      [{mark}] {a['artifact']:<24} pole {a['pole']}{extra}")
+
     print()
     if pending_scales:
         print(f"  NOT YET ATTESTABLE (nothing built): {', '.join(pending_scales)}")
@@ -392,6 +523,15 @@ def main() -> int:
         print(f"  LAYER 2: {len(forked)}/{len(impls)} stage(s) are NOT a single cross-scale implementation.")
     else:
         print(f"  LAYER 2: all {len(impls)} stages resolve to one cross-scale implementation.")
+    if objs["pass"]:
+        print("  LAYER 3: every pole-consuming stage resolves through the certification, and every "
+              "built artifact recorded the certified pole.")
+    else:
+        mm = [f for f in objs["artifact_failures"] if f["status"] == "MISMATCH"]
+        uk = [f for f in objs["artifact_failures"] if f["status"] == "UNKNOWN"]
+        print(f"  LAYER 3: {len(objs['stage_failures'])} stage(s) off the certified resolver; "
+              f"{len(mm)} artifact(s) on a WRONG pole (MISMATCH); {len(uk)} artifact(s) recording "
+              f"NO pole (UNKNOWN).")
 
     record = {
         "record": "cross-scale identity attestation",
@@ -407,10 +547,12 @@ def main() -> int:
         "not_yet_attestable": pending_scales,
         "layer_2_implementations": impls,
         "layer_2_forked_stages": sorted(forked),
-        "attested": not mismatches and not pending_scales and not forked,
-        "attested_requires": "layer 1 (configuration semantics) AND layer 2 (implementation path). "
-                             "Layer 1 alone can pass while two scales reach the same numbers "
-                             "through different code.",
+        "layer_3_resolved_objects": objs,
+        "attested": not mismatches and not pending_scales and not forked and objs["pass"],
+        "attested_requires": "layer 1 (configuration semantics) AND layer 2 (implementation path) "
+                             "AND layer 3 (resolved experimental objects). Layer 2 alone passed "
+                             "while two stages received different Pole-B genomes through the "
+                             "same module.",
         "semantics": {
             "PENDING": "artifact not built yet; not a mismatch, and not an attestation either",
             "UNKNOWN": "artifact present but its setting could not be read from the loaded object; treated as a mismatch",
