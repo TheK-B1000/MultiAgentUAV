@@ -1,0 +1,563 @@
+{
+  "record_id": "STANDARDIZED_2V2_FOUNDATION_SPEC_VERIFICATION",
+  "utc": "2026-09-26T22:04:39Z",
+  "spec": "STANDARDIZED_2V2_FOUNDATION_SPEC.json",
+  "spec_sha256": "b18103efa165669d4f0148819ed66003f66b787f766784c21742cb793acff215",
+  "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+  "trainer_git_sha": "ca52a24bc19f9817675c1213de4a95007a7c519a",
+  "registry_experiment_id": "STANDARDIZED_2V2_FOUNDATION_PAIR_TRAINING",
+  "PASS": true,
+  "n_checks": 82,
+  "n_failed": 0,
+  "policies": {
+    "A": {
+      "final": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip",
+      "seed": 23100001,
+      "final_sha256": "5b01de6bd391ffb97269a0184c8b95e737450f3b740ced4c9bdd3b8d69357318",
+      "global_step": 1001472,
+      "manifest_git_sha": "ca52a24bc19f9817675c1213de4a95007a7c519a",
+      "live_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"
+    },
+    "B": {
+      "final": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip",
+      "seed": 23100002,
+      "final_sha256": "dc3e9ba420e0c25a5e179c19a1d521391a727e9cf825d1cadbf76946513b1cb1",
+      "global_step": 1001472,
+      "manifest_git_sha": "ca52a24bc19f9817675c1213de4a95007a7c519a",
+      "live_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+    }
+  },
+  "checks": [
+    {
+      "policy": "A",
+      "check": "spec_command_seed_matches_SEEDS",
+      "ok": true,
+      "detail": "23100001"
+    },
+    {
+      "policy": "A",
+      "check": "final_checkpoint_exists",
+      "ok": true,
+      "detail": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip"
+    },
+    {
+      "policy": "A",
+      "check": "global_step_reached_budget",
+      "ok": true,
+      "detail": 1001472
+    },
+    {
+      "policy": "A",
+      "check": "checkpoint_cfg_seed",
+      "ok": true,
+      "detail": 23100001
+    },
+    {
+      "policy": "A",
+      "check": "checkpoint_cfg_entity_repair_off",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "A",
+      "check": "checkpoint_cfg_anchor_dataset_empty",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "policy": "A",
+      "check": "checkpoint_cfg_no_load_path",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "policy": "A",
+      "check": "checkpoint_has_no_entity_parameters",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "policy": "A",
+      "check": "manifest_exists",
+      "ok": true,
+      "detail": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/run_manifest.json"
+    },
+    {
+      "policy": "A",
+      "check": "manifest_record",
+      "ok": true,
+      "detail": "train_specialist_scale run manifest"
+    },
+    {
+      "policy": "A",
+      "check": "manifest_seed",
+      "ok": true,
+      "detail": 23100001
+    },
+    {
+      "policy": "A",
+      "check": "manifest_policy",
+      "ok": true,
+      "detail": "A"
+    },
+    {
+      "policy": "A",
+      "check": "manifest_team_size",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "policy": "A",
+      "check": "manifest_not_smoke",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "A",
+      "check": "manifest_budget",
+      "ok": true,
+      "detail": 1000000
+    },
+    {
+      "policy": "A",
+      "check": "manifest_trainer_git_sha",
+      "ok": true,
+      "detail": "ca52a24bc19f9817675c1213de4a95007a7c519a"
+    },
+    {
+      "policy": "A",
+      "check": "manifest_certification_record",
+      "ok": true,
+      "detail": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json"
+    },
+    {
+      "policy": "A",
+      "check": "manifest_certification_CERTIFIED",
+      "ok": true,
+      "detail": "CERTIFIED"
+    },
+    {
+      "policy": "A",
+      "check": "manifest_live_pole_attestation_passed",
+      "ok": true,
+      "detail": true
+    },
+    {
+      "policy": "A",
+      "check": "manifest_certified_hash_is_sealed_handoff",
+      "ok": true,
+      "detail": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"
+    },
+    {
+      "policy": "A",
+      "check": "manifest_live_hash_equals_certified",
+      "ok": true,
+      "detail": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"
+    },
+    {
+      "policy": "A",
+      "check": "manifest_entity_repair_off",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "A",
+      "check": "manifest_no_warm_start",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "policy": "A",
+      "check": "manifest_no_resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "policy": "A",
+      "check": "manifest_pole_b_canonical",
+      "ok": true,
+      "detail": "canonical_pole_B_genome"
+    },
+    {
+      "policy": "A",
+      "check": "run_config_exists_once",
+      "ok": true,
+      "detail": [
+        "pi_A_specialist_2v2_std_run_config.json"
+      ]
+    },
+    {
+      "policy": "A",
+      "check": "run_config_argv_equals_spec_launch",
+      "ok": true,
+      "detail": [
+        "--team-size",
+        "2",
+        "--policy",
+        "A",
+        "--seed",
+        "23100001",
+        "--device",
+        "cuda",
+        "--total-timesteps",
+        "1000000",
+        "--run-label-suffix",
+        "_std"
+      ]
+    },
+    {
+      "policy": "A",
+      "check": "run_config_load_path_none",
+      "ok": true,
+      "detail": [
+        null,
+        null
+      ]
+    },
+    {
+      "policy": "A",
+      "check": "run_config_anchor_dataset_empty",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "policy": "A",
+      "check": "run_config_entity_repair_off",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "A",
+      "check": "run_config_seed",
+      "ok": true,
+      "detail": 23100001
+    },
+    {
+      "policy": "A",
+      "check": "run_config_team_size",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "policy": "A",
+      "check": "run_config_recipe_n_envs",
+      "ok": true,
+      "detail": 16
+    },
+    {
+      "policy": "A",
+      "check": "run_config_recipe_n_steps",
+      "ok": true,
+      "detail": 128
+    },
+    {
+      "policy": "A",
+      "check": "run_config_recipe_lr",
+      "ok": true,
+      "detail": 0.0005
+    },
+    {
+      "policy": "A",
+      "check": "run_config_git_sha",
+      "ok": true,
+      "detail": "ca52a24bc19f9817675c1213de4a95007a7c519a"
+    },
+    {
+      "policy": "A",
+      "check": "launcher_logged_exit_0",
+      "ok": true,
+      "detail": "std_foundation_watch.log"
+    },
+    {
+      "policy": "A",
+      "check": "run_log_present",
+      "ok": true,
+      "detail": "std_foundation_A.log"
+    },
+    {
+      "policy": "A",
+      "check": "run_log_no_traceback",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "A",
+      "check": "run_log_training_returned",
+      "ok": true,
+      "detail": true
+    },
+    {
+      "policy": "B",
+      "check": "spec_command_seed_matches_SEEDS",
+      "ok": true,
+      "detail": "23100002"
+    },
+    {
+      "policy": "B",
+      "check": "final_checkpoint_exists",
+      "ok": true,
+      "detail": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip"
+    },
+    {
+      "policy": "B",
+      "check": "global_step_reached_budget",
+      "ok": true,
+      "detail": 1001472
+    },
+    {
+      "policy": "B",
+      "check": "checkpoint_cfg_seed",
+      "ok": true,
+      "detail": 23100002
+    },
+    {
+      "policy": "B",
+      "check": "checkpoint_cfg_entity_repair_off",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "B",
+      "check": "checkpoint_cfg_anchor_dataset_empty",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "policy": "B",
+      "check": "checkpoint_cfg_no_load_path",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "policy": "B",
+      "check": "checkpoint_has_no_entity_parameters",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "policy": "B",
+      "check": "manifest_exists",
+      "ok": true,
+      "detail": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/run_manifest.json"
+    },
+    {
+      "policy": "B",
+      "check": "manifest_record",
+      "ok": true,
+      "detail": "train_specialist_scale run manifest"
+    },
+    {
+      "policy": "B",
+      "check": "manifest_seed",
+      "ok": true,
+      "detail": 23100002
+    },
+    {
+      "policy": "B",
+      "check": "manifest_policy",
+      "ok": true,
+      "detail": "B"
+    },
+    {
+      "policy": "B",
+      "check": "manifest_team_size",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "policy": "B",
+      "check": "manifest_not_smoke",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "B",
+      "check": "manifest_budget",
+      "ok": true,
+      "detail": 1000000
+    },
+    {
+      "policy": "B",
+      "check": "manifest_trainer_git_sha",
+      "ok": true,
+      "detail": "ca52a24bc19f9817675c1213de4a95007a7c519a"
+    },
+    {
+      "policy": "B",
+      "check": "manifest_certification_record",
+      "ok": true,
+      "detail": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json"
+    },
+    {
+      "policy": "B",
+      "check": "manifest_certification_CERTIFIED",
+      "ok": true,
+      "detail": "CERTIFIED"
+    },
+    {
+      "policy": "B",
+      "check": "manifest_live_pole_attestation_passed",
+      "ok": true,
+      "detail": true
+    },
+    {
+      "policy": "B",
+      "check": "manifest_certified_hash_is_sealed_handoff",
+      "ok": true,
+      "detail": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+    },
+    {
+      "policy": "B",
+      "check": "manifest_live_hash_equals_certified",
+      "ok": true,
+      "detail": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+    },
+    {
+      "policy": "B",
+      "check": "manifest_entity_repair_off",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "B",
+      "check": "manifest_no_warm_start",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "policy": "B",
+      "check": "manifest_no_resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "policy": "B",
+      "check": "manifest_pole_b_canonical",
+      "ok": true,
+      "detail": "canonical_pole_B_genome"
+    },
+    {
+      "policy": "B",
+      "check": "run_config_exists_once",
+      "ok": true,
+      "detail": [
+        "pi_B_specialist_2v2_std_run_config.json"
+      ]
+    },
+    {
+      "policy": "B",
+      "check": "run_config_argv_equals_spec_launch",
+      "ok": true,
+      "detail": [
+        "--team-size",
+        "2",
+        "--policy",
+        "B",
+        "--seed",
+        "23100002",
+        "--device",
+        "cuda",
+        "--total-timesteps",
+        "1000000",
+        "--run-label-suffix",
+        "_std"
+      ]
+    },
+    {
+      "policy": "B",
+      "check": "run_config_load_path_none",
+      "ok": true,
+      "detail": [
+        null,
+        null
+      ]
+    },
+    {
+      "policy": "B",
+      "check": "run_config_anchor_dataset_empty",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "policy": "B",
+      "check": "run_config_entity_repair_off",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "B",
+      "check": "run_config_seed",
+      "ok": true,
+      "detail": 23100002
+    },
+    {
+      "policy": "B",
+      "check": "run_config_team_size",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "policy": "B",
+      "check": "run_config_recipe_n_envs",
+      "ok": true,
+      "detail": 16
+    },
+    {
+      "policy": "B",
+      "check": "run_config_recipe_n_steps",
+      "ok": true,
+      "detail": 128
+    },
+    {
+      "policy": "B",
+      "check": "run_config_recipe_lr",
+      "ok": true,
+      "detail": 0.0005
+    },
+    {
+      "policy": "B",
+      "check": "run_config_git_sha",
+      "ok": true,
+      "detail": "ca52a24bc19f9817675c1213de4a95007a7c519a"
+    },
+    {
+      "policy": "B",
+      "check": "launcher_logged_exit_0",
+      "ok": true,
+      "detail": "std_foundation_watch.log"
+    },
+    {
+      "policy": "B",
+      "check": "run_log_present",
+      "ok": true,
+      "detail": "std_foundation_B.log"
+    },
+    {
+      "policy": "B",
+      "check": "run_log_no_traceback",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "policy": "B",
+      "check": "run_log_training_returned",
+      "ok": true,
+      "detail": true
+    },
+    {
+      "policy": "pair",
+      "check": "same_trainer_git_identity_for_both",
+      "ok": true,
+      "detail": [
+        "ca52a24bc19f9817675c1213de4a95007a7c519a"
+      ]
+    },
+    {
+      "policy": "pair",
+      "check": "launcher_logged_pair_done",
+      "ok": true,
+      "detail": "std_foundation_watch.log"
+    }
+  ],
+  "registry_status_change": "NOT performed by this script; set SPENT explicitly after PASS"
+}

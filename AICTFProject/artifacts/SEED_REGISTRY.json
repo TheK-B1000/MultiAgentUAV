@@ -1685,13 +1685,20 @@
       "lo": 23100001,
       "hi": 23100002,
       "n": 2,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_2V2_FOUNDATION_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-26T16:33:06Z"
+      "allocated_utc": "2026-09-26T16:33:06Z",
+      "spent_utc": "2026-09-26T22:04:46Z",
+      "notes": [
+        {
+          "utc": "2026-09-26T22:04:46Z",
+          "note": "pi_A 23100001 and pi_B 23100002 each trained 1,001,472 steps from ca52a24b; exit 0; pair verified 82/82 (STANDARDIZED_2V2_FOUNDATION_SPEC_VERIFICATION.json); finals sha256 A 5b01de6b..., B dc3e9ba4..."
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-26T17:19:54Z",
+  "updated_utc": "2026-09-26T22:04:46Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
