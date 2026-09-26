@@ -12,6 +12,8 @@ import csv
 import hashlib
 import json
 import os
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -306,16 +308,131 @@ def _synthetic_target_stream(n: int = 12) -> list[tuple[float, float]]:
     return [(5.0 if t % 2 == 0 else 15.0, 10.0) for t in range(n)]
 
 
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _content_hashes(path: Path) -> dict[str, str]:
+    """sha256 of the file's bytes, and of its content under LF and CRLF line endings.
+
+    Pins were recorded as raw-byte hashes on a Windows clone (core.autocrlf=true), so
+    they are CRLF-form hashes. A clone with LF checkouts holds byte-different but
+    content-identical files. Matching any of the three forms is content equality modulo
+    line endings -- NOT an escape hatch: a change to any character other than CR/LF
+    matches none of them.
+    """
+    raw = path.read_bytes()
+    lf = raw.replace(b"\r\n", b"\n")
+    crlf = lf.replace(b"\n", b"\r\n")
+    return {
+        "raw": hashlib.sha256(raw).hexdigest(),
+        "lf": hashlib.sha256(lf).hexdigest(),
+        "crlf": hashlib.sha256(crlf).hexdigest(),
+    }
+
+
+def check_prior_artifact_protection(
+    protected: Sequence[Path],
+    mode: str,
+    spec: dict[str, Any],
+    pin_source: Path,
+) -> dict[str, Any]:
+    """G0: the prior scale artifacts must be exactly as they were when this probe was
+    authorized. SPEC text: "Hashes the prior scale spec, amendment, contract result,
+    result, and reading; refuses interpretation if any changes."
+
+    PRE_RUN  no authorization record exists yet -- the hashes computed here are what
+             the PRE_RUN contract result records, and they BECOME the frozen pins.
+    otherwise the pins are read from the pre-run authorization record (pin_source) and
+             every protected file must match its pin. The frozen spec carries no hash
+             values, so the authorization record -- written before any seed was spent
+             -- is the frozen source.
+
+    Fails closed, per file, on: file missing; pin absent; pin malformed; content
+    mismatch. A pin source that is missing or unreadable fails every file.
+    """
+    spec_frozen = str(spec.get("status", "")).startswith("FROZEN")
+    out: dict[str, Any] = {"mode_used": mode, "spec_frozen": spec_frozen}
+
+    if mode == "PRE_RUN":
+        missing = [p.name for p in protected if not p.is_file()]
+        hashes = {p.name: _sha256(p) for p in protected if p.is_file()}
+        out.update(
+            pass_=not missing and spec_frozen, action="RECORD_PINS",
+            missing=missing, protected_sha256=hashes,
+            detail="pre-run: these hashes are recorded as the frozen pins",
+        )
+        return _finish_g0(out)
+
+    pins: dict[str, Any] | None = None
+    pin_error = None
+    if not pin_source.is_file():
+        pin_error = f"pin source missing: {pin_source.name}"
+    else:
+        try:
+            doc = json.loads(pin_source.read_text(encoding="utf-8"))
+            pins = doc["gates"]["G0_PRIOR_ARTIFACT_PROTECTION"]["protected_sha256"]
+            if not isinstance(pins, dict):
+                pin_error, pins = "pin table is not a mapping", None
+        except Exception as exc:                                    # noqa: BLE001
+            pin_error = f"pin source unreadable: {type(exc).__name__}: {exc}"
+    out["pin_source"] = pin_source.name
+    out["pin_source_sha256"] = _sha256(pin_source) if pin_source.is_file() else None
+
+    files: dict[str, Any] = {}
+    for p in protected:
+        rec: dict[str, Any] = {"expected": None, "actual_raw": None}
+        if pin_error is not None:
+            rec.update(status="FAIL_PIN_SOURCE", detail=pin_error)
+        elif not p.is_file():
+            rec.update(status="FAIL_MISSING", detail="protected file does not exist")
+        else:
+            expected = pins.get(p.name)
+            h = _content_hashes(p)
+            rec["expected"], rec["actual_raw"] = expected, h["raw"]
+            if expected is None:
+                rec.update(status="FAIL_PIN_ABSENT",
+                           detail="no frozen pin recorded for this file")
+            elif not isinstance(expected, str) or not _SHA256_HEX.match(expected):
+                rec.update(status="FAIL_PIN_MALFORMED",
+                           detail=f"pin is not 64 lowercase hex chars: {expected!r}")
+            else:
+                form = next((f for f in ("raw", "crlf", "lf") if h[f] == expected), None)
+                if form is None:
+                    rec.update(status="FAIL_CONTENT_CHANGED",
+                               detail="content differs from the frozen pin under "
+                                      "raw, CRLF and LF forms")
+                else:
+                    rec.update(status="MATCH", matched_form=form)
+        files[p.name] = rec
+
+    failed = sorted(n for n, r in files.items() if r["status"] != "MATCH")
+    out.update(
+        pass_=spec_frozen and not failed and pin_error is None, action="VERIFY_PINS",
+        files=files, failed=failed,
+        detail=("every protected artifact matches its frozen pin" if not failed and
+                pin_error is None else f"{len(failed)} protected artifact(s) failed"),
+    )
+    return _finish_g0(out)
+
+
+def _finish_g0(out: dict[str, Any]) -> dict[str, Any]:
+    """Rename pass_ -> pass (pass is a keyword in the builder above)."""
+    out["pass"] = bool(out.pop("pass_"))
+    return out
+
+
 def run_contracts() -> dict[str, Any]:
     gates: dict[str, dict[str, Any]] = {}
     protected = (SCALE_SPEC, SCALE_AMEND, SCALE_CONTRACT, SCALE_RESULT, SCALE_READING)
-    missing = [str(p.name) for p in protected if not p.is_file()]
-    hashes = {p.name: _sha256(p) for p in protected if p.is_file()}
     spec = json.loads(SPEC.read_text(encoding="utf-8"))
-    gates["G0_PRIOR_ARTIFACT_PROTECTION"] = {
-        "pass": not missing and str(spec.get("status", "")).startswith("FROZEN"),
-        "missing": missing, "protected_sha256": hashes,
-    }
+    # The lifecycle mode is needed by G0 as well as G8, so it is resolved first.
+    result_exists, lock_exists = OUT["result"].exists(), OUT["run_lock"].exists()
+    mode = "POST_RUN" if result_exists else ("IN_FLIGHT" if lock_exists else "PRE_RUN")
+    gates["G0_PRIOR_ARTIFACT_PROTECTION"] = check_prior_artifact_protection(
+        protected, mode, spec, OUT["contract_result"],
+    )
+    # Kept for the record shape: PRE_RUN records these as pins; they are the live hashes.
+    hashes = {p.name: _sha256(p) for p in protected if p.is_file()}
 
     # G1: request, endpoint jump, and angular event extraction.
     tr = EventTracker()
@@ -407,9 +524,7 @@ def run_contracts() -> dict[str, Any]:
     # never overwrites prior scale artifacts" -- is checked directly against the sealed
     # result by G9. The launcher's own refusal (result-or-lock exists => SystemExit) is
     # deliberately UNCHANGED and remains the thing that prevents a second run.
-    result_exists, lock_exists = OUT["result"].exists(), OUT["run_lock"].exists()
-    mode = "POST_RUN" if result_exists else ("IN_FLIGHT" if lock_exists else "PRE_RUN")
-
+    # (mode / result_exists / lock_exists are resolved once, at the top of this function.)
     if mode == "PRE_RUN":
         gates["G8_PRIOR_RUN_SEPARATION"] = {
             "pass": True, "applicable": True, "mode": mode,

@@ -37,6 +37,12 @@ PROTECTED_RESULTS = (
 
 OUT = {
     "contract_result": SD / "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json",
+    # Post-run contract evaluations (standing test, --contracts after the diagnostic has
+    # run) write HERE, never to contract_result. contract_result is the pre-run
+    # authorization record, and it is also a G0-protected artifact of the downstream
+    # ACTION_INTERFACE_COMMITMENT_MECHANISM probe: rewriting it on every test run is what
+    # re-stamped its utc on 2026-09-22 and broke that probe's frozen pin.
+    "contract_attestation": SD / "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_ATTESTATION.json",
     "trace_manifest": SD / "ACTION_INTERFACE_SCALE_DIAGNOSTIC_TRACE_MANIFEST.json",
     "agent_tick_rows": SD / "action_interface_scale_diagnostic_agent_tick_rows.csv",
     "episode_rows": SD / "action_interface_scale_diagnostic_episode_rows.csv",
@@ -517,8 +523,14 @@ def main() -> int:
 
     if a.contracts or not a.promote:
         result = run_contracts()
-        OUT["contract_result"].write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-        print(json.dumps({"status": result["status"], "overall_pass": result["overall_pass"]}, indent=2))
+        # Only a pre-run evaluation (no sealed result yet) may write the authorization
+        # record. After the diagnostic has run, the record is frozen evidence -- and a
+        # G0-protected artifact of the commitment-mechanism probe -- so post-run
+        # evaluations go to the attestation file. Refusal logic below is unchanged.
+        target = OUT["contract_attestation"] if OUT["result"].is_file() else OUT["contract_result"]
+        target.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps({"status": result["status"], "overall_pass": result["overall_pass"],
+                          "wrote": target.name}, indent=2))
         if not result["overall_pass"]:
             return 2
         if not a.promote:
