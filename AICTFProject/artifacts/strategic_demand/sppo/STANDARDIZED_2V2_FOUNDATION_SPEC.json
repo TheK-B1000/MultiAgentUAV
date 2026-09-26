@@ -1,0 +1,65 @@
+{
+  "record_id": "STANDARDIZED_2V2_FOUNDATION_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING_STEP",
+  "utc": "2026-09-26T16:45:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL (specialist foundation training). Not PAPER-FAITHFUL.",
+  "authorized_by": "PI, 2026-09-26: after the sealed 2v2 certification (5f7c6892), train the standardized 2v2 foundation pi_A, pi_B at 1M steps with the SA-PPO anchor OFF, using the same generalized trainer and certified pole handoff as the 4v4/6v6 methodology.",
+  "parent": [
+    "CROSS_SCALE_CANONICAL_RECIPE_V1.json#COMMON_RECIPE_locked",
+    "STRATEGIC_DEMAND_2v2_CERTIFICATION.json (SEALED, CERTIFIED; commit 5f7c6892)",
+    "SAME_METHODOLOGY_2V2_PORT_PLAN.json"
+  ],
+
+  "STAGE": "canonical lineage step 1 of: 1M base specialist (anchor OFF) -> entity-repair continuation -> split pi_D (k=1, N' teacher) -> Separated crossover -> CD dataset -> distilled suite arms. This spec authorizes step 1 ONLY.",
+
+  "RECIPE_identical_to_4v4_base": {
+    "reference_runs": ["scale_4v4_specialists/pi_A_specialist_4v4_b3", "scale_4v4_specialists/pi_B_specialist_4v4_b3"],
+    "trainer": "experiments/train_specialist_scale.py (one module, --team-size 2)",
+    "total_timesteps": 1000000,
+    "sappo_anchor": "OFF (empty sappo_anchor_dataset)",
+    "entity_repair": "OFF at this stage (it is the next, separate continuation stage, as at 4v4)",
+    "n_envs": 16, "n_steps": 128, "learning_rate": 0.0005,
+    "opponent_pool": {"A": ["OP6"], "B": ["OP7"]},
+    "resolved_config_check": "a 5,000-step smoke's resolved config differs from the 4v4 base run in 47 keys, none substantive: max_blue_agents 4 -> 2 (the scale); run identity (seed, run_tag, paths); smoke-only (total_timesteps, periodic_checkpoint_steps, formal_run, progress bar); and fields added to PPOConfig after the 4v4 base ran, every one at an inert default (all lambdas 0.0, all *_enabled False). The real launch's own run_config is re-diffed at start."
+  },
+
+  "POLES": {
+    "source": "the sealed 2v2 certification, through pole_attestation.resolve_pole_genome -> certified_pole_genome (requires VERDICT=CERTIFIED and a SEALED record)",
+    "A": {"genome_id": "SDS2_A_payoff_INIT_3", "pole_config_hash": "da87ea17be2fb2e8..."},
+    "B": {"genome_id": "SDS_PARENT_OP7", "pole_config_hash": "a6bd288a6bc176ea..."},
+    "verified": "2v2 trainer dry-runs for policy A and policy B: certification gate CERTIFIED; live pole hash == certified hash (MATCH PASS; policy B also live-attested)"
+  },
+
+  "SEEDS": {
+    "registry_experiment_id": "STANDARDIZED_2V2_FOUNDATION_PAIR_TRAINING",
+    "block": "23100001..23100002",
+    "seed_class": "exploratory",
+    "A": 23100001, "B": 23100002,
+    "class_rationale": "mirrors the current standardized pipeline's training-seed registration (SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V2_TRAINING, exploratory)"
+  },
+
+  "LAUNCH": {
+    "order": "sequential: A then B (one GPU; the 6v6 locked pipeline runs the pair in parallel only with two GPUs)",
+    "A": ".venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy A --seed 23100001 --device cuda --total-timesteps 1000000 --run-label-suffix _std",
+    "B": ".venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy B --seed 23100002 --device cuda --total-timesteps 1000000 --run-label-suffix _std",
+    "expected_finals": {
+      "A": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip",
+      "B": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip"
+    },
+    "cost": "about 132 steps/s steady state (measured on the smoke), so about 2.1 h per policy, about 4.2 h sequential",
+    "crash_recovery": "periodic checkpoints every 100,000 steps; resume with --resume <ckpt.zip>"
+  },
+
+  "DONE_WHEN": [
+    "both final checkpoints exist and each run_manifest records a live pole attestation MATCH against STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+    "each resolved run_config differs from its 4v4 base counterpart only in the categories listed under RECIPE_identical_to_4v4_base",
+    "the cross-scale identity attestation (Layers 1-3) is re-run and 2v2's base rows are read from these artifacts"
+  ],
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "the entity-repair continuation, the split pi_D, any crossover, dataset collection or distillation (each needs its own frozen spec and registered seeds)",
+    "any Pole B candidate override at 2v2",
+    "turning the SA-PPO anchor on",
+    "reusing the natural-setup 2v2 teachers (SAPPO continuation, r1_*) as warm starts: the foundation is trained fresh, as the 4v4 base was"
+  ]
+}
