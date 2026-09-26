@@ -1,0 +1,340 @@
+{
+  "record": "cross-scale methodology identity audit (2v2 / 4v4 / 6v6)",
+  "utc": "2026-09-26T04:27:56Z",
+  "scope": "READ-ONLY. Verifies CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#METHODOLOGY_IDENTITY_2026_09_26 against the artifacts on disk. Changes nothing and authorizes nothing.",
+  "method": "every setting is read from the LOADED checkpoint (cfg + parameter names). The SA-PPO gate is a non-empty cfg['sappo_anchor_dataset']; sappo_anchor_lambda defaults to 0.10 regardless of whether anchoring ran, so it is not the gate. entity repair is the presence of entity_* parameters.",
+  "identity_source": {
+    "file": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json",
+    "section": "METHODOLOGY_IDENTITY_2026_09_26",
+    "status": "LOCKED"
+  },
+  "models_by_scale": {
+    "2v2": {
+      "pi_A": {
+        "present": true,
+        "path": "artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_A_specialist_1p5M_seed7100001\\ckpts\\final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+        "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+        "sappo_anchor_on": true,
+        "sappo_anchor_dataset": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sappo_demonstrations\\anchor_A_train.npz",
+        "sappo_anchor_lambda": 0.1,
+        "sappo_anchor_cadence": 4,
+        "entity_repair_on": false,
+        "n_entity_params": 0,
+        "entity_hidden_dim": null,
+        "role_conditioning_enabled": null,
+        "role_k_defend": null,
+        "split_attack_defend_enabled": null,
+        "defend_teacher_lambda": null,
+        "total_timesteps": 1500000,
+        "n_params": 20
+      },
+      "pi_B": {
+        "present": true,
+        "path": "artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_B_specialist_1p5M_seed7200001\\ckpts\\final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+        "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+        "sappo_anchor_on": true,
+        "sappo_anchor_dataset": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sappo_demonstrations\\anchor_B_train.npz",
+        "sappo_anchor_lambda": 0.1,
+        "sappo_anchor_cadence": 4,
+        "entity_repair_on": false,
+        "n_entity_params": 0,
+        "entity_hidden_dim": null,
+        "role_conditioning_enabled": null,
+        "role_k_defend": null,
+        "split_attack_defend_enabled": null,
+        "defend_teacher_lambda": null,
+        "total_timesteps": 1500000,
+        "n_params": 20
+      }
+    },
+    "4v4": {
+      "pi_A": {
+        "present": true,
+        "path": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_b3_entity_repair\\ckpts\\final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+        "sappo_anchor_on": false,
+        "sappo_anchor_dataset": "",
+        "sappo_anchor_lambda": 0.1,
+        "sappo_anchor_cadence": 4,
+        "entity_repair_on": true,
+        "n_entity_params": 5,
+        "entity_hidden_dim": 32,
+        "role_conditioning_enabled": null,
+        "role_k_defend": null,
+        "split_attack_defend_enabled": null,
+        "defend_teacher_lambda": null,
+        "total_timesteps": 1000000,
+        "n_params": 25
+      },
+      "pi_B": {
+        "present": true,
+        "path": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_b3_entity_repair_corrected\\ckpts\\final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12",
+        "sappo_anchor_on": false,
+        "sappo_anchor_dataset": "",
+        "sappo_anchor_lambda": 0.1,
+        "sappo_anchor_cadence": 4,
+        "entity_repair_on": true,
+        "n_entity_params": 5,
+        "entity_hidden_dim": 32,
+        "role_conditioning_enabled": null,
+        "role_k_defend": null,
+        "split_attack_defend_enabled": null,
+        "defend_teacher_lambda": null,
+        "total_timesteps": 1000000,
+        "n_params": 25
+      },
+      "pi_D_split": {
+        "present": true,
+        "path": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_a4_split_attack_defend_v1\\ckpts\\final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+        "sha256": "b538cdf4ba5d2c5d2834c2307285b7bef6f8ab7232e5471798bd52e42d734f2c",
+        "sappo_anchor_on": false,
+        "sappo_anchor_dataset": "",
+        "sappo_anchor_lambda": 0.1,
+        "sappo_anchor_cadence": 4,
+        "entity_repair_on": true,
+        "n_entity_params": 5,
+        "entity_hidden_dim": 32,
+        "role_conditioning_enabled": true,
+        "role_k_defend": null,
+        "split_attack_defend_enabled": true,
+        "defend_teacher_lambda": 0.1,
+        "total_timesteps": 200000,
+        "n_params": 25
+      }
+    },
+    "6v6": {
+      "pi_A": {
+        "present": true,
+        "path": "artifacts\\scale_6v6_specialists\\pi_A_specialist_6v6\\ckpts\\final_pi_A_specialist_6v6.zip",
+        "sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82",
+        "sappo_anchor_on": false,
+        "sappo_anchor_dataset": "",
+        "sappo_anchor_lambda": 0.1,
+        "sappo_anchor_cadence": 4,
+        "entity_repair_on": false,
+        "n_entity_params": 0,
+        "entity_hidden_dim": null,
+        "role_conditioning_enabled": null,
+        "role_k_defend": null,
+        "split_attack_defend_enabled": null,
+        "defend_teacher_lambda": null,
+        "total_timesteps": 1000000,
+        "n_params": 20
+      },
+      "pi_B": {
+        "present": true,
+        "path": "artifacts\\scale_6v6_specialists\\pi_B_specialist_6v6\\ckpts\\final_pi_B_specialist_6v6.zip",
+        "sha256": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4",
+        "sappo_anchor_on": false,
+        "sappo_anchor_dataset": "",
+        "sappo_anchor_lambda": 0.1,
+        "sappo_anchor_cadence": 4,
+        "entity_repair_on": false,
+        "n_entity_params": 0,
+        "entity_hidden_dim": null,
+        "role_conditioning_enabled": null,
+        "role_k_defend": null,
+        "split_attack_defend_enabled": null,
+        "defend_teacher_lambda": null,
+        "total_timesteps": 1000000,
+        "n_params": 20
+      }
+    }
+  },
+  "distillation_datasets_by_scale": {
+    "2v2": {
+      "present": true,
+      "manifest": "TEACHER_DISTILLATION_DATASET.json",
+      "sha256": "edefd049bd787839b4a958b1d566ee272ed7b6d02bbabcbe64ebd1c28488ea94",
+      "status": "FROZEN_DATASET",
+      "team_size_declared": "ABSENT",
+      "allocator": "ABSENT",
+      "acting_policy_documented": false,
+      "stored_entity_tensors": "ABSENT",
+      "stored_roles": "ABSENT",
+      "decision_rows_only": true,
+      "device": "cpu",
+      "teachers": {
+        "pi_A": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+        "pi_B": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip"
+      },
+      "seeds": {
+        "A": [
+          11921001,
+          11921096
+        ],
+        "B": [
+          11921101,
+          11921196
+        ]
+      },
+      "n_per_pole": 96,
+      "n_shards": 192
+    },
+    "4v4": {
+      "present": true,
+      "manifest": "SUITE_DISTILLATION_4V4_DATASET.json",
+      "sha256": "996d1e6b8e02471e5ceaf0f6c5362c9fcc14036b98e003e75f7631a44279fb70",
+      "status": "FROZEN_DATASET",
+      "team_size_declared": 4,
+      "allocator": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 2,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8
+      },
+      "acting_policy_documented": true,
+      "stored_entity_tensors": true,
+      "stored_roles": true,
+      "decision_rows_only": true,
+      "device": "cuda",
+      "teachers": {
+        "pi_A": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "pi_B": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip"
+      },
+      "seeds": {
+        "A": [
+          22520001,
+          22520096
+        ],
+        "B": [
+          22520101,
+          22520196
+        ]
+      },
+      "n_per_pole": 96,
+      "n_shards": 192
+    },
+    "6v6": {
+      "present": true,
+      "manifest": "TEACHER_DISTILLATION_6V6_DATASET.json",
+      "sha256": "49debf4d2765c1f9db49da7ee720e25f5a603b5ee749e3c8c0f1c3dda2e04aa8",
+      "status": "FROZEN_DATASET",
+      "team_size_declared": 6,
+      "allocator": "ABSENT",
+      "acting_policy_documented": false,
+      "stored_entity_tensors": "ABSENT",
+      "stored_roles": "ABSENT",
+      "decision_rows_only": true,
+      "device": "cpu",
+      "teachers": {
+        "pi_A": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
+        "pi_B": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip"
+      },
+      "seeds": {
+        "A": [
+          13600003,
+          13600098
+        ],
+        "B": [
+          13600103,
+          13600198
+        ]
+      },
+      "n_per_pole": 96,
+      "n_shards": 192
+    }
+  },
+  "cross_scale_disagreements": [
+    {
+      "axis": "sappo_anchor_on",
+      "kind": "model_training",
+      "by_scale": {
+        "2v2": [
+          "true"
+        ],
+        "4v4": [
+          "false"
+        ],
+        "6v6": [
+          "false"
+        ]
+      }
+    },
+    {
+      "axis": "entity_repair_on",
+      "kind": "model_training",
+      "by_scale": {
+        "2v2": [
+          "false"
+        ],
+        "4v4": [
+          "true"
+        ],
+        "6v6": [
+          "false"
+        ]
+      }
+    },
+    {
+      "axis": "total_timesteps",
+      "kind": "model_training",
+      "by_scale": {
+        "2v2": [
+          "1500000"
+        ],
+        "4v4": [
+          "1000000"
+        ],
+        "6v6": [
+          "1000000"
+        ]
+      }
+    },
+    {
+      "axis": "allocator",
+      "kind": "distillation_dataset",
+      "by_scale": {
+        "2v2": "ABSENT",
+        "4v4": {
+          "rule": "CLOSEST_DEFENDS",
+          "k_defend": 2,
+          "fixed_for_episode": true,
+          "hold_ticks_H_r": 8
+        },
+        "6v6": "ABSENT"
+      }
+    },
+    {
+      "axis": "acting_policy_documented",
+      "kind": "distillation_dataset",
+      "by_scale": {
+        "2v2": false,
+        "4v4": true,
+        "6v6": false
+      }
+    },
+    {
+      "axis": "stored_entity_tensors",
+      "kind": "distillation_dataset",
+      "by_scale": {
+        "2v2": "ABSENT",
+        "4v4": true,
+        "6v6": "ABSENT"
+      }
+    },
+    {
+      "axis": "stored_roles",
+      "kind": "distillation_dataset",
+      "by_scale": {
+        "2v2": "ABSENT",
+        "4v4": true,
+        "6v6": "ABSENT"
+      }
+    }
+  ],
+  "identity_holds": false,
+  "comparison_rule": {
+    "foundation_roles_compared": [
+      "pi_A",
+      "pi_B"
+    ],
+    "why": "pi_D is the 200k split stage, not a foundation specialist. Pooling its budget with a 1M foundation would report a disagreement that is not one. Its own settings are still recorded under models_by_scale."
+  },
+  "what_this_does_not_check": [
+    "that the code path executed at each scale was byte-identical (only recorded cfg/params)",
+    "pole overlay equality between scales",
+    "whether any disagreement changes a scientific conclusion"
+  ]
+}

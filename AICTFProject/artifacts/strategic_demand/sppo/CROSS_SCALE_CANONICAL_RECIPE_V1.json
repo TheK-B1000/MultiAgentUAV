@@ -1,0 +1,103 @@
+{
+  "record_id": "CROSS_SCALE_CANONICAL_RECIPE_V1",
+  "status": "FROZEN_RECIPE",
+  "utc": "2026-09-26T04:45:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL. Authorizes no training and no seed spend; it fixes WHAT any authorized run must be.",
+  "decided_by": "PI, 2026-09-26: make 4v4 the canonical reference recipe and bring 2v2 and the FINAL 6v6 pipeline into alignment with it. Retire the old 2v2 SAPPO lineage from the cross-scale suite without deleting it.",
+  "parent": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#METHODOLOGY_IDENTITY_2026_09_26 (LOCKED)",
+  "measured_from": "CROSS_SCALE_METHODOLOGY_IDENTITY_AUDIT.json -- the 4v4 values below were read off the loaded 4v4 checkpoints and the frozen 4v4 dataset manifest, not copied from prose.",
+
+  "WHY_4V4_IS_THE_REFERENCE": "It is the only scale whose full lineage exists and whose Separated arm has a confirmatory PASS. Its scientific recipe is therefore not to be changed to accommodate the other scales; the other scales converge onto it.",
+
+  "CANONICAL_LINEAGE": "1M base specialist (anchor OFF) -> entity-repair continuation -> split pi_D (200k, N' teacher) -> CLOSEST_DEFENDS dataset (entities + roles) -> distillation -> evaluation",
+
+  "COMMON_RECIPE_locked": {
+    "sappo_anchor": {"value": false, "gate_field": "cfg['sappo_anchor_dataset'] must be empty", "note": "sappo_anchor_lambda is 0.10 by PPOConfig default at every scale and is NOT the gate; do not read it as evidence either way"},
+    "base_specialist_total_timesteps": 1000000,
+    "entity_repair_enabled": true,
+    "entity_hidden_dim": 32,
+    "split_defender_stage": {"total_timesteps": 200000, "same_code": true, "n_prime_teacher": "reused exactly -- loss CE(macro,GO_TO)+CE(waypoint,w_N'), lambda 0.1 -> 0.0 decaying 50k..150k, cadence 4, DEFEND-role + alive + decision-eligible gating", "do_not_retune": true},
+    "dataset_collection": {"collector": "one shared team-size-parameterized collector", "allocator": "CLOSEST_DEFENDS, fixed_for_episode, hold_ticks_H_r=8", "acting": "split composite on Pole A, pi_B on Pole B; recorded in the manifest", "episodes_per_pole": 96, "n_shards": 192, "decision_rows_only": true, "stored_entity_tensors": true, "stored_roles": true},
+    "distillation": {"loss": "0.5*KL(pi_A||pi(.|o,z0)) + 0.5*KL(pi_B||pi(.|o,z1))", "schedule": "20 epochs, batch 256, Adam lr 3e-4, grad-norm clip 1.0, no weight decay, no early stopping, terminal weights only", "one_dataset_per_scale": "every sharing arm at a scale consumes the SAME frozen manifest"},
+    "evaluation": {"forced_z": true, "no_router": true, "delta_A": "V(z0,A)-V(z1,A)", "delta_B": "V(z1,B)-V(z0,B)", "gate": "mean>0 AND LCB95>0 on BOTH poles", "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7}, "matched_seeds_within_scale": true}
+  },
+
+  "ALLOWED_TO_DIFFER": [
+    "team size N in {2,4,6}",
+    "CLOSEST_DEFENDS k: 2v2 k=1, 4v4 k=2, 6v6 k=1",
+    "seed blocks (fresh and disjoint per scale, allocated via experiments/seed_registry.py)",
+    "artifact paths and run labels",
+    "tensor dimensions that follow mechanically from N",
+    "wall-clock and hardware"
+  ],
+
+  "HISTORICAL_VS_SUITE_ARTIFACTS": {
+    "the_key_distinction": "The FINAL repaired artifacts enter the suite, not the historical ones that happen to share a scale.",
+    "2v2": {
+      "suite_artifacts": "NONE YET -- to be built (fresh certification first)",
+      "explicitly_not_suite_teachers": ["artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001", "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001"],
+      "why": "anchor ON and 1.5M steps; both differ from the canonical recipe",
+      "retained": "SAPPO V1 remains a valid finding and provenance in its own right. Nothing is deleted. It simply no longer supplies the cross-scale suite's 2v2 teachers.",
+      "legacy_dataset_not_suite": "TEACHER_DISTILLATION_DATASET.json (no allocator, no entity tensors, no roles)"
+    },
+    "4v4": {
+      "suite_artifacts": ["artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair", "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected", "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1"],
+      "dataset": "SUITE_DISTILLATION_4V4_DATASET.json",
+      "status": "REFERENCE -- do not change its scientific recipe"
+    },
+    "6v6": {
+      "suite_artifacts": "PENDING -- the FINAL repaired outputs of SCHOOL_PC_6V6_LOCKED_PIPELINE.json (pi_A/pi_B c2_entity_repair finals, pi_D split_defend_k1_v1 final). Verified absent on disk 2026-09-26.",
+      "explicitly_not_suite_teachers": ["artifacts/scale_6v6_specialists/pi_A_specialist_6v6", "artifacts/scale_6v6_specialists/pi_B_specialist_6v6"],
+      "why_the_base_is_still_usable": "those historical specialists already satisfy two fixed facts of the canonical recipe -- anchor OFF and a 1M foundation -- so they are legitimate WARM-START BASES for the entity-repair continuation. They are not themselves suite teachers.",
+      "legacy_dataset_not_suite": "TEACHER_DISTILLATION_6V6_DATASET.json (collected from the unrepaired specialists, no allocator, no entity tensors, no roles)",
+      "consequence": "no 6v6 base restart from zero is required"
+    }
+  },
+
+  "STAGE_IMPLEMENTATIONS_required": {
+    "appended_utc": "2026-09-26T05:10:00Z",
+    "appended_by": "PI, 2026-09-26: configuration identity is not enough -- two scales could report the same values through different implementations. Pin the implementation path too. Appended before any run was attested against the earlier version of this record.",
+    "rule": "Each stage MUST resolve to the SAME module at 2v2, 4v4 and 6v6. Team size is an argument, never a separate module. A module whose name encodes a scale, or which hardcodes a module-level team-size constant, is a per-scale fork and fails this requirement.",
+    "stages": {
+      "specialist_trainer_impl": {"module": "experiments/train_specialist_scale.py", "note": "SUPPORTED_TEAM_SIZES=(2,4,6); the pole-certification gate is unchanged, so an accepted --team-size is not permission to train"},
+      "entity_repair_impl": {"module": "experiments/train_specialist_scale.py", "note": "same module; --entity-repair-enabled is a flag, not a fork"},
+      "split_trainer_impl": {"module": "experiments/train_specialist_scale.py", "note": "same module; --split-attack-defend-enabled is a flag"},
+      "n_prime_teacher_impl": {"module": "rl/custom_ppo/defend_teacher.py", "note": "reused unchanged at every scale"},
+      "allocator_impl": {"module": "rl/custom_ppo/rule_role_assignment.py", "note": "k=N/2 default with an explicit k override; scale-agnostic"},
+      "dataset_collector_impl": {"module": "experiments/collect_suite_distillation_states.py", "note": "generalized 2026-09-26 (git mv from collect_suite_distillation_states_4v4.py); --team-size (2,4,6), all paths and k derived from it"},
+      "distillation_impl": {"module": "experiments/run_suite_sharing_distillation.py", "note": "--team-size (2,4,6); legacy n==2 dataset routing, n==2 loader and the 2v2 Share-Encoder reuse shortcut all removed 2026-09-26"},
+      "crossover_evaluator_impl": {"module": "experiments/eval_suite_sharing_crossover.py", "note": "generalized 2026-09-26; --team-size (2,4,6). The forked eval_suite_sharing_crossover_4v4.py is retained ONLY until the in-flight Share-Macro run finishes, then deleted -- see OPEN_ITEMS"},
+      "separated_crossover_impl": {"module": "experiments/eval_specialist_crossover_scaled.py", "note": "--team-size (2,4,6); the N != 2 Pole-B overlay branch was removed 2026-09-26 after verifying pole_B_genome(2) has an empty overlay and installing it leaves all 36 resolved profile fields identical"},
+      "bootstrap_impl": {"module": "experiments/eval_hog_psp_v3.py", "symbol": "_mean_ci", "note": "one bootstrap for every delta at every scale"}
+    },
+    "fork_smells_that_fail": [
+      "a filename containing 2v2 / 4v4 / 6v6",
+      "a module-level N_AGENTS / AGENTS constant fixed to one team size",
+      "a team-size choices tuple that omits a suite scale",
+      "an `if n == 2` (or any team-size) branch that changes methodology rather than a derived dimension"
+    ],
+    "allowed_to_differ": "only N, k, seeds, artifact paths, and tensor dimensions that follow mechanically from N"
+  },
+
+  "IDENTITY_ATTESTATION_required": {
+    "emitter": "experiments/attest_cross_scale_identity.py",
+    "when": "as a preflight after the shared runners are generalized, and again before any suite claim",
+    "rule": "every row except N, k, seeds, paths and mechanically-derived tensor dimensions must match across scales",
+    "unknown_is_not_match": "a missing run_config.json means UNKNOWN, never 'same config'. Settings are read from the loaded checkpoint/runtime object, or the attestation fails closed.",
+    "rows": ["N", "k", "anchor_enabled", "foundation_steps", "entity_repair", "split_steps", "Nprime_teacher", "dataset_allocator", "dataset_entities", "dataset_roles", "episodes_per_pole", "decision_only"],
+    "two_layers": {
+      "layer_1_configuration_semantics": "the rows above, read from loaded checkpoints and frozen dataset manifests",
+      "layer_2_implementation_path": "STAGE_IMPLEMENTATIONS_required -- every stage resolves to the same module, pinned by sha256, at all three scales",
+      "attested_requires": "BOTH layers pass. Layer 1 alone can pass while two scales reach the same numbers through different code."
+    }
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "any training run or seed spend",
+    "deleting or rewriting the SAPPO V1 records or the historical 6v6/2v2 artifacts",
+    "changing the 4v4 scientific recipe to accommodate another scale",
+    "retuning the N' teacher schedule, cadence or formula",
+    "restarting the 6v6 base specialists from zero",
+    "treating a legacy dataset as a suite dataset"
+  ]
+}

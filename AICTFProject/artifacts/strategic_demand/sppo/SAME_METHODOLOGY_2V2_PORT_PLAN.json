@@ -1,0 +1,131 @@
+{
+  "record_id": "SAME_METHODOLOGY_2V2_PORT_PLAN",
+  "status": "DRAFT_IMPLEMENTATION_PLAN",
+  "utc": "2026-09-26T04:35:00Z",
+  "classification": "Implementation plan only. Authorizes no training and no seed spend.",
+  "authority": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#METHODOLOGY_IDENTITY_2026_09_26 (LOCKED) owns the principle, the exact-same list, and what may differ by scale. This file does not restate it. It records the measured code/artifact state, the blockers, the certification decision, and the superseded run.",
+  "k_at_2v2": "k=1: the only non-degenerate defender count at N=2 and the allocator default N/2. Pin it explicitly in the 2v2 launch spec.",
+
+  "MEASURED_NONCONFORMANCE_2026_09_26": {
+    "audit": "CROSS_SCALE_METHODOLOGY_IDENTITY_AUDIT.json (experiments/audit_cross_scale_methodology_identity.py)",
+    "method": "settings read from the LOADED checkpoints (cfg + parameter names), not from manifests. The SA-PPO gate is a non-empty cfg['sappo_anchor_dataset']; sappo_anchor_lambda is 0.10 by default at every scale and is NOT the gate. The 6v6 specialists carry no run_config.json at all, so a manifest-based check would have reported nothing.",
+    "headline": "The identity does NOT hold today, and it fails at 6v6 as well as 2v2. This is not a 2v2-only port.",
+    "disagreements": {
+      "sappo_anchor_on": {"2v2": true, "4v4": false, "6v6": false, "note": "2v2's suite teachers are the SAPPO continuation runs with anchor_A/B_train.npz active at lambda=0.10, cadence 4. 4v4 and 6v6 trained with the anchor off."},
+      "entity_repair_on": {"2v2": false, "4v4": true, "6v6": false, "note": "4v4 teachers carry 5 entity_* parameter tensors (entity_hidden_dim=32); 2v2 and 6v6 teachers carry none."},
+      "foundation_total_timesteps": {"2v2": 1500000, "4v4": 1000000, "6v6": 1000000, "note": "pi_D's 200k split stage is a different stage and is excluded from this comparison."},
+      "dataset_allocator": {"2v2": "ABSENT", "4v4": "CLOSEST_DEFENDS k=2 fixed_for_episode hold_ticks_H_r=8", "6v6": "ABSENT"},
+      "dataset_acting_policy_documented": {"2v2": false, "4v4": true, "6v6": false, "note": "only the 4v4 manifest records which policy generated the states (split composite on Pole A, pi_B on Pole B)."},
+      "dataset_stored_entity_tensors": {"2v2": "ABSENT", "4v4": true, "6v6": "ABSENT"},
+      "dataset_stored_roles": {"2v2": "ABSENT", "4v4": true, "6v6": "ABSENT"}
+    },
+    "not_flagged_but_worth_recording": {
+      "collection_device": {"2v2": "cpu", "4v4": "cuda", "6v6": "cpu"},
+      "n_per_pole": "96 at all three scales (matches)",
+      "decision_rows_only": "true at all three scales (matches)",
+      "n_shards": "192 at all three scales (matches)"
+    }
+  },
+
+  "REQUIRED_TARGET_all_three_scales": {
+    "derivation": "The locked identity names 4v4 as the reference ('whatever methodology worked for 4v4 and is running on 6v6 must run on 2v2'). Reading the 4v4 artifacts gives the target.",
+    "sappo_anchor": "OFF (empty sappo_anchor_dataset)",
+    "entity_repair": "ON (entity_hidden_dim=32)",
+    "foundation_budget": "1,000,000 steps per specialist",
+    "split_stage": "200,000 steps, N' teacher schedule/cadence/formula reused exactly",
+    "dataset": "collected under CLOSEST_DEFENDS(k) with the split composite acting on Pole A and pi_B on Pole B; stores entity tensors and roles; decision rows only; 96 episodes per pole",
+    "CONFIRMATION_REQUIRED_FROM_PI": "Adopting this target means the 2v2 suite teachers are RETRAINED without the strategy anchor and with entity repair at 1M. That retires the SAPPO-continuation 1.5M lineage as the suite's 2v2 teachers (it stays on disk as provenance, and the 'SAPPO PASS' record is untouched as a separate result). Confirm before any 2v2 training is specced.",
+    "6V6_CONSEQUENCE": "6v6 needs the same two fixes. Entity repair is already planned by SCHOOL_PC_6V6_LOCKED_PIPELINE.json steps 1-4. The dataset is NOT yet compliant: TEACHER_DISTILLATION_6V6_DATASET.json was collected from the UNrepaired specialists with no allocator and no entity/role tensors. The suite spec already directs a fresh collection under CLOSEST_DEFENDS(k=1) after the repaired Separated arm seals, so this is consistent with the existing plan rather than new work."
+  },
+
+  "POLE_CERTIFICATION_DECISION_2026_09_26": {
+    "decided_by": "PI",
+    "decision": "FRESH 2v2 pole certification, run through the same certification logic, AFTER the 2v2-specific branch is removed so the only scale differences are N=2 and k=1.",
+    "rejected": [
+      "counting the original freeze-record poles as certification by themselves",
+      "auto-reusing the prior 2v2 strategic-demand certification (it is not established that it certifies the same pole definitions and code path the common methodology now uses, and the `n == 2` branch changes Pole B behaviour)",
+      "weakening the trainer's certification gate",
+      "writing a declaration that the old freeze record counts as certification"
+    ],
+    "prior_2v2_certification_status": "retained as provenance. If exact equivalence is ever established, the new certification may be described as reproducing an already-certified pole concept.",
+    "rationale": "Avoids a paper vulnerability where the new 2v2 pipeline is said to have inherited certification from a different environment definition."
+  },
+
+  "SEQUENCE_locked_by_PI": [
+    "1. Finish the 4v4 Share-Macro eval, so the shared runners can be generalized without editing code mid-run.",
+    "2. Remove/replace the 2v2-only Pole-B overlay behaviour so pole semantics come from the common machinery.",
+    "3. Verify the only scale differences are N=2 and k=1.",
+    "4. Run a fresh 2v2 pole-certification block through the same certification logic.",
+    "5. Freeze that certification.",
+    "6. Only then: entity repair -> pi_D -> Separated crossover -> state collection -> distillation -> forced-z -> pi_G."
+  ],
+
+  "GENERALIZATION_DONE_2026_09_26": {
+    "attestation": "CROSS_SCALE_IDENTITY_ATTESTATION.json -- layer 2 now reports all 10 stages resolving to one cross-scale implementation (was 7 of 10 forked before this work).",
+    "changes": [
+      "train_specialist_scale.py: SUPPORTED_TEAM_SIZES (4,6) -> (2,4,6). The pole-certification gate and live-pole attestation are UNCHANGED: a 2v2 dry-run is now accepted as a team size and then refuses with 'FAIL-CLOSED: governing certification record not found: STRATEGIC_DEMAND_2v2_CERTIFICATION.json' (exit 1).",
+      "train_specialist_scale.py::_verify_live_pole: removed the `n == 2` / `n != 2` fork that installed a different overlay SET at 2v2 than at 4v4/6v6. Both poles are now installed at every scale, with the resolved genome for the pole under test.",
+      "eval_specialist_crossover_scaled.py: removed the `N != 2` Pole-B branch.",
+      "run_suite_sharing_distillation.py: removed the `n == 2` legacy dataset route (TEACHER_DISTILLATION_DATASET.json), the `n == 2` legacy loader (RTD.load_dataset), and the 2v2 Share-Encoder reuse shortcut that returned the natural-setup Rung-1 student. Arm/scale authorization is now the ARM_SCALES table instead of a team-size branch, and K_DEFEND is an explicit per-scale map.",
+      "collect_suite_distillation_states_4v4.py -> collect_suite_distillation_states.py (git mv, history preserved): --team-size (2,4,6); spec path, output dir, manifest name and k all derived from it; no module-level team size.",
+      "eval_suite_sharing_crossover.py: new generalized crossover evaluator, --team-size (2,4,6), spec path and log dir derived from it."
+    ],
+    "empirical_checks_run": [
+      "pole_B_genome(2).overlay == {} and installing it leaves all 36 fields of core._bt_resolved_profile_tensors() identical -> removing the N != 2 branch is behaviour-preserving at 2v2",
+      "at 4v4, adding the non-live OP6 overlay leaves all 36 resolved profile fields identical -> the trainer generalization does not change the 4v4 reference",
+      "4v4 policy-B trainer dry-run before vs after: identical live pole, identical attestation output, only installed_overlay_keys ['OP7'] -> ['OP6','OP7'] as intended. The 'MATCH: FAIL' pole-attestation line is PRE-EXISTING (reproduced from the pre-change file at HEAD) and reflects the dry-run using canonical OP7 rather than the B3-3 candidate genome",
+      "all five modules byte-compile; tests/test_suite_fully_shared_distill.py 2 passed"
+    ],
+    "PRE_EXISTING_FAILURE_NOT_MINE": {
+      "test": "tests/test_preset_resolution.py::PresetResolutionTests::test_resolved_configs_match_snapshot",
+      "symptom": "every preset resolves with 5 fields absent from tests/preset_snapshots.json: fully_shared_z_conditioned_enabled, fully_shared_z_pole_match, role_conditioning_allow_pre_entity_base, role_k_defend, role_k_defend_choices. 0 value diffs.",
+      "cause": "those fields were added to rl/config/ppo_config.py in af8f76c2 (2026-09-23); the snapshot was last regenerated in 9ce9c840 (2026-09-22). The snapshot has been stale since 2026-09-23.",
+      "not_caused_by_this_work": "this work modified no rl/ or tests/ file; git status confirms ppo_config.py, rl/presets/ and tests/preset_snapshots.json are unmodified.",
+      "not_fixed_here": "AGENTS.md forbids modifying tests/preset_snapshots.json without an explicit changelog entry in AICTFProject/docs/Paper_experiment_alignment.md section 7. Regenerating it is a separate, deliberate act and needs that entry.",
+      "other_tests": "tests/test_v5i4_paper_faithful.py and tests/test_latent_losses.py pass (84 passed, 1 failed overall in that subset)"
+    },
+    "REMAINING": [
+      "delete experiments/eval_suite_sharing_crossover_4v4.py once the in-flight Share-Macro run finishes. It is retained now ONLY so the code that produced that run's rows stays on disk; the new generalized evaluator is already the declared implementation.",
+      "SUITE_DISTILLATION_2V2_SPEC.json does not exist -- the generalized collector fails closed without it",
+      "SUITE_SHARING_2V2_CROSSOVER_EVAL_SPEC.json does not exist -- the generalized evaluator fails closed without it",
+      "SUITE_SHARE_ENCODER_2V2_CONSTRUCTION_AMENDMENT.json does not exist -- the distillation runner fails closed without it",
+      "no 2v2 init/branch seeds registered for any arm: SEEDS_LADDER['share_encoder'] deliberately has no 2v2 entry (the old one was the SPENT Rung-1 training block) and the runner now fails closed instead of inheriting it"
+    ]
+  },
+
+  "STAGES_same_code_every_scale": [
+    {"id": 1, "stage": "entity-repair specialists pi_A, pi_B", "code": "experiments/train_specialist_scale.py --team-size N --entity-repair-enabled", "at_2v2_today": "BLOCKED: SUPPORTED_TEAM_SIZES=(4,6); certification gate _certification_verdict(2) finds no STRATEGIC_DEMAND_2v2_*CERTIFICATION.json; _verify_live_pole has an `n == 2` branch"},
+    {"id": 2, "stage": "split defender pi_D, frozen ATTACK pi_A, N' teacher (schedule, cadence, formula unchanged)", "code": "experiments/train_specialist_scale.py --split-attack-defend-enabled --role-k-defend k", "at_2v2_today": "same blocker; no 2v2 pi_D exists"},
+    {"id": 3, "stage": "Separated crossover (exploratory n=64; confirmatory n=128 only if exploratory passes)", "code": "experiments/eval_specialist_crossover_scaled.py --team-size N", "at_2v2_today": "accepts team size 2"},
+    {"id": 4, "stage": "distillation-state collection under CLOSEST_DEFENDS from the composite (Pole A) and pi_B (Pole B)", "code": "experiments/collect_suite_distillation_states_4v4.py", "at_2v2_today": "4v4-only file name and N constant"},
+    {"id": 5, "stage": "distill Fully Shared+z and Share-Encoder on that one dataset", "code": "experiments/run_suite_sharing_distillation.py --team-size N", "at_2v2_today": "accepts 2 but uses a legacy dataset path and loader when n == 2"},
+    {"id": 6, "stage": "forced-z crossover of the students", "code": "experiments/eval_suite_sharing_crossover_4v4.py", "at_2v2_today": "4v4-only (N_AGENTS=4, entity augmentation required)"},
+    {"id": 7, "stage": "Generalist under the same allocator fairness narrative", "code": "same trainer, mixed-pole pool", "at_2v2_today": "natural-setup pi_G exists; 4v4 Generalist not built"}
+  ],
+
+  "SUPERSEDED_RUN": {
+    "what": "SUITE_FULLY_SHARED_Z_2V2 crossover (SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json; runner experiments/eval_suite_fully_shared_z_2v2.py)",
+    "why": "It scored the natural-setup 2v2 student with a 2v2-only runner, a per-scale fork the locked identity forbids. PI: under the newly locked methodology it should never become a paper row.",
+    "state": "stopped 2026-09-26 at 82/512 episodes. crossover_eval_PARTIAL.jsonl retained; seed block 22900001..22900128 stays RESERVED and unspent; nothing sealed.",
+    "runner_fate": "delete once the single team-size-parameterized crossover runner exists"
+  },
+
+  "OPEN_ITEMS": [
+    "PI confirmation of REQUIRED_TARGET_all_three_scales (anchor OFF + entity ON + 1M at 2v2, which retires the SAPPO 1.5M teachers as suite teachers)",
+    "the `n == 2` branch in experiments/train_specialist_scale.py::_verify_live_pole (Pole B installs an OP6 overlay at 2v2 only)",
+    "2v2 PPO throughput is unmeasured, so the cost of a 1M-step entity-repair foundation at 2v2 is unknown (6v6 ran ~3.5-4 steps/s)",
+    "seed blocks for every stage allocated through experiments/seed_registry.py before any seed is spent",
+    "a generalized script must reproduce the existing 4v4 dry-runs and pins before it is used at 2v2",
+    "the 4v4 Generalist is still unbuilt and belongs to this same pipeline"
+  ],
+
+  "SEQUENCING_CONSTRAINT": "experiments/eval_suite_sharing_crossover_4v4.py is executing the 4v4 Share-Macro exploratory eval (seeds 22514001..064). It is not edited until that run finishes, so the code on disk equals the code that produced the rows. Do not run a second single-env eval beside it: doing so stretched its episodes from ~40 s to 113-262 s.",
+
+  "NOT_AUTHORIZED_BY_THIS_PLAN": [
+    "any training run or seed spend",
+    "weakening the pole-certification gate or the live-pole attestation to let 2v2 through",
+    "resuming or sealing the superseded natural-setup 2v2 crossover as a paper row",
+    "retuning the N' teacher schedule, cadence or formula",
+    "retiring or overwriting the SAPPO V1 records; they stay as their own result"
+  ]
+}

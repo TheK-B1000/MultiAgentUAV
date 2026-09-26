@@ -1,0 +1,253 @@
+{
+  "record": "SUITE 4V4 sharing flagged arms -- row-level integrity audit",
+  "utc": "2026-09-26T01:07:12Z",
+  "scope": "read-only mechanical audit of exploratory n=64 crossovers that wrote INTEGRITY_REQUIRED",
+  "what_a_pass_means": "rows are well-formed, seeds/checkpoints match the frozen spec, z forcing changes episodes, and the z-label mapping is consistent with the imitation fit. It does not certify the design and it does not seal any result.",
+  "arms": [
+    {
+      "arm": "fully_shared_z",
+      "n_per_cell": 64,
+      "rows_csv": "suite_fully_shared_z_4v4_exploratory_crossover_eval_rows.csv",
+      "all_mechanical_checks_pass": true,
+      "checks": [
+        {
+          "name": "row_count",
+          "result": "PASS",
+          "detail": "256 rows, expected 256"
+        },
+        {
+          "name": "cell_seed_block_exact",
+          "result": "PASS",
+          "detail": "4 cells, each the frozen block 22510001..22510064 exactly once"
+        },
+        {
+          "name": "win_margin_consistent_with_scores",
+          "result": "PASS",
+          "detail": "0 inconsistent rows of 256"
+        },
+        {
+          "name": "checkpoint_sha_matches_spec_pin",
+          "result": "PASS",
+          "detail": "on-disk sha dfa82051b1bb vs pin dfa82051b1bb"
+        },
+        {
+          "name": "student_frozen_sha_matches_pin",
+          "result": "PASS",
+          "detail": "STUDENT_FROZEN sha dfa82051b1bb vs pin dfa82051b1bb"
+        },
+        {
+          "name": "forced_z_changes_episodes",
+          "result": "PASS",
+          "detail": "z0/z1 give identical final scores on the same seed: Pole A 0.234, Pole B 0.219 (a policy ignoring z would give 1.000)",
+          "identical_score_fraction": {
+            "A": 0.234375,
+            "B": 0.21875
+          }
+        },
+        {
+          "name": "z_label_mapping_consistent",
+          "result": "PASS",
+          "detail": "holdout agreement z0<->pi_A 0.895, z1<->pi_B 0.856",
+          "agree_z0_piA": 0.8946611101383772,
+          "agree_z1_piB": 0.8562243549962855
+        },
+        {
+          "name": "rederived_deltas_match_flag_record",
+          "result": "PASS",
+          "detail": "flag delta_A +0.28125 / delta_B -0.10938 vs re-derived +0.28125 / -0.10938"
+        }
+      ],
+      "cell_win_rates": {
+        "z0@PoleA": 0.828125,
+        "z0@PoleB": 0.9375,
+        "z1@PoleA": 0.546875,
+        "z1@PoleB": 0.828125
+      },
+      "delta_A": {
+        "mean": 0.28125,
+        "lcb95": 0.125,
+        "ucb95": 0.4375
+      },
+      "delta_B": {
+        "mean": -0.109375,
+        "lcb95": -0.21875,
+        "ucb95": 0.0
+      },
+      "student_fit": {
+        "agree_z0_piA": 0.8946611101383772,
+        "agree_z1_piB": 0.8562243549962855
+      }
+    },
+    {
+      "arm": "share_encoder",
+      "n_per_cell": 64,
+      "rows_csv": "suite_share_encoder_4v4_exploratory_crossover_eval_rows.csv",
+      "all_mechanical_checks_pass": true,
+      "checks": [
+        {
+          "name": "row_count",
+          "result": "PASS",
+          "detail": "256 rows, expected 256"
+        },
+        {
+          "name": "cell_seed_block_exact",
+          "result": "PASS",
+          "detail": "4 cells, each the frozen block 22511001..22511064 exactly once"
+        },
+        {
+          "name": "win_margin_consistent_with_scores",
+          "result": "PASS",
+          "detail": "0 inconsistent rows of 256"
+        },
+        {
+          "name": "checkpoint_sha_matches_spec_pin",
+          "result": "PASS",
+          "detail": "on-disk sha 43e1a0033229 vs pin 43e1a0033229"
+        },
+        {
+          "name": "student_frozen_sha_matches_pin",
+          "result": "PASS",
+          "detail": "STUDENT_FROZEN sha 43e1a0033229 vs pin 43e1a0033229"
+        },
+        {
+          "name": "forced_z_changes_episodes",
+          "result": "PASS",
+          "detail": "z0/z1 give identical final scores on the same seed: Pole A 0.203, Pole B 0.125 (a policy ignoring z would give 1.000)",
+          "identical_score_fraction": {
+            "A": 0.203125,
+            "B": 0.125
+          }
+        },
+        {
+          "name": "z_label_mapping_consistent",
+          "result": "PASS",
+          "detail": "holdout agreement z0<->pi_A 0.914, z1<->pi_B 0.876",
+          "agree_z0_piA": 0.914376491717984,
+          "agree_z1_piB": 0.876199362376591
+        },
+        {
+          "name": "rederived_deltas_match_flag_record",
+          "result": "PASS",
+          "detail": "flag delta_A +0.35938 / delta_B -0.21875 vs re-derived +0.35938 / -0.21875"
+        }
+      ],
+      "cell_win_rates": {
+        "z0@PoleA": 0.71875,
+        "z0@PoleB": 0.96875,
+        "z1@PoleA": 0.359375,
+        "z1@PoleB": 0.75
+      },
+      "delta_A": {
+        "mean": 0.359375,
+        "lcb95": 0.1875,
+        "ucb95": 0.515625
+      },
+      "delta_B": {
+        "mean": -0.21875,
+        "lcb95": -0.34375,
+        "ucb95": -0.109375
+      },
+      "student_fit": {
+        "agree_z0_piA": 0.914376491717984,
+        "agree_z1_piB": 0.876199362376591
+      }
+    },
+    {
+      "arm": "share_backbone",
+      "n_per_cell": 64,
+      "rows_csv": "suite_share_backbone_4v4_exploratory_crossover_eval_rows.csv",
+      "all_mechanical_checks_pass": true,
+      "checks": [
+        {
+          "name": "row_count",
+          "result": "PASS",
+          "detail": "256 rows, expected 256"
+        },
+        {
+          "name": "cell_seed_block_exact",
+          "result": "PASS",
+          "detail": "4 cells, each the frozen block 22513001..22513064 exactly once"
+        },
+        {
+          "name": "win_margin_consistent_with_scores",
+          "result": "PASS",
+          "detail": "0 inconsistent rows of 256"
+        },
+        {
+          "name": "checkpoint_sha_matches_spec_pin",
+          "result": "PASS",
+          "detail": "on-disk sha 01c084c25512 vs pin 01c084c25512"
+        },
+        {
+          "name": "student_frozen_sha_matches_pin",
+          "result": "PASS",
+          "detail": "STUDENT_FROZEN sha 01c084c25512 vs pin 01c084c25512"
+        },
+        {
+          "name": "forced_z_changes_episodes",
+          "result": "PASS",
+          "detail": "z0/z1 give identical final scores on the same seed: Pole A 0.328, Pole B 0.188 (a policy ignoring z would give 1.000)",
+          "identical_score_fraction": {
+            "A": 0.328125,
+            "B": 0.1875
+          }
+        },
+        {
+          "name": "z_label_mapping_consistent",
+          "result": "PASS",
+          "detail": "holdout agreement z0<->pi_A 0.901, z1<->pi_B 0.862",
+          "agree_z0_piA": 0.900800522158682,
+          "agree_z1_piB": 0.8621005073242793
+        },
+        {
+          "name": "rederived_deltas_match_flag_record",
+          "result": "PASS",
+          "detail": "flag delta_A +0.43750 / delta_B -0.28125 vs re-derived +0.43750 / -0.28125"
+        }
+      ],
+      "cell_win_rates": {
+        "z0@PoleA": 0.875,
+        "z0@PoleB": 0.890625,
+        "z1@PoleA": 0.4375,
+        "z1@PoleB": 0.609375
+      },
+      "delta_A": {
+        "mean": 0.4375,
+        "lcb95": 0.296875,
+        "ucb95": 0.578125
+      },
+      "delta_B": {
+        "mean": -0.28125,
+        "lcb95": -0.421875,
+        "ucb95": -0.125
+      },
+      "student_fit": {
+        "agree_z0_piA": 0.900800522158682,
+        "agree_z1_piB": 0.8621005073242793
+      }
+    }
+  ],
+  "teacher_pair_context": {
+    "source": "4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json",
+    "status": "READING_FROZEN_POST_AUDIT",
+    "delta_A": {
+      "mean": 0.2734,
+      "lcb95": 0.1719,
+      "ucb95": 0.375,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": -0.1562,
+      "lcb95": -0.2656,
+      "ucb95": -0.0469,
+      "passes": false
+    },
+    "raw_cells": {
+      "pi_A3_on_A": 0.8125,
+      "pi_A3_on_B": 0.7422,
+      "pi_B3_corrected_on_A": 0.5391,
+      "pi_B3_corrected_on_B": 0.5859
+    },
+    "note": "n=128 seeds 18300001-128; teachers are the KL teachers pinned in SUITE_DISTILLATION_4V4_SPEC (pi_A3 = z0, corrected pi_B3 = z1). Different seeds, n and possibly pole overlay than the student evals -- context, not a matched comparison."
+  }
+}

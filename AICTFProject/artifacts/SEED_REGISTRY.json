@@ -1531,9 +1531,21 @@
       "spec": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
       "subdivides": null,
       "allocated_utc": "2026-09-23T22:08:24Z"
+    },
+    {
+      "experiment_id": "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER",
+      "purpose": "Suite 2v2 Fully Shared+z forced-z crossover, one-shot sealed eval (suite task 1)",
+      "seed_class": "sealed_confirmatory",
+      "lo": 22900001,
+      "hi": 22900128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T01:00:42Z"
     }
   ],
-  "updated_utc": "2026-09-23T22:08:24Z",
+  "updated_utc": "2026-09-26T01:00:42Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

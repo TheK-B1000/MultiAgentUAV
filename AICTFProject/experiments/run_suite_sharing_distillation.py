@@ -34,10 +34,17 @@ SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 EPOCHS, BATCH, LR, CLIP = 20, 256, 3e-4, 1.0
 FIT_MIN = 0.50
 # Fully Shared+z: single init seed. Ladder arms: (z0, z1) branch seeds.
+#: CLOSEST_DEFENDS defender count per scale -- the one scale knob besides N
+#: (CROSS_SCALE_CANONICAL_RECIPE_V1.json#ALLOWED_TO_DIFFER).
+K_DEFEND = {2: 1, 4: 2, 6: 1}
 SEEDS_FULLY = {2: 11_980_001, 4: 22_580_001, 6: 22_680_001}
 SEEDS_LADDER = {
     "share_encoder": {
-        2: (11_961_001, 11_961_002),  # sealed 2v2 Rung-1 (not retrained here)
+        # 2v2 deliberately absent. The old entry was (11961001, 11961002) -- the SPENT
+        # training seeds of the natural-setup Rung-1 student, carried here only because
+        # 2v2 reused that student instead of distilling. Now that 2v2 is distilled by this
+        # same path it needs a FRESH block allocated through experiments/seed_registry.py;
+        # silently inheriting a spent block would breach Rule 9. Absence fails closed below.
         4: (22_581_001, 22_581_002),
         6: (22_681_001, 22_681_002),
     },
@@ -52,6 +59,16 @@ LADDER_RUNG = {
     "share_encoder": 1,
     "share_backbone": 2,
     "share_macro": 3,
+}
+#: Which scales each arm is authorized at, as data rather than a team-size branch.
+#: Fully Shared+z and Share-Encoder are cross-scale suite arms; Share-Backbone and
+#: Share-Macro are a 4v4-only depth extension, not suite arms
+#: (CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#DEPTH_VS_BREADTH).
+ARM_SCALES = {
+    "fully_shared": (2, 4, 6),
+    "share_encoder": (2, 4, 6),
+    "share_backbone": (4,),
+    "share_macro": (4,),
 }
 LADDER_AMEND = {
     "share_encoder": {4: SD / "SUITE_SHARE_ENCODER_4V4_CONSTRUCTION_AMENDMENT.json"},
@@ -81,8 +98,14 @@ def _sha(p: Path) -> str:
 
 
 def _dataset_for(n: int) -> Path:
-    if n == 2:
-        return SD / "TEACHER_DISTILLATION_DATASET.json"
+    """The suite dataset for team size n -- one naming rule at every scale.
+
+    The former `n == 2` route to TEACHER_DISTILLATION_DATASET.json is gone: that manifest
+    was collected with no allocator and no entity/role tensors, so it is a legacy dataset,
+    not a suite dataset (CROSS_SCALE_CANONICAL_RECIPE_V1.json#HISTORICAL_VS_SUITE_ARTIFACTS).
+    2v2 fails closed here until SUITE_DISTILLATION_2V2_DATASET.json is collected under
+    CLOSEST_DEFENDS by the same collector as the other scales.
+    """
     return SD / f"SUITE_DISTILLATION_{n}V{n}_DATASET.json"
 
 
@@ -115,19 +138,16 @@ def main() -> int:
     paths = _paths(arm, n)
     is_ladder = arm in LADDER_RUNG
 
-    if arm == "share_encoder" and n == 2:
-        sealed = SD / "sharing_ladder" / "rung1" / "ckpts" / "final_rung1.pt"
-        rec = SD / "RUNG1_STUDENT_FROZEN.json"
-        if not sealed.is_file() or not rec.is_file():
-            raise SystemExit("REFUSING: 2v2 Share-Encoder seal missing")
-        print(f"2v2 Share-Encoder already sealed; reuse {sealed}")
-        print(f"  record {rec.name}")
-        return 0
-
-    if is_ladder and arm != "share_encoder" and n != 4:
+    # The 2v2 Share-Encoder reuse shortcut is gone. It returned the sealed Rung-1 student,
+    # which was distilled from the legacy 2v2 dataset by the natural-setup ladder -- a
+    # different methodology from the suite's Share-Encoder. Reusing it made 2v2's Share-Encoder
+    # row incomparable to 4v4/6v6. 2v2 is now distilled by this same code path from the suite
+    # dataset. Rung 1 remains on disk as provenance.
+    if n not in ARM_SCALES[arm]:
         raise SystemExit(
-            f"REFUSING: {arm} suite distill is only authorized at 4v4 "
-            f"(got team-size={n})."
+            f"REFUSING: {arm} is authorized at {ARM_SCALES[arm]}, not {n}v{n}. "
+            f"Share-Backbone / Share-Macro are a 4v4-only depth extension, not cross-scale "
+            f"suite arms (CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#DEPTH_VS_BREADTH)."
         )
 
     if is_ladder:
@@ -146,7 +166,8 @@ def main() -> int:
         raise SystemExit(
             f"FAIL-CLOSED: {dataset.name} is missing. "
             f"{n}v{n} suite distillation needs the matched teacher-state set "
-            f"(4v4/6v6: collected under CLOSEST_DEFENDS k={'2' if n == 4 else '1'})."
+            f"Every scale's suite dataset is collected under CLOSEST_DEFENDS "
+            f"k={K_DEFEND.get(n, '?')} by the shared collector."
         )
 
     import torch
@@ -155,16 +176,26 @@ def main() -> int:
     from rl import teacher_distillation as TD
     from rl.custom_ppo import load_custom_ppo_policy
 
-    if n != 2:
-        import experiments.collect_distillation_states as C
-        C.N_AGENTS = n
-        R2.AGENTS = n
+    # One loader and one agent-count propagation at every scale (the former `n == 2` route
+    # used RTD.load_dataset(), which reads the legacy 2v2 manifest layout).
+    import experiments.collect_distillation_states as C
+    C.N_AGENTS = n
+    R2.AGENTS = n
 
-    man, arr, hold = RTD.load_dataset() if n == 2 else _load_scale(dataset)
+    man, arr, hold = _load_scale(dataset)
     train_idx = np.where(~hold)[0]
     hold_idx = np.where(hold)[0]
     tspec = man["teachers"]
 
+    # Absence is an error state, never a default: a scale with no registered block must
+    # stop here rather than fall back to another scale's (possibly spent) seeds.
+    seed_table = SEEDS_FULLY if arm == "fully_shared" else SEEDS_LADDER[arm]
+    if n not in seed_table:
+        raise SystemExit(
+            f"FAIL-CLOSED: no init/branch seed registered for {arm} at {n}v{n}. Allocate a "
+            f"fresh block with experiments/seed_registry.py and add it to this table before "
+            f"training; do not reuse another scale's or a SPENT block (Rule 9)."
+        )
     probe_seed = (
         SEEDS_FULLY[n] if arm == "fully_shared" else SEEDS_LADDER[arm][n][0]
     )

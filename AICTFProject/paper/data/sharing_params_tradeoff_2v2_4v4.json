@@ -1,6 +1,6 @@
 {
   "record": "Unique-actor parameter tradeoff vs Share-0 / Separated — 2v2 sealed ladder + 4v4 suite update",
-  "utc": "2026-09-25T07:25:00Z",
+  "utc": "2026-09-25T22:40:00Z",
   "units": {
     "params": "unique deployed actor parameters (float32 elements)",
     "reduction": "1 - n_unique / n_reference_at_that_scale (Share-0 at 2v2; Separated composite at 4v4)",
@@ -8,9 +8,12 @@
     "delta": "forced-z crossover: Δ_A=V(z0,A)-V(z1,A); Δ_B=V(z1,B)-V(z0,B); paired percentile bootstrap n_boot=20000 alpha=0.05 rng=7"
   },
   "honest_gaps": {
-    "4v4_Share_Backbone_Macro": "NOT BUILT — suite locks Share-Encoder as the only partial-share arm at 4v4/6v6",
+    "4v4_Share_Backbone_Macro": "PI-authorized depth extension (2026-09-25), outside the locked cross-scale suite, which names Share-Encoder as the only partial-share arm at 4v4/6v6. Both students built on the same SUITE_DISTILLATION_4V4 dataset. Share-Backbone crossover DONE (FLAGGED); Share-Macro crossover eval was killed at 60/256 by a reboot and relaunched from scratch 2026-09-25 20:43 (no partial results kept); Δ cells pending.",
     "2v2_Fully_Shared_z_Delta": "2v2 Fully Shared+z imitation frozen; sealed crossover Δ not yet run",
-    "4v4_distilled_Delta_status": "exploratory n=64 crossover DONE for Share-Encoder and Fully Shared+z; both FLAGGED on Δ_B reversal (no FROZEN_RESULT seal). Confirmatory n=128 not authorized."
+    "4v4_distilled_Delta_status": "exploratory n=64 crossover DONE for Share-Encoder, Share-Backbone and Fully Shared+z; all three FLAGGED on Δ_B reversal (no FROZEN_RESULT seal). Row-level audit SUITE_4V4_SHARING_FLAGGED_ARMS_ROW_AUDIT.json: all mechanical checks pass for the three arms. Confirmatory n=128 not authorized.",
+    "4v4_teacher_pair_confound": "The KL teachers for the 4v4 students (entity-repair pi_A3 -> z0, corrected pi_B3 -> z1) already fail Δ_B at 4v4 (Δ_A +0.273, Δ_B -0.156 [-0.266,-0.047], n=128, 4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json): pi_A3 wins on both poles. The student Δ_B reversal is consistent with imitating that pair and is not evidence that sharing removes Pole-B specialization. The Separated row is the split ATTACK/DEFEND composite, a different system. Teacher figures are on different seeds/n; Pole-B overlay equality not verified.",
+    "2v2_methodology_mismatch": "2026-09-26: every 2v2 row here is the natural 2v2 setup (no CLOSEST_DEFENDS allocator, teachers without entity repair, legacy TEACHER_DISTILLATION_DATASET). 4v4 rows use the allocator, entity-repair teachers and SUITE_DISTILLATION_4V4_DATASET. The contribution is one methodology at every team size, so 2v2 is to be redone through the same pipeline (SAME_METHODOLOGY_2V2_PORT_PLAN.json). The 2v2 and 4v4 blocks are not comparable rows of one figure until then.",
+    "2v2_Fully_Shared_z_Delta_update": "natural-setup sealed crossover (SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json, block 22900001..22900128) was stopped at 82/512 episodes on 2026-09-26 and superseded; block stays RESERVED and unspent; not a paper row."
   },
   "2v2": {
     "share0_reference_n_unique": 6947184,
@@ -68,7 +71,7 @@
         "imitation_agreement": "0.965 / 0.988",
         "delta_A": null,
         "delta_B": null,
-        "gate": "IMITATION ONLY (crossover not yet sealed)",
+        "gate": "IMITATION ONLY (natural 2v2 setup); crossover to be redone under the same methodology as 4v4 (SAME_METHODOLOGY_2V2_PORT_PLAN.json); natural-setup eval stopped at 82/512, not a paper row",
         "n": null,
         "source": "suite_sharing/2v2/fully_shared_z/STUDENT_FROZEN.json"
       }
@@ -109,23 +112,34 @@
       },
       {
         "condition": "Share-Backbone",
-        "params_M": null,
-        "reduction_pct": null,
-        "imitation_agreement": "—",
-        "delta_A": null,
-        "delta_B": null,
-        "gate": "NOT BUILT (suite excludes)",
-        "n": null
+        "params_M": 3.533,
+        "n_unique": 3532656,
+        "reduction_pct": 49.0,
+        "imitation_agreement": "0.901 / 0.862",
+        "delta_A": {"mean": 0.4375, "lcb95": 0.296875, "ucb95": 0.578125},
+        "delta_B": {"mean": -0.28125, "lcb95": -0.421875, "ucb95": -0.125},
+        "gate": "FLAGGED",
+        "n": 64,
+        "arm": "exploratory",
+        "note": "Δ_B reversal; INTEGRITY_REQUIRED (no FROZEN_RESULT). Pole wins: z0@A=0.875 z1@A=0.4375 z0@B=0.8906 z1@B=0.6094",
+        "source": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "rows_csv": "suite_share_backbone_4v4_exploratory_crossover_eval_rows.csv",
+        "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
+        "checkpoint_sha256_prefix": "01c084c2"
       },
       {
         "condition": "Share-Macro",
-        "params_M": null,
-        "reduction_pct": null,
-        "imitation_agreement": "—",
+        "params_M": 3.531,
+        "n_unique": 3531371,
+        "reduction_pct": 49.0,
+        "imitation_agreement": "0.899 / 0.859",
         "delta_A": null,
         "delta_B": null,
-        "gate": "NOT BUILT (suite excludes)",
-        "n": null
+        "gate": "CROSSOVER EVAL RELAUNCHED 2026-09-25 20:43 (exploratory n=64); first attempt killed at 60/256 by the 18:29 reboot",
+        "n": null,
+        "source": "suite_sharing/4v4/share_macro/STUDENT_FROZEN.json",
+        "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
+        "checkpoint_sha256_prefix": "12e66d98"
       },
       {
         "condition": "Fully Shared+z",

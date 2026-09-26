@@ -3,15 +3,49 @@
   "status": "FROZEN_DESIGN_ONLY",
   "utc": "2026-09-24T04:00:00Z",
   "classification": "EXPERIMENTAL PROTOCOL / DIAGNOSTIC suite. Not PAPER-FAITHFUL method. Not a license to train. Not a new PPO variant.",
-  "authorized_by": "PI, 2026-09-24: freeze a cross-scale baseline suite with the same comparison axes at 2v2/4v4/6v6, allowing scale-specific config such as k. Do not keep adding one-off baselines that only make sense at one scale.",
+  "authorized_by": "PI, 2026-09-24: freeze a cross-scale baseline suite with the same comparison axes at 2v2/4v4/6v6, allowing scale-specific config such as k. Do not keep adding one-off baselines that only make sense at one scale. SUPERSEDED_IN_PART 2026-09-26: methodology identity is exact across scales (see PRINCIPLE / METHODOLOGY_IDENTITY_2026_09_26).",
 
   "RESEARCH_QUESTION": "How much parameter sharing can be introduced before closed-loop specialization disappears, as team size scales from 2v2 to 4v4 to 6v6?",
 
   "PRINCIPLE": {
     "same_experimental_question": true,
     "scale_specific_configuration_allowed": true,
-    "example": "CLOSEST_DEFENDS k=2 at 4v4 and k=1 at 6v6; 2v2 keeps the natural two-agent expert setup without artificially inventing the larger-team role split",
-    "forbidden": "mechanically forcing every implementation detail identical across scales when that would change the scientific question"
+    "example": "CLOSEST_DEFENDS k may differ by scale (4v4: k=2; 6v6: k=1; 2v2: k pinned once chosen — typically k=1 for N=2); team size N differs by scale",
+    "forbidden": "different training/eval recipes, different arm constructions, or one-scale-only baselines that change the scientific comparison"
+  },
+
+  "METHODOLOGY_IDENTITY_2026_09_26": {
+    "status": "LOCKED",
+    "utc": "2026-09-26T04:15:00Z",
+    "authorized_by": "PI, 2026-09-26: whatever methodology worked for 4v4 and is running on 6v6 must run on 2v2 with the EXACT SAME methodology. Variable values may differ slightly (N, k). Otherwise NO EXCEPTIONS.",
+    "contribution_framing": {
+      "what_we_claim": "ONE methodology",
+      "what_varies": "agent count / team size only (2v2, 4v4, 6v6)",
+      "what_must_not_vary": "code path, training recipe, eval gate, arm definitions, allocator family — no per-scale methodology forks",
+      "plain_english": "The same thing is being tested on different numbers of agents with no other changes in the code."
+    },
+    "exact_same": [
+      "one shared codebase / runner path (scale is a parameter, not a fork)",
+      "four suite arms: Generalist, Fully Shared+z, Share-Encoder, Separated",
+      "Separated recipe = mature Attack/Defend split under CLOSEST_DEFENDS",
+      "sharing family: same teachers + same states + same KL objective + same budget; only sharing structure changes",
+      "forced-z crossover gate: Δ_A / Δ_B definition, bootstrap (n_boot=20000, α=0.05, rng=7), matched seeds within scale",
+      "allocator held identical across Separated / Share-Encoder / Fully Shared+z at that scale",
+      "Generalist trained/evaluated under the same allocator fairness narrative as the other arms at that scale"
+    ],
+    "allowed_to_differ_by_scale": [
+      "team size N ∈ {2,4,6} (the independent variable of the contribution)",
+      "CLOSEST_DEFENDS k as the minimal scale knob required by N (4v4: k=2; 6v6: k=1; 2v2: pin explicitly — typically k=1; never a different allocator family)",
+      "seed blocks (must be fresh/disjoint per scale)",
+      "wall-clock / hardware"
+    ],
+    "supersedes": [
+      "PRINCIPLE.example text that excused 2v2 from CLOSEST_DEFENDS as 'natural expert setup'",
+      "ALLOCATOR_FAIRNESS_locked.2v2 exception ('do not artificially invent CLOSEST_DEFENDS')",
+      "any claim that 2v2 may keep a different Separated construction or skip Generalist / Fully Shared+z crossover while 4v4/6v6 use the split methodology",
+      "any per-scale special-case scripts that change the scientific recipe rather than only N/k"
+    ],
+    "compliance_note": "Existing 2v2 Share-0 / Rung-1 / pi_G rows remain provenance; suite claims that mix those with 4v4/6v6 split methodology are INVALID until 2v2 is rebuilt under this identity. A paper sentence that needs a 2v2-only caveat is a methodology failure."
   },
 
   "FOUR_ARMS_locked": {
@@ -47,7 +81,7 @@
       "label": "No sharing / separated",
       "policy": "scale-specific upper reference",
       "tests": "Upper reference for preserving specialization",
-      "at_2v2": "Share-0 bit-exact z-dispatch of verbatim experts pi_A, pi_B (or the two independent specialists under the same forced-z matrix)",
+      "at_2v2": "SAME methodology as 4v4/6v6: Attack/Defend split under CLOSEST_DEFENDS with 2v2-pinned k (typically k=1). Legacy Share-0 bit-exact dispatch is provenance only — not the suite Separated cell under METHODOLOGY_IDENTITY_2026_09_26",
       "at_4v4": "DEFEND_ATTACK_SPLIT composite under CLOSEST_DEFENDS(k=2): frozen ATTACK pi_A + learned DEFEND pi_D",
       "at_6v6": "same recipe as sealed 4v4 split, with CLOSEST_DEFENDS(k=1), once the school-PC repaired/mature composite seals"
     }
@@ -71,10 +105,10 @@
   },
 
   "ALLOCATOR_FAIRNESS_locked": {
-    "rule": "At 4v4 and 6v6, role assignment must NOT be a hidden variable across the suite arms that participate in the sharing comparison",
+    "rule": "At EVERY scale, role assignment must NOT be a hidden variable across the suite arms that participate in the sharing comparison",
+    "2v2": "CLOSEST_DEFENDS with scale-pinned k (typically k=1 for N=2) held identical for Separated, Share-Encoder, Fully Shared+z, and Generalist eval narrative — NO 'natural expert' exception (METHODOLOGY_IDENTITY_2026_09_26)",
     "4v4": "CLOSEST_DEFENDS(k=2) held identical for Separated, Share-Encoder, and Fully Shared+z",
     "6v6": "CLOSEST_DEFENDS(k=1) held identical for Separated, Share-Encoder, and Fully Shared+z",
-    "2v2": "natural expert setup; do not artificially invent the larger-team CLOSEST_DEFENDS role structure",
     "reviewer_claim_blocked": "Maybe the fully shared model lost because it used a different role allocator"
   },
 

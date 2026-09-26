@@ -52,7 +52,11 @@ from experiments.train_scale import (  # noqa: E402
     _propagate_team_size,
 )
 
-SUPPORTED_TEAM_SIZES = (4, 6)
+#: One trainer for every suite scale. Team size is an argument, never a separate module
+#: (CROSS_SCALE_CANONICAL_RECIPE_V1.json#STAGE_IMPLEMENTATIONS_required). 2v2 still has to
+#: clear the same pole-certification gate as 4v4/6v6 before it can train -- being an
+#: accepted --team-size is not permission, and _certification_verdict is unchanged.
+SUPPORTED_TEAM_SIZES = (2, 4, 6)
 SMOKE_TIMESTEPS = 5_000
 SD = PROJECT_ROOT / "artifacts" / "strategic_demand" / "sppo"
 BASE_KEY = {"A": "OP6", "B": "OP7"}
@@ -159,13 +163,17 @@ def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
         core._sds_opening_hold_steps = 0
         # The pole under test uses the RESOLVED genome; the other pole keeps its
         # canonical definition (it is not what this specialist trains against).
-        if policy == "A":
-            genomes = {"OP6": resolved_genome if resolved_genome is not None else pole_A_genome(n)}
-            if n != 2:
-                genomes["OP7"] = pole_B_genome(n)
-        else:
-            genomes = {"OP6": pole_A_genome(n)} if n == 2 else {}
-            genomes["OP7"] = resolved_genome if resolved_genome is not None else pole_B_genome(n)
+        #
+        # Both poles are installed at every team size. This replaces a former `n == 2`
+        # fork that installed a different overlay SET at 2v2 than at 4v4/6v6 -- a
+        # methodology difference in the attested environment, which the cross-scale
+        # identity forbids. Installing a keyed overlay for the pole that is NOT live is
+        # inert: verified empirically at both 2v2 and 4v4 by comparing all 36 fields of
+        # core._bt_resolved_profile_tensors() with and without the non-live overlay
+        # (identical in both cases), so this generalization does not change 4v4.
+        genomes = {"OP6": pole_A_genome(n), "OP7": pole_B_genome(n)}
+        if resolved_genome is not None:
+            genomes[BASE_KEY[policy]] = resolved_genome
         install_keyed_opponent_overlays(core, genomes)
         detail = assert_live_pole_matches_team_size(env, policy, n)
         if pole_attestation is not None:

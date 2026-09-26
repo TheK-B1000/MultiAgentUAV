@@ -1,0 +1,29 @@
+{
+  "label": "SUITE_FULLY_SHARED_Z_2V2",
+  "state": "RUNNING",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-26T01:02:28Z",
+      "pid": 41244,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "ae89f636f5300b6d22cc463f12654e0a61c4055c",
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing\\2v2\\fully_shared_z\\ckpts\\final_fully_shared_z_2v2.pt",
+      "seed_base": 22900001,
+      "n_seeds": 128,
+      "team_size": 2,
+      "resumed_from_partial": 0
+    }
+  ],
+  "updated_utc": "2026-09-26T01:02:28Z",
+  "pid": 41244,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "ae89f636f5300b6d22cc463f12654e0a61c4055c",
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing\\2v2\\fully_shared_z\\ckpts\\final_fully_shared_z_2v2.pt",
+  "seed_base": 22900001,
+  "n_seeds": 128,
+  "team_size": 2,
+  "resumed_from_partial": 0
+}

@@ -176,11 +176,14 @@ def main() -> int:
         print(format_attestation_banner(pole_attestations[_pol]))
     pole_b_resolved = resolve_pole_genome("B", N, args.pole_b_genome_json)
 
-    # Both poles resolved at the LIVE team size. At N=2 pole_B_genome(2) carries no overlay,
-    # reproducing the 2v2 evaluator exactly; at N>2 the Pole-B overlay is required.
+    # Both poles resolved at the LIVE team size, with no team-size fork: pole_B_genome(2)
+    # carries an empty overlay, so installing it at N=2 is inert. Verified by comparing all
+    # 36 fields of core._bt_resolved_profile_tensors() with the genome installed and omitted
+    # (identical), which is why the former `if N != 2` branch could be removed without
+    # changing the 2v2 evaluator's behaviour.
     genomes_by_pole = {
         "A": {"OP6": pole_A_genome(N)},
-        "B": {"OP7": pole_b_resolved} if N != 2 else {},
+        "B": {"OP7": pole_b_resolved},
     }
 
     print(f"SPECIALIST CROSSOVER EVAL  {label}  {N}v{N}  {_now()}")

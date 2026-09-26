@@ -1,0 +1,335 @@
+{
+  "record": "cross-scale identity attestation",
+  "utc": "2026-09-26T04:44:35Z",
+  "scope": "READ-ONLY preflight. Changes nothing, authorizes nothing.",
+  "required_from": {
+    "file": "CROSS_SCALE_CANONICAL_RECIPE_V1.json",
+    "sha256": "f68054443007ef9fc5254e914d7370c78df850056e9cc8cb9c9ff8b8a3fe62d3",
+    "status": "FROZEN_RECIPE"
+  },
+  "identity_from": {
+    "file": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json",
+    "section": "METHODOLOGY_IDENTITY_2026_09_26"
+  },
+  "required_values": {
+    "anchor_enabled": false,
+    "foundation_steps": 1000000,
+    "entity_repair": true,
+    "split_steps": 200000,
+    "Nprime_teacher": true,
+    "dataset_allocator": "CLOSEST_DEFENDS",
+    "dataset_entities": true,
+    "dataset_roles": true,
+    "episodes_per_pole": 96,
+    "decision_only": true
+  },
+  "free_rows": [
+    "N",
+    "k"
+  ],
+  "table": {
+    "2v2": {
+      "N": 2,
+      "k": 1,
+      "anchor_enabled": "PENDING",
+      "foundation_steps": "PENDING",
+      "entity_repair": "PENDING",
+      "split_steps": "PENDING",
+      "Nprime_teacher": "PENDING",
+      "dataset_allocator": "PENDING",
+      "dataset_entities": "PENDING",
+      "dataset_roles": "PENDING",
+      "episodes_per_pole": "PENDING",
+      "decision_only": "PENDING"
+    },
+    "4v4": {
+      "N": 4,
+      "k": 2,
+      "anchor_enabled": false,
+      "foundation_steps": 1000000,
+      "entity_repair": true,
+      "split_steps": 200000,
+      "Nprime_teacher": true,
+      "dataset_allocator": "CLOSEST_DEFENDS",
+      "dataset_entities": true,
+      "dataset_roles": true,
+      "episodes_per_pole": 96,
+      "decision_only": true
+    },
+    "6v6": {
+      "N": 6,
+      "k": 1,
+      "anchor_enabled": "PENDING",
+      "foundation_steps": "PENDING",
+      "entity_repair": "PENDING",
+      "split_steps": "PENDING",
+      "Nprime_teacher": "PENDING",
+      "dataset_allocator": "PENDING",
+      "dataset_entities": "PENDING",
+      "dataset_roles": "PENDING",
+      "episodes_per_pole": "PENDING",
+      "decision_only": "PENDING"
+    }
+  },
+  "evidence": {
+    "2v2": {
+      "pipeline": "SAME_METHODOLOGY_2V2_PORT_PLAN.json (nothing built yet; fresh certification first)",
+      "base": {},
+      "split": {},
+      "dataset": {
+        "state": "PENDING",
+        "manifest": null
+      }
+    },
+    "4v4": {
+      "pipeline": "REFERENCE (built)",
+      "base": {
+        "pi_A": {
+          "state": "OK",
+          "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+          "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+          "anchor_enabled": false,
+          "anchor_dataset": "",
+          "total_timesteps": 1000000,
+          "entity_repair": true,
+          "entity_hidden_dim": 32,
+          "split_attack_defend_enabled": false,
+          "defend_teacher_lambda": null,
+          "role_k_defend": null
+        },
+        "pi_B": {
+          "state": "OK",
+          "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+          "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12",
+          "anchor_enabled": false,
+          "anchor_dataset": "",
+          "total_timesteps": 1000000,
+          "entity_repair": true,
+          "entity_hidden_dim": 32,
+          "split_attack_defend_enabled": false,
+          "defend_teacher_lambda": null,
+          "role_k_defend": null
+        }
+      },
+      "split": {
+        "pi_D": {
+          "state": "OK",
+          "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1/ckpts/final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+          "sha256": "b538cdf4ba5d2c5d2834c2307285b7bef6f8ab7232e5471798bd52e42d734f2c",
+          "anchor_enabled": false,
+          "anchor_dataset": "",
+          "total_timesteps": 200000,
+          "entity_repair": true,
+          "entity_hidden_dim": 32,
+          "split_attack_defend_enabled": true,
+          "defend_teacher_lambda": 0.1,
+          "role_k_defend": null
+        }
+      },
+      "dataset": {
+        "state": "OK",
+        "manifest": "SUITE_DISTILLATION_4V4_DATASET.json",
+        "sha256": "996d1e6b8e02471e5ceaf0f6c5362c9fcc14036b98e003e75f7631a44279fb70",
+        "allocator": {
+          "rule": "CLOSEST_DEFENDS",
+          "k_defend": 2,
+          "fixed_for_episode": true,
+          "hold_ticks_H_r": 8
+        },
+        "n_shards": 192,
+        "device": "cuda"
+      }
+    },
+    "6v6": {
+      "pipeline": "SCHOOL_PC_6V6_LOCKED_PIPELINE.json (final repaired artifacts, not the historical 6v6 specialists)",
+      "base": {
+        "pi_A": {
+          "state": "PENDING",
+          "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip"
+        },
+        "pi_B": {
+          "state": "PENDING",
+          "path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip"
+        }
+      },
+      "split": {
+        "pi_D": {
+          "state": "PENDING",
+          "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/final_pi_A_specialist_6v6_split_defend_k1_v1.zip"
+        }
+      },
+      "dataset": {
+        "state": "PENDING",
+        "manifest": null
+      }
+    }
+  },
+  "mismatches": [],
+  "not_yet_attestable": [
+    "2v2",
+    "6v6"
+  ],
+  "layer_2_implementations": {
+    "specialist_trainer_impl": {
+      "module": "experiments/train_specialist_scale.py",
+      "declared_state": "declared compliant",
+      "sha256": "8bd4ddb8533f4e073b19eee13d7989762b3b7e83491b5872588743b48aefc666",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "entity_repair_impl": {
+      "module": "experiments/train_specialist_scale.py",
+      "declared_state": "declared compliant",
+      "sha256": "8bd4ddb8533f4e073b19eee13d7989762b3b7e83491b5872588743b48aefc666",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "split_trainer_impl": {
+      "module": "experiments/train_specialist_scale.py",
+      "declared_state": "declared compliant",
+      "sha256": "8bd4ddb8533f4e073b19eee13d7989762b3b7e83491b5872588743b48aefc666",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "n_prime_teacher_impl": {
+      "module": "rl/custom_ppo/defend_teacher.py",
+      "declared_state": "declared compliant",
+      "sha256": "d7d22f9b8b1ada6b8fae0cba2a67137a25dfee385639a3ec1942ca2daa166e62",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": null,
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "allocator_impl": {
+      "module": "rl/custom_ppo/rule_role_assignment.py",
+      "declared_state": "declared compliant",
+      "sha256": "68b923585d1383b4a3f851b22503df479862fda26d342fdae1c087c423b3ae64",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": null,
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "dataset_collector_impl": {
+      "module": "experiments/collect_suite_distillation_states.py",
+      "declared_state": "declared compliant",
+      "sha256": "40aa4617cb8e77081e8b31a54ea749cea7e737db8ab7cfd387e49148f3b3f978",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "distillation_impl": {
+      "module": "experiments/run_suite_sharing_distillation.py",
+      "declared_state": "declared compliant",
+      "sha256": "d50bd1289dab78854fd6c08698482a66236ce97ca2b73adc0d2f90bf9ad26076",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "crossover_evaluator_impl": {
+      "module": "experiments/eval_suite_sharing_crossover.py",
+      "declared_state": "declared compliant",
+      "sha256": "49697741a55f518b8509907f403199598081bf623a9c8a50f97217bf8ecf44b4",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "separated_crossover_impl": {
+      "module": "experiments/eval_specialist_crossover_scaled.py",
+      "declared_state": "declared compliant",
+      "sha256": "9085abf773b74762512d0be566dc166aeeba0a84dcd66f816a1d0c6f3188869d",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "bootstrap_impl": {
+      "module": "experiments/eval_hog_psp_v3.py",
+      "declared_state": "declared compliant",
+      "sha256": "b4647d97c58cc9114e0c9fe8e6365161649680a6f49e9a1820f034fd99c5d70c",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": null,
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    }
+  },
+  "layer_2_forked_stages": [],
+  "attested": false,
+  "attested_requires": "layer 1 (configuration semantics) AND layer 2 (implementation path). Layer 1 alone can pass while two scales reach the same numbers through different code.",
+  "semantics": {
+    "PENDING": "artifact not built yet; not a mismatch, and not an attestation either",
+    "UNKNOWN": "artifact present but its setting could not be read from the loaded object; treated as a mismatch",
+    "CONFLICT[...]": "roles within one scale disagree"
+  },
+  "what_this_does_not_check": [
+    "that the executed code path was byte-identical across scales",
+    "pole overlay equality between scales",
+    "that the N' teacher schedule/cadence/formula match beyond the lambda being present"
+  ]
+}
