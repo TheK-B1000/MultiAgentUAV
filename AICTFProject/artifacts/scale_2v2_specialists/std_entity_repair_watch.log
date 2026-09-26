@@ -1,0 +1,16 @@
+2026-09-26T18:06:12.5778389-04:00 entity repair start (commit af6dab79)
+2026-09-26T18:06:12.7865517-04:00 pi_A warm start sha256 OK (5b01de6bd391)
+2026-09-26T18:06:12.7960527-04:00 train pi_A : .venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy A --seed 23200001 --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip --run-label-suffix _std_entity_repair
+2026-09-26T18:09:01-04:00 ABORTED by operator: pi_A launch (seed 23200001) killed at ~12,016 steps -- the uncommitted-spec guard passed on an UNTRACKED spec (git diff HEAD ignores untracked files). No checkpoint written. Run dir moved to pi_A_specialist_2v2_std_entity_repair_ABORTED_seed23200001; block retired.
+2026-09-26T18:12:39.3150326-04:00 entity repair CHECK-ONLY start (commit af6dab79)
+2026-09-26T18:12:39.6681766-04:00   guard pi_A   REFUSE spec_tracked           artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:12:39.6686738-04:00   guard pi_A   OK     spec_frozen            FROZEN_BEFORE_ANY_TRAINING_STEP
+2026-09-26T18:12:39.6691748-04:00   guard pi_A   OK     launch_seed            --seed 23300001 vs SEEDS.A=23300001
+2026-09-26T18:12:39.6696739-04:00   guard pi_A   OK     launch_experiment_id   --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 vs STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2
+2026-09-26T18:12:39.6701739-04:00   guard pi_A   OK     registry_seed          seed 23300001 in STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 23300001..23300002 [exploratory/RESERVED]
+2026-09-26T18:12:39.6706754-04:00   guard pi_A   OK     seed_never_trained     no run manifest holds 23300001
+2026-09-26T18:12:39.6711771-04:00   guard pi_A   OK     warm_start_path        --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip vs pinned artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip
+2026-09-26T18:12:39.6716741-04:00   guard pi_A   OK     warm_start_exists      artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip
+2026-09-26T18:12:39.6721769-04:00   guard pi_A   OK     warm_start_sha256      5b01de6bd391ffb9... vs pinned 5b01de6bd391ffb9...
+2026-09-26T18:12:39.6726744-04:00   guard pi_A frozen launch guard pi_A: REFUSE
+2026-09-26T18:12:39.6761755-04:00 STOP (CHECK-ONLY preflight): guard refused pi_A; nothing started

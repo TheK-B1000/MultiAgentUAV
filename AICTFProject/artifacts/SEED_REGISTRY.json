@@ -1696,9 +1696,45 @@
           "note": "pi_A 23100001 and pi_B 23100002 each trained 1,001,472 steps from ca52a24b; exit 0; pair verified 82/82 (STANDARDIZED_2V2_FOUNDATION_SPEC_VERIFICATION.json); finals sha256 A 5b01de6b..., B dc3e9ba4..."
         }
       ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING",
+      "purpose": "standardized 2v2 entity-repair continuation: pi_A (23200001) then pi_B (23200002), 1M each, warm-started from the verified foundation finals",
+      "seed_class": "exploratory",
+      "lo": 23200001,
+      "hi": 23200002,
+      "n": 2,
+      "status": "RETIRED",
+      "spec": "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T22:05:19Z",
+      "retired_utc": "2026-09-26T22:09:10Z",
+      "notes": [
+        {
+          "utc": "2026-09-26T22:09:10Z",
+          "note": "RETIRED 2026-09-26 22:10Z: pi_A seed 23200001 was launched at 22:06Z from an UNCOMMITTED spec (launcher guard used 'git diff HEAD', which ignores untracked files) and killed at ~12,016 steps, no checkpoint. Seed 23200001 is spent; 23200002 unused but retired with its block. Aborted run kept at scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair_ABORTED_seed23200001. Superseded by STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2."
+        }
+      ],
+      "retirement_reason": "partial_block_contamination_from_premature_entity_repair_launch",
+      "used_seed": 23200001,
+      "unused_but_retired_seed": 23200002,
+      "superseded_by": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2",
+      "evidence": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair_ABORTED_PREMATURE_LAUNCH_seed23200001/ABORTED_PREMATURE_LAUNCH.json"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2",
+      "purpose": "standardized 2v2 entity-repair continuation (V2 block after the aborted 23200001 launch): pi_A then pi_B, 1M each, warm-started from the verified foundation finals",
+      "seed_class": "exploratory",
+      "lo": 23300001,
+      "hi": 23300002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T22:09:11Z"
     }
   ],
-  "updated_utc": "2026-09-26T22:04:46Z",
+  "updated_utc": "2026-09-26T22:10:35Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

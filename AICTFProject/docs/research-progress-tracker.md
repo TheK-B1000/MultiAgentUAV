@@ -16,7 +16,19 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-26 — **2v2 poles CERTIFIED (sealed); standardized 2v2 foundation training;
+> **Last updated:** 2026-09-26 (evening) — **2v2 foundation pair VERIFIED 82/82 and SPENT (`af6dab79`);
+> entity repair: premature launch contained, relaunch pending.** Finals pinned: π_A `5b01de6b…`, π_B
+> `dc3e9ba4…` (1,001,472 steps each, both recorded trainer git `ca52a24b`). Starting the entity-repair
+> stage, a launcher guard test ran the real launcher; its uncommitted-spec check (`git diff HEAD`) is silent
+> for an untracked file, so π_A repair seed 23200001 started from a never-committed spec and was killed at
+> 12,016 steps with no checkpoint. Kept as `…ABORTED_PREMATURE_LAUNCH_seed23200001` (INVALID_FOR_SCIENTIFIC_USE);
+> block 23200001–23200002 RETIRED whole; fresh V2 block `23300001–23300002`. Launch decisions now go through
+> `experiments/frozen_launch_guard.py` (spec tracked/unstaged/staged/FROZEN, seeds vs registry, never-trained,
+> warm-start sha); the launcher is check-only unless `-Launch`. The foundation is unaffected.
+>
+> ---
+>
+> Prior — 2026-09-26 — **2v2 poles CERTIFIED (sealed); standardized 2v2 foundation training;
 > Rule 9 now enforced by the specialist trainer.** The fresh 2v2 certification (block `23000001–23000192`,
 > spent) SEALED with 0/14 gating checks failed and VERDICT CERTIFIED: Δ_A +0.276 [+0.182, +0.370],
 > Δ_B +0.427 [+0.354, +0.500] (`5f7c6892`). Standardized foundation (`STANDARDIZED_2V2_FOUNDATION_SPEC.json`,
