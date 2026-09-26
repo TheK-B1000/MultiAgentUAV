@@ -16,7 +16,21 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-26 — **METHODOLOGY IDENTITY LOCKED across 2v2/4v4/6v6.**
+> **Last updated:** 2026-09-26 — **4v4 Share-Macro exploratory crossover DONE (FLAGGED); all four
+> 4v4 distilled arms now in.** Share-Macro (n=64, seeds 22514001–064, finished 02:14):
+> Δ_A=+0.281 [+0.125,+0.438], Δ_B=−0.156 [−0.266,−0.063] — FLAG on Δ_B, same pattern as Encoder,
+> Backbone and Fully Shared+\(z\). Cells z0@A 0.8125, z1@A 0.5312, z0@B 0.9688, z1@B 0.8125.
+> Row-level audit PASS on all 8 mechanical checks (`SUITE_4V4_SHARING_FLAGGED_ARMS_ROW_AUDIT.json`,
+> now covering all four arms). No `FROZEN_RESULT` seal. Afterwards: obsolete runners
+> `eval_suite_sharing_crossover_4v4.py` and `eval_suite_fully_shared_z_2v2.py` deleted (git keeps
+> them at `ae89f636` / `0b0fb6e7`); the partially-spent 2v2 block 22900001–128 moved RESERVED →
+> **RETIRED** (82 seeds had been run before the stop). Cursor's `21d8b6da` routed both canonical
+> crossover evaluators through `run_state.seal` and reconciled the four 4v4 blocks into the seed
+> registry; Layer 2 re-verified 10/10 after it. Next: full-suite sweep, then fresh 2v2 pole certification.
+>
+> ---
+>
+> Prior — 2026-09-26 — **METHODOLOGY IDENTITY LOCKED across 2v2/4v4/6v6.**
 > PI: the contribution is **one methodology** — the same thing tested on different
 > agent counts with **no other code/recipe changes**. Only scale knobs (`N`, `k`)
 > may differ. Recorded in

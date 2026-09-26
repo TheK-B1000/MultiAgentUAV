@@ -1620,13 +1620,20 @@
       "lo": 22900001,
       "hi": 22900128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "RETIRED",
       "spec": "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-26T01:00:42Z"
+      "allocated_utc": "2026-09-26T01:00:42Z",
+      "retired_utc": "2026-09-26T11:25:17Z",
+      "notes": [
+        {
+          "utc": "2026-09-26T11:25:17Z",
+          "note": "Superseded natural-setup 2v2 Fully Shared+z crossover, stopped 2026-09-26 by PI directive (one methodology across scales). 82 episodes were run on seeds 22900001..22900082 before the stop, so the block is partially spent: RETIRED, never RESERVED/free. No result sealed; never a paper row. Partial rows kept in suite_sharing/2v2/fully_shared_z/crossover_eval_PARTIAL.jsonl."
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-26T05:34:47Z",
+  "updated_utc": "2026-09-26T11:25:17Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

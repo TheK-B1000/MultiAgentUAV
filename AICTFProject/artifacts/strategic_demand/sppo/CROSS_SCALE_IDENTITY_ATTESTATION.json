@@ -1,6 +1,6 @@
 {
   "record": "cross-scale identity attestation",
-  "utc": "2026-09-26T04:44:35Z",
+  "utc": "2026-09-26T11:26:58Z",
   "scope": "READ-ONLY preflight. Changes nothing, authorizes nothing.",
   "required_from": {
     "file": "CROSS_SCALE_CANONICAL_RECIPE_V1.json",
@@ -277,7 +277,7 @@
     "crossover_evaluator_impl": {
       "module": "experiments/eval_suite_sharing_crossover.py",
       "declared_state": "declared compliant",
-      "sha256": "49697741a55f518b8509907f403199598081bf623a9c8a50f97217bf8ecf44b4",
+      "sha256": "7e3de37682259793e2fe8e0a7b1783ffed30f04db581e1ff170d96ab4a8734db",
       "hardcoded_team_size": null,
       "declared_team_sizes": [
         2,
@@ -293,7 +293,7 @@
     "separated_crossover_impl": {
       "module": "experiments/eval_specialist_crossover_scaled.py",
       "declared_state": "declared compliant",
-      "sha256": "9085abf773b74762512d0be566dc166aeeba0a84dcd66f816a1d0c6f3188869d",
+      "sha256": "bea32f2de4749aad7ad276e652c4ee586ffd26629f312955bbeb1f75ff751dd4",
       "hardcoded_team_size": null,
       "declared_team_sizes": [
         2,

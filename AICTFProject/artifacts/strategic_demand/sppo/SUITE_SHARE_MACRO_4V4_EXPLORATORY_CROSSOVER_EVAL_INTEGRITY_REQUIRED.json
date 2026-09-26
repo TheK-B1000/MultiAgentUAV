@@ -1,0 +1,13 @@
+{
+  "record": "SUITE_SHARE_MACRO_4V4_EXPLORATORY crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-26T06:14:04Z",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.28125,
+    "delta_B": -0.15625
+  },
+  "raw_rows": "artifacts\\strategic_demand\\sppo\\suite_share_macro_4v4_exploratory_crossover_eval_rows.csv"
+}

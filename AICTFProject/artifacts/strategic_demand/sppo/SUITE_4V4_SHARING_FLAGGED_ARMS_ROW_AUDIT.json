@@ -1,6 +1,6 @@
 {
   "record": "SUITE 4V4 sharing flagged arms -- row-level integrity audit",
-  "utc": "2026-09-26T01:07:12Z",
+  "utc": "2026-09-26T11:25:23Z",
   "scope": "read-only mechanical audit of exploratory n=64 crossovers that wrote INTEGRITY_REQUIRED",
   "what_a_pass_means": "rows are well-formed, seeds/checkpoints match the frozen spec, z forcing changes episodes, and the z-label mapping is consistent with the imitation fit. It does not certify the design and it does not seal any result.",
   "arms": [
@@ -224,6 +224,80 @@
       "student_fit": {
         "agree_z0_piA": 0.900800522158682,
         "agree_z1_piB": 0.8621005073242793
+      }
+    },
+    {
+      "arm": "share_macro",
+      "n_per_cell": 64,
+      "rows_csv": "suite_share_macro_4v4_exploratory_crossover_eval_rows.csv",
+      "all_mechanical_checks_pass": true,
+      "checks": [
+        {
+          "name": "row_count",
+          "result": "PASS",
+          "detail": "256 rows, expected 256"
+        },
+        {
+          "name": "cell_seed_block_exact",
+          "result": "PASS",
+          "detail": "4 cells, each the frozen block 22514001..22514064 exactly once"
+        },
+        {
+          "name": "win_margin_consistent_with_scores",
+          "result": "PASS",
+          "detail": "0 inconsistent rows of 256"
+        },
+        {
+          "name": "checkpoint_sha_matches_spec_pin",
+          "result": "PASS",
+          "detail": "on-disk sha 12e66d98fd37 vs pin 12e66d98fd37"
+        },
+        {
+          "name": "student_frozen_sha_matches_pin",
+          "result": "PASS",
+          "detail": "STUDENT_FROZEN sha 12e66d98fd37 vs pin 12e66d98fd37"
+        },
+        {
+          "name": "forced_z_changes_episodes",
+          "result": "PASS",
+          "detail": "z0/z1 give identical final scores on the same seed: Pole A 0.312, Pole B 0.188 (a policy ignoring z would give 1.000)",
+          "identical_score_fraction": {
+            "A": 0.3125,
+            "B": 0.1875
+          }
+        },
+        {
+          "name": "z_label_mapping_consistent",
+          "result": "PASS",
+          "detail": "holdout agreement z0<->pi_A 0.899, z1<->pi_B 0.859",
+          "agree_z0_piA": 0.8991420786043155,
+          "agree_z1_piB": 0.8588713299604482
+        },
+        {
+          "name": "rederived_deltas_match_flag_record",
+          "result": "PASS",
+          "detail": "flag delta_A +0.28125 / delta_B -0.15625 vs re-derived +0.28125 / -0.15625"
+        }
+      ],
+      "cell_win_rates": {
+        "z0@PoleA": 0.8125,
+        "z0@PoleB": 0.96875,
+        "z1@PoleA": 0.53125,
+        "z1@PoleB": 0.8125
+      },
+      "delta_A": {
+        "mean": 0.28125,
+        "lcb95": 0.125,
+        "ucb95": 0.4375
+      },
+      "delta_B": {
+        "mean": -0.15625,
+        "lcb95": -0.265625,
+        "ucb95": -0.0625
+      },
+      "student_fit": {
+        "agree_z0_piA": 0.8991420786043155,
+        "agree_z1_piB": 0.8588713299604482
       }
     }
   ],

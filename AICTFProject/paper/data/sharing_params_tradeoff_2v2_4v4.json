@@ -8,9 +8,9 @@
     "delta": "forced-z crossover: Δ_A=V(z0,A)-V(z1,A); Δ_B=V(z1,B)-V(z0,B); paired percentile bootstrap n_boot=20000 alpha=0.05 rng=7"
   },
   "honest_gaps": {
-    "4v4_Share_Backbone_Macro": "PI-authorized depth extension (2026-09-25), outside the locked cross-scale suite, which names Share-Encoder as the only partial-share arm at 4v4/6v6. Both students built on the same SUITE_DISTILLATION_4V4 dataset. Share-Backbone crossover DONE (FLAGGED); Share-Macro crossover eval was killed at 60/256 by a reboot and relaunched from scratch 2026-09-25 20:43 (no partial results kept); Δ cells pending.",
+    "4v4_Share_Backbone_Macro": "PI-authorized depth extension (2026-09-25), outside the locked cross-scale suite. Both built on the same SUITE_DISTILLATION_4V4 dataset. Both crossovers DONE and FLAGGED on Δ_B reversal; row-level audit PASS for both.",
     "2v2_Fully_Shared_z_Delta": "2v2 Fully Shared+z imitation frozen; sealed crossover Δ not yet run",
-    "4v4_distilled_Delta_status": "exploratory n=64 crossover DONE for Share-Encoder, Share-Backbone and Fully Shared+z; all three FLAGGED on Δ_B reversal (no FROZEN_RESULT seal). Row-level audit SUITE_4V4_SHARING_FLAGGED_ARMS_ROW_AUDIT.json: all mechanical checks pass for the three arms. Confirmatory n=128 not authorized.",
+    "4v4_distilled_Delta_status": "exploratory n=64 crossover DONE for all four distilled arms (Share-Encoder, Share-Backbone, Share-Macro, Fully Shared+z); all four FLAGGED on Δ_B reversal (no FROZEN_RESULT seal); row-level audit PASS for all four. Seed blocks reconciled into SEED_REGISTRY as SPENT exploratory. Confirmatory n=128 not authorized.",
     "4v4_teacher_pair_confound": "The KL teachers for the 4v4 students (entity-repair pi_A3 -> z0, corrected pi_B3 -> z1) already fail Δ_B at 4v4 (Δ_A +0.273, Δ_B -0.156 [-0.266,-0.047], n=128, 4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json): pi_A3 wins on both poles. The student Δ_B reversal is consistent with imitating that pair and is not evidence that sharing removes Pole-B specialization. The Separated row is the split ATTACK/DEFEND composite, a different system. Teacher figures are on different seeds/n; Pole-B overlay equality not verified.",
     "2v2_methodology_mismatch": "2026-09-26: every 2v2 row here is the natural 2v2 setup (no CLOSEST_DEFENDS allocator, teachers without entity repair, legacy TEACHER_DISTILLATION_DATASET). 4v4 rows use the allocator, entity-repair teachers and SUITE_DISTILLATION_4V4_DATASET. The contribution is one methodology at every team size, so 2v2 is to be redone through the same pipeline (SAME_METHODOLOGY_2V2_PORT_PLAN.json). The 2v2 and 4v4 blocks are not comparable rows of one figure until then.",
     "2v2_Fully_Shared_z_Delta_update": "natural-setup sealed crossover (SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json, block 22900001..22900128) was stopped at 82/512 episodes on 2026-09-26 and superseded; block stays RESERVED and unspent; not a paper row."
@@ -24,8 +24,16 @@
         "n_unique": 6947184,
         "reduction_pct": 0.0,
         "imitation_agreement": "1.000 / 1.000",
-        "delta_A": {"mean": 0.2891, "lcb95": 0.1641, "ucb95": 0.4062},
-        "delta_B": {"mean": 0.2578, "lcb95": 0.1406, "ucb95": 0.3750},
+        "delta_A": {
+          "mean": 0.2891,
+          "lcb95": 0.1641,
+          "ucb95": 0.4062
+        },
+        "delta_B": {
+          "mean": 0.2578,
+          "lcb95": 0.1406,
+          "ucb95": 0.375
+        },
         "gate": "PASS",
         "n": 128
       },
@@ -35,8 +43,16 @@
         "n_unique": 3612784,
         "reduction_pct": 48.0,
         "imitation_agreement": "0.967 / 0.989",
-        "delta_A": {"mean": 0.2656, "lcb95": 0.1484, "ucb95": 0.3828},
-        "delta_B": {"mean": 0.1641, "lcb95": 0.0469, "ucb95": 0.2812},
+        "delta_A": {
+          "mean": 0.2656,
+          "lcb95": 0.1484,
+          "ucb95": 0.3828
+        },
+        "delta_B": {
+          "mean": 0.1641,
+          "lcb95": 0.0469,
+          "ucb95": 0.2812
+        },
         "gate": "PASS",
         "n": 128
       },
@@ -46,8 +62,16 @@
         "n_unique": 3508848,
         "reduction_pct": 49.5,
         "imitation_agreement": "0.963 / 0.985",
-        "delta_A": {"mean": 0.1484, "lcb95": 0.0234, "ucb95": 0.2656},
-        "delta_B": {"mean": 0.1406, "lcb95": 0.0156, "ucb95": 0.2656},
+        "delta_A": {
+          "mean": 0.1484,
+          "lcb95": 0.0234,
+          "ucb95": 0.2656
+        },
+        "delta_B": {
+          "mean": 0.1406,
+          "lcb95": 0.0156,
+          "ucb95": 0.2656
+        },
         "gate": "PASS",
         "n": 128
       },
@@ -57,8 +81,16 @@
         "n_unique": 3507563,
         "reduction_pct": 49.5,
         "imitation_agreement": "0.936 / 0.969",
-        "delta_A": {"mean": 0.1250, "lcb95": 0.0000, "ucb95": 0.2500},
-        "delta_B": {"mean": 0.1562, "lcb95": 0.0312, "ucb95": 0.2812},
+        "delta_A": {
+          "mean": 0.125,
+          "lcb95": 0.0,
+          "ucb95": 0.25
+        },
+        "delta_B": {
+          "mean": 0.1562,
+          "lcb95": 0.0312,
+          "ucb95": 0.2812
+        },
         "gate": "FAIL",
         "n": 128,
         "note": "LCB95(Δ_A)=0"
@@ -87,8 +119,16 @@
         "n_unique": 6929006,
         "reduction_pct": 0.0,
         "imitation_agreement": "— (not distilled)",
-        "delta_A": {"mean": 0.1563, "lcb95": 0.0391, "ucb95": 0.2734},
-        "delta_B": {"mean": 0.4063, "lcb95": 0.2969, "ucb95": 0.5078},
+        "delta_A": {
+          "mean": 0.1563,
+          "lcb95": 0.0391,
+          "ucb95": 0.2734
+        },
+        "delta_B": {
+          "mean": 0.4063,
+          "lcb95": 0.2969,
+          "ucb95": 0.5078
+        },
         "gate": "PASS",
         "n": 128,
         "source": "DEFEND_ATTACK_SPLIT confirmatory"
@@ -99,8 +139,16 @@
         "n_unique": 3636592,
         "reduction_pct": 47.5,
         "imitation_agreement": "0.914 / 0.876",
-        "delta_A": {"mean": 0.359375, "lcb95": 0.1875, "ucb95": 0.515625},
-        "delta_B": {"mean": -0.21875, "lcb95": -0.34375, "ucb95": -0.109375},
+        "delta_A": {
+          "mean": 0.359375,
+          "lcb95": 0.1875,
+          "ucb95": 0.515625
+        },
+        "delta_B": {
+          "mean": -0.21875,
+          "lcb95": -0.34375,
+          "ucb95": -0.109375
+        },
         "gate": "FLAGGED",
         "n": 64,
         "arm": "exploratory",
@@ -116,8 +164,16 @@
         "n_unique": 3532656,
         "reduction_pct": 49.0,
         "imitation_agreement": "0.901 / 0.862",
-        "delta_A": {"mean": 0.4375, "lcb95": 0.296875, "ucb95": 0.578125},
-        "delta_B": {"mean": -0.28125, "lcb95": -0.421875, "ucb95": -0.125},
+        "delta_A": {
+          "mean": 0.4375,
+          "lcb95": 0.296875,
+          "ucb95": 0.578125
+        },
+        "delta_B": {
+          "mean": -0.28125,
+          "lcb95": -0.421875,
+          "ucb95": -0.125
+        },
         "gate": "FLAGGED",
         "n": 64,
         "arm": "exploratory",
@@ -133,13 +189,24 @@
         "n_unique": 3531371,
         "reduction_pct": 49.0,
         "imitation_agreement": "0.899 / 0.859",
-        "delta_A": null,
-        "delta_B": null,
-        "gate": "CROSSOVER EVAL RELAUNCHED 2026-09-25 20:43 (exploratory n=64); first attempt killed at 60/256 by the 18:29 reboot",
-        "n": null,
-        "source": "suite_sharing/4v4/share_macro/STUDENT_FROZEN.json",
+        "delta_A": {
+          "mean": 0.28125,
+          "lcb95": 0.125,
+          "ucb95": 0.4375
+        },
+        "delta_B": {
+          "mean": -0.15625,
+          "lcb95": -0.265625,
+          "ucb95": -0.0625
+        },
+        "gate": "FLAGGED",
+        "n": 64,
+        "source": "SUITE_SHARE_MACRO_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
         "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
-        "checkpoint_sha256_prefix": "12e66d98"
+        "checkpoint_sha256_prefix": "12e66d98",
+        "arm": "exploratory",
+        "note": "Δ_B reversal; INTEGRITY_REQUIRED (no FROZEN_RESULT). Row-level audit PASS. Pole wins: z0@A=0.8125 z1@A=0.5312 z0@B=0.9688 z1@B=0.8125",
+        "rows_csv": "suite_share_macro_4v4_exploratory_crossover_eval_rows.csv"
       },
       {
         "condition": "Fully Shared+z",
@@ -147,8 +214,16 @@
         "n_unique": 3468503,
         "reduction_pct": 49.9,
         "imitation_agreement": "0.895 / 0.856",
-        "delta_A": {"mean": 0.28125, "lcb95": 0.125, "ucb95": 0.4375},
-        "delta_B": {"mean": -0.109375, "lcb95": -0.21875, "ucb95": 0.0},
+        "delta_A": {
+          "mean": 0.28125,
+          "lcb95": 0.125,
+          "ucb95": 0.4375
+        },
+        "delta_B": {
+          "mean": -0.109375,
+          "lcb95": -0.21875,
+          "ucb95": 0.0
+        },
         "gate": "FLAGGED",
         "n": 64,
         "arm": "exploratory",

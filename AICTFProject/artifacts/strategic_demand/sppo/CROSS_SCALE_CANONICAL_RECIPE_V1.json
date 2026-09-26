@@ -66,7 +66,7 @@
       "allocator_impl": {"module": "rl/custom_ppo/rule_role_assignment.py", "note": "k=N/2 default with an explicit k override; scale-agnostic"},
       "dataset_collector_impl": {"module": "experiments/collect_suite_distillation_states.py", "note": "generalized 2026-09-26 (git mv from collect_suite_distillation_states_4v4.py); --team-size (2,4,6), all paths and k derived from it"},
       "distillation_impl": {"module": "experiments/run_suite_sharing_distillation.py", "note": "--team-size (2,4,6); legacy n==2 dataset routing, n==2 loader and the 2v2 Share-Encoder reuse shortcut all removed 2026-09-26"},
-      "crossover_evaluator_impl": {"module": "experiments/eval_suite_sharing_crossover.py", "note": "generalized 2026-09-26; --team-size (2,4,6). The forked eval_suite_sharing_crossover_4v4.py is retained ONLY until the in-flight Share-Macro run finishes, then deleted -- see OPEN_ITEMS"},
+      "crossover_evaluator_impl": {"module": "experiments/eval_suite_sharing_crossover.py", "note": "generalized 2026-09-26; --team-size (2,4,6). The forked eval_suite_sharing_crossover_4v4.py was deleted 2026-09-26 after the Share-Macro run it was executing finished (last version in git at ae89f636). Since 21d8b6da it seals through run_state.seal and checks the seed registry"},
       "separated_crossover_impl": {"module": "experiments/eval_specialist_crossover_scaled.py", "note": "--team-size (2,4,6); the N != 2 Pole-B overlay branch was removed 2026-09-26 after verifying pole_B_genome(2) has an empty overlay and installing it leaves all 36 resolved profile fields identical"},
       "bootstrap_impl": {"module": "experiments/eval_hog_psp_v3.py", "symbol": "_mean_ci", "note": "one bootstrap for every delta at every scale"}
     },
