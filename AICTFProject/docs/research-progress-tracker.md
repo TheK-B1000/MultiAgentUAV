@@ -75,13 +75,16 @@ It is **not** the source of truth for:
 > differs only in `installed_overlay_keys`. Details and the remaining per-scale specs/seeds:
 > `SAME_METHODOLOGY_2V2_PORT_PLAN.json#GENERALIZATION_DONE_2026_09_26`.
 >
-> ⚠ **Pre-existing test failure, unrelated to the above:**
-> `tests/test_preset_resolution.py::test_resolved_configs_match_snapshot`. `tests/preset_snapshots.json`
-> was last regenerated 2026-09-22 (`9ce9c840`) but five `PPOConfig` fields were added
-> 2026-09-23 (`af8f76c2`): `fully_shared_z_conditioned_enabled`, `fully_shared_z_pole_match`,
-> `role_conditioning_allow_pre_entity_base`, `role_k_defend`, `role_k_defend_choices`.
-> 0 value diffs — purely missing keys. Not regenerated here: AGENTS.md requires a changelog
-> entry in `Paper_experiment_alignment.md` §7 first.
+> **Snapshot staleness FIXED 2026-09-26 (housekeeping, separate from the methodology work).**
+> `tests/preset_snapshots.json` had been stale since 2026-09-23: five `PPOConfig` fields landed in
+> `af8f76c2` while the snapshot was last regenerated 2026-09-22 (`9ce9c840`), so
+> `test_resolved_configs_match_snapshot` was red for every preset on missing keys alone.
+> Changelog entry added to `Paper_experiment_alignment.md` §7 (required by AGENTS.md §8.9), then
+> regenerated with `tools/snapshot_presets.py` and the diff verified field-by-field against the
+> previous file: **549 entries before and after, none added or removed; exactly the five keys added
+> to all 549; no keys removed; ZERO value changes.** All five resolve to inert defaults
+> (`false/false/false/0/""`) in every preset, so no resolved configuration changed.
+> `tests/test_preset_resolution.py` 28 passed; the AGENTS.md §7 pinning set 146 passed.
 >
 > Attestation preflight: `experiments/attest_cross_scale_identity.py` →
 > `CROSS_SCALE_IDENTITY_ATTESTATION.json`. It reads settings off the loaded checkpoints, treats a

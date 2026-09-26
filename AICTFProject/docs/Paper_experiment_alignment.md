@@ -424,6 +424,30 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **`tests/preset_snapshots.json` regenerated (housekeeping only, no preset or
+  behaviour change).** Required by AGENTS.md §8.9, which forbids modifying the
+  snapshot without an explicit entry here. The snapshot had been stale since
+  2026-09-23: five `PPOConfig` fields were added in `af8f76c2`
+  ("Seal 4v4 closure evidence, 6v6 closest-split path, and fully-shared z
+  baseline plumbing") while the snapshot was last regenerated 2026-09-22 in
+  `9ce9c840`, so `tests/test_preset_resolution.py::test_resolved_configs_match_snapshot`
+  had been failing for every preset on missing keys alone. Regenerated with
+  `python tools/snapshot_presets.py` on 2026-09-26 and the diff verified
+  field-by-field against the previous file: **549 preset entries before and
+  after, none added or removed; exactly five keys added to all 549 entries
+  (`fully_shared_z_conditioned_enabled`, `fully_shared_z_pole_match`,
+  `role_conditioning_allow_pre_entity_base`, `role_k_defend`,
+  `role_k_defend_choices`); no keys removed; ZERO value changes on any existing
+  field.** All five new fields resolve to their inert defaults in every preset
+  (`false`, `false`, `false`, `0`, `""`), so no preset enables the
+  fully-shared-\(z\) or role-conditioning paths and no resolved configuration
+  changed — the update is purely additive bookkeeping that records fields which
+  were already present in `PPOConfig`. This is deliberately *not* part of the
+  cross-scale methodology standardization done the same day; it is separated so
+  that the repository has a genuinely green baseline before new seeds are spent,
+  and so any future failure is attributable to the standardized pipeline rather
+  than to a pre-existing red test.
+
 - **DEFEND-teacher role-conditioned pi_A training (diagnostic/exploratory,
   default OFF, not latent-strategy):** Implementation for
   `artifacts/strategic_demand/sppo/DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json`.
