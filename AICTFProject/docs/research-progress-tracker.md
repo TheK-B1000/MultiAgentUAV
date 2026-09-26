@@ -26,7 +26,17 @@ It is **not** the source of truth for:
 > them at `ae89f636` / `0b0fb6e7`); the partially-spent 2v2 block 22900001–128 moved RESERVED →
 > **RETIRED** (82 seeds had been run before the stop). Cursor's `21d8b6da` routed both canonical
 > crossover evaluators through `run_state.seal` and reconciled the four 4v4 blocks into the seed
-> registry; Layer 2 re-verified 10/10 after it. Next: full-suite sweep, then fresh 2v2 pole certification.
+> registry; Layer 2 re-verified 10/10 after it. Archived in `ce27befb`.
+>
+> **All four 4v4 distilled arms SEALED together, post-hoc** (`experiments/seal_suite_sharing_4v4_flagged_arms.py`,
+> all-or-nothing: dry-run audit of every arm first, seal none unless all pass). Each: `status=SEALED`, audit
+> 13/13 gating, every statistic re-derived from the rows on disk. **Two distinctions preserved in each record:**
+> sealed integrity ≠ pass (`scientific_verdict=FLAG`, `gate.passes=false`), and sealed integrity ≠ historical
+> Rule-9 compliance (`seed_registration_origin=RETROACTIVE_RECONCILIATION`, `historically_pre_registered=false`,
+> read from the registry, not asserted). No RunState created, so no fabricated run timeline; real eval-finished
+> times taken from each flag file. The reading is unchanged: the students reproduce the teacher pair's 4v4
+> Pole-B asymmetry, which is not by itself evidence that sharing destroyed specialization.
+> Next: full-suite sweep, then fresh 2v2 pole certification.
 >
 > ---
 >

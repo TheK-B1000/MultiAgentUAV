@@ -1,0 +1,82 @@
+{
+  "record": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY crossover EVAL (post-hoc seal)",
+  "one_shot": true,
+  "utc": "2026-09-26T11:31:05Z",
+  "implements": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json#EVALUATION",
+  "suite_arm": "share_encoder",
+  "team_size": 4,
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_encoder/ckpts/final_share_encoder_4v4.pt",
+  "checkpoint_sha256": "43e1a0033229201007ed2bc72488b4a1073090670c91b51c9560115ae896fb70",
+  "seeds": {
+    "block": [
+      22511001,
+      22511064
+    ],
+    "n": 64,
+    "shared_across_z_and_poles": true
+  },
+  "cell_win_rates": {
+    "z0_poleA": 0.71875,
+    "z0_poleB": 0.96875,
+    "z1_poleA": 0.359375,
+    "z1_poleB": 0.75
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.359375,
+      "lcb95": 0.1875,
+      "ucb95": 0.515625,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": -0.21875,
+      "lcb95": -0.34375,
+      "ucb95": -0.109375,
+      "passes": false
+    },
+    "passes": false
+  },
+  "scientific_verdict": "FLAG",
+  "reversal_on": [
+    "delta_B"
+  ],
+  "PROVENANCE": {
+    "sealed_post_hoc": true,
+    "sealed_integrity_is_not_historical_rule9_compliance": true,
+    "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
+    "historically_pre_registered": false,
+    "registry_entry": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY",
+    "registry_timestamps_note": "the registry's allocated_utc/spent_utc (2026-09-26T05:34:47Z) record when the block was RECONCILED, not when its seeds were spent",
+    "eval_finished_utc_from_flag": "2026-09-25T06:45:22Z",
+    "rows_produced_by": {
+      "path": "experiments/eval_suite_sharing_crossover_4v4.py",
+      "last_commit": "ae89f636",
+      "status_mechanism": "hand-written (pre-Rule-7); flag-only on Delta_B reversal"
+    },
+    "flag_record": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+    "no_run_state": "no RunState was created: one begun at seal time would falsely claim the run started then"
+  },
+  "INTERPRETATION": "The distilled students reproduce the 4v4 teacher pair's behavioural asymmetry: the KL teachers (entity-repair pi_A3 -> z0, corrected pi_B3 -> z1) themselves fail Delta_B at 4v4 (see 4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json). These reversals are not, by themselves, evidence that sharing destroyed specialization.",
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 256,
+  "claim_boundary": "EXPLORATORY n=64; not confirmatory; not PAPER-FAITHFUL",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-26T11:31:06Z",
+  "git_sha": "ce27befb5d2067dbff0b293a74374e88aa084754",
+  "AUDIT": {
+    "path": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 15,
+    "n_gating": 13,
+    "failed_checks": [],
+    "rows_sha256": "4da9b66b9d3e3355cb6cbe617f7d9a377090603927c2719ffea2c9208c982325"
+  }
+}

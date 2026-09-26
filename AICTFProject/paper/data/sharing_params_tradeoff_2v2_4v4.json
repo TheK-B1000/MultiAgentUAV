@@ -10,7 +10,7 @@
   "honest_gaps": {
     "4v4_Share_Backbone_Macro": "PI-authorized depth extension (2026-09-25), outside the locked cross-scale suite. Both built on the same SUITE_DISTILLATION_4V4 dataset. Both crossovers DONE and FLAGGED on Δ_B reversal; row-level audit PASS for both.",
     "2v2_Fully_Shared_z_Delta": "2v2 Fully Shared+z imitation frozen; sealed crossover Δ not yet run",
-    "4v4_distilled_Delta_status": "exploratory n=64 crossover DONE for all four distilled arms (Share-Encoder, Share-Backbone, Share-Macro, Fully Shared+z); all four FLAGGED on Δ_B reversal (no FROZEN_RESULT seal); row-level audit PASS for all four. Seed blocks reconciled into SEED_REGISTRY as SPENT exploratory. Confirmatory n=128 not authorized.",
+    "4v4_distilled_Delta_status": "exploratory n=64 crossover DONE for all four distilled arms; all four FLAGGED on Δ_B reversal, then SEALED together post-hoc via run_state.seal (13/13 gating each). Sealed = integrity verified, NOT a pass (scientific_verdict=FLAG) and NOT historical Rule-9 compliance (seed_registration_origin=RETROACTIVE_RECONCILIATION, historically_pre_registered=false). Confirmatory n=128 not authorized.",
     "4v4_teacher_pair_confound": "The KL teachers for the 4v4 students (entity-repair pi_A3 -> z0, corrected pi_B3 -> z1) already fail Δ_B at 4v4 (Δ_A +0.273, Δ_B -0.156 [-0.266,-0.047], n=128, 4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json): pi_A3 wins on both poles. The student Δ_B reversal is consistent with imitating that pair and is not evidence that sharing removes Pole-B specialization. The Separated row is the split ATTACK/DEFEND composite, a different system. Teacher figures are on different seeds/n; Pole-B overlay equality not verified.",
     "2v2_methodology_mismatch": "2026-09-26: every 2v2 row here is the natural 2v2 setup (no CLOSEST_DEFENDS allocator, teachers without entity repair, legacy TEACHER_DISTILLATION_DATASET). 4v4 rows use the allocator, entity-repair teachers and SUITE_DISTILLATION_4V4_DATASET. The contribution is one methodology at every team size, so 2v2 is to be redone through the same pipeline (SAME_METHODOLOGY_2V2_PORT_PLAN.json). The 2v2 and 4v4 blocks are not comparable rows of one figure until then.",
     "2v2_Fully_Shared_z_Delta_update": "natural-setup sealed crossover (SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json, block 22900001..22900128) was stopped at 82/512 episodes on 2026-09-26 and superseded; block stays RESERVED and unspent; not a paper row."
@@ -149,14 +149,22 @@
           "lcb95": -0.34375,
           "ucb95": -0.109375
         },
-        "gate": "FLAGGED",
+        "gate": "SEALED_FLAG",
         "n": 64,
         "arm": "exploratory",
-        "note": "Δ_B reversal; INTEGRITY_REQUIRED (no FROZEN_RESULT). Pole wins: z0@A=0.719 z1@A=0.359 z0@B=0.969 z1@B=0.750",
+        "note": "Δ_B reversal; INTEGRITY_REQUIRED, then sealed post-hoc (integrity PASS, verdict FLAG). Pole wins: z0@A=0.719 z1@A=0.359 z0@B=0.969 z1@B=0.750",
         "source": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
         "rows_csv": "suite_share_encoder_4v4_exploratory_crossover_eval_rows.csv",
         "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
-        "checkpoint_sha256_prefix": "43e1a003"
+        "checkpoint_sha256_prefix": "43e1a003",
+        "seal": {
+          "status": "SEALED",
+          "scientific_verdict": "FLAG",
+          "result": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+          "audit": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
+          "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
+          "historically_pre_registered": false
+        }
       },
       {
         "condition": "Share-Backbone",
@@ -174,14 +182,22 @@
           "lcb95": -0.421875,
           "ucb95": -0.125
         },
-        "gate": "FLAGGED",
+        "gate": "SEALED_FLAG",
         "n": 64,
         "arm": "exploratory",
-        "note": "Δ_B reversal; INTEGRITY_REQUIRED (no FROZEN_RESULT). Pole wins: z0@A=0.875 z1@A=0.4375 z0@B=0.8906 z1@B=0.6094",
+        "note": "Δ_B reversal; INTEGRITY_REQUIRED, then sealed post-hoc (integrity PASS, verdict FLAG). Pole wins: z0@A=0.875 z1@A=0.4375 z0@B=0.8906 z1@B=0.6094",
         "source": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
         "rows_csv": "suite_share_backbone_4v4_exploratory_crossover_eval_rows.csv",
         "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
-        "checkpoint_sha256_prefix": "01c084c2"
+        "checkpoint_sha256_prefix": "01c084c2",
+        "seal": {
+          "status": "SEALED",
+          "scientific_verdict": "FLAG",
+          "result": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+          "audit": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
+          "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
+          "historically_pre_registered": false
+        }
       },
       {
         "condition": "Share-Macro",
@@ -199,14 +215,22 @@
           "lcb95": -0.265625,
           "ucb95": -0.0625
         },
-        "gate": "FLAGGED",
+        "gate": "SEALED_FLAG",
         "n": 64,
         "source": "SUITE_SHARE_MACRO_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
         "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
         "checkpoint_sha256_prefix": "12e66d98",
         "arm": "exploratory",
-        "note": "Δ_B reversal; INTEGRITY_REQUIRED (no FROZEN_RESULT). Row-level audit PASS. Pole wins: z0@A=0.8125 z1@A=0.5312 z0@B=0.9688 z1@B=0.8125",
-        "rows_csv": "suite_share_macro_4v4_exploratory_crossover_eval_rows.csv"
+        "note": "Δ_B reversal; INTEGRITY_REQUIRED, then sealed post-hoc (integrity PASS, verdict FLAG). Row-level audit PASS. Pole wins: z0@A=0.8125 z1@A=0.5312 z0@B=0.9688 z1@B=0.8125",
+        "rows_csv": "suite_share_macro_4v4_exploratory_crossover_eval_rows.csv",
+        "seal": {
+          "status": "SEALED",
+          "scientific_verdict": "FLAG",
+          "result": "SUITE_SHARE_MACRO_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+          "audit": "SUITE_SHARE_MACRO_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
+          "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
+          "historically_pre_registered": false
+        }
       },
       {
         "condition": "Fully Shared+z",
@@ -224,14 +248,22 @@
           "lcb95": -0.21875,
           "ucb95": 0.0
         },
-        "gate": "FLAGGED",
+        "gate": "SEALED_FLAG",
         "n": 64,
         "arm": "exploratory",
-        "note": "Δ_B reversal; INTEGRITY_REQUIRED (no FROZEN_RESULT). Pole wins: z0@A=0.828 z1@A=0.547 z0@B=0.938 z1@B=0.828",
+        "note": "Δ_B reversal; INTEGRITY_REQUIRED, then sealed post-hoc (integrity PASS, verdict FLAG). Pole wins: z0@A=0.828 z1@A=0.547 z0@B=0.938 z1@B=0.828",
         "source": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
         "rows_csv": "suite_fully_shared_z_4v4_exploratory_crossover_eval_rows.csv",
         "dataset": "SUITE_DISTILLATION_4V4_DATASET under CD(k=2)",
-        "checkpoint_sha256_prefix": "dfa82051"
+        "checkpoint_sha256_prefix": "dfa82051",
+        "seal": {
+          "status": "SEALED",
+          "scientific_verdict": "FLAG",
+          "result": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+          "audit": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_AUDIT.json",
+          "seed_registration_origin": "RETROACTIVE_RECONCILIATION",
+          "historically_pre_registered": false
+        }
       }
     ]
   }
