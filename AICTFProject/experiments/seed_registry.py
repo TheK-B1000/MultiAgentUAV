@@ -135,6 +135,71 @@ def check_block(lo: int, hi: int, seed_class: str,
     return True, f"block {lo}..{hi} ({seed_class}, n={hi - lo + 1}) is free"
 
 
+def check_training_seed(seed: int, experiment_id: str | None) -> tuple[bool, str, dict | None]:
+    """May a training run spend ONE seed out of a registered block? ``(ok, reason, block)``.
+
+    ``check_block`` answers "is this whole range free to reserve"; it cannot answer this,
+    because a training pair registers one block (e.g. 23100001..23100002) and each run
+    spends a single seed of it -- asking about the one-seed sub-range reports an overlap
+    with the run's own block. A launch is legal only if:
+
+    * it names the experiment it spends for (absence is an error, never a default);
+    * that experiment id is registered, and the seed lies inside its block;
+    * the block is RESERVED -- SPENT means its runs are finished and RETIRED means it was
+      superseded; neither may be spent again;
+    * the class is not ``smoke`` (smoke launches use the reserved family, not a block).
+
+    Reuse of a seed INSIDE a still-RESERVED block (a second launch of the same seed) is
+    not visible here; ``prior_training_uses`` is the companion check for that.
+    """
+    if not experiment_id:
+        return False, ("no experiment id given: a non-smoke training seed must be spent "
+                       "against a registered block (Rule 9)"), None
+    b = next((x for x in load()["blocks"] if x["experiment_id"] == experiment_id), None)
+    if b is None:
+        return False, (f"experiment id {experiment_id!r} is not registered; reserve its "
+                       f"block with `seed_registry.py allocate` before launching"), None
+    if not (b["lo"] <= int(seed) <= b["hi"]):
+        return False, (f"seed {seed} is outside {experiment_id}'s registered block "
+                       f"{b['lo']}..{b['hi']}"), b
+    if b["seed_class"] == "smoke":
+        return False, (f"{experiment_id} is a smoke block; smoke launches do not spend "
+                       f"registered seeds"), b
+    if b["status"] != "RESERVED":
+        return False, (f"{experiment_id} {b['lo']}..{b['hi']} is {b['status']}; only a "
+                       f"RESERVED block may be spent. Seeds are never reused."), b
+    return True, (f"seed {seed} in {experiment_id} {b['lo']}..{b['hi']} "
+                  f"[{b['seed_class']}/RESERVED]"), b
+
+
+def prior_training_uses(seed: int, record: str, *, exclude_dir: Path | None = None,
+                        root: Path | None = None) -> list[str]:
+    """Run directories under ``artifacts/`` whose manifest (``record``) already spent ``seed``.
+
+    The registry records blocks, not individual launches, so a second launch of the same
+    seed inside a RESERVED block passes ``check_training_seed``. The manifests on disk are
+    the record of what actually ran; this reads them. ``exclude_dir`` is the launching run's
+    own directory (a crash restart or ``--resume`` of the same run is not a reuse). A
+    manifest that cannot be parsed is reported as a use: it cannot be ruled out.
+    """
+    base = (root or ROOT) / "artifacts"
+    skip = exclude_dir.resolve() if exclude_dir is not None else None
+    uses = []
+    for f in sorted(base.rglob("run_manifest.json")):
+        if skip is not None and f.parent.resolve() == skip:
+            continue
+        try:
+            d = json.loads(f.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            text = f.read_text(encoding="utf-8", errors="replace")
+            if record in text and str(int(seed)) in text:
+                uses.append(f"{f.parent.relative_to(base).as_posix()} (UNREADABLE manifest)")
+            continue
+        if isinstance(d, dict) and d.get("record") == record and d.get("seed") == int(seed):
+            uses.append(f.parent.relative_to(base).as_posix())
+    return uses
+
+
 def next_free(n: int, seed_class: str = "exploratory", stride: int = 100_000) -> int:
     """Lowest unused block start on the project's 100k-stride convention."""
     doc = load()

@@ -16,7 +16,24 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-26 — **Pole certification is now a SEALED downstream handoff; fresh 2v2
+> **Last updated:** 2026-09-26 — **2v2 poles CERTIFIED (sealed); standardized 2v2 foundation training;
+> Rule 9 now enforced by the specialist trainer.** The fresh 2v2 certification (block `23000001–23000192`,
+> spent) SEALED with 0/14 gating checks failed and VERDICT CERTIFIED: Δ_A +0.276 [+0.182, +0.370],
+> Δ_B +0.427 [+0.354, +0.500] (`5f7c6892`). Standardized foundation (`STANDARDIZED_2V2_FOUNDATION_SPEC.json`,
+> `ca52a24b`): π_A seed 23100001 finished 15:15 (exit 0), π_B seed 23100002 running; both loaded
+> byte-identical trainer code (π_B launched only after π_A, and the trainer change below landed only after
+> π_B's manifest showed a passing live-pole attestation against `a6bd288a…` and its first PPO update).
+> `train_specialist_scale.py` previously never consulted the seed registry; every non-smoke launch now needs
+> `--experiment-id`, the seed must lie in that id's registered **RESERVED** block, and no other trainer run
+> manifest may already hold the seed (the 19100001 three-directory incident would have been refused). The
+> manifest records the block. **Consequence:** frozen launch commands without `--experiment-id` (e.g. the
+> 6v6 school-PC pipeline) now refuse; they need a launcher amendment, not an edit to the frozen record.
+> Next: verify both foundation finals, mark `STANDARDIZED_2V2_FOUNDATION_PAIR_TRAINING` SPENT, freeze
+> `STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json` (draft; 2v2 warm-start smoke passed) with their hashes and fresh seeds.
+>
+> ---
+>
+> Prior — 2026-09-26 — **Pole certification is now a SEALED downstream handoff; fresh 2v2
 > certification ready to launch.** The certification record is written through `run_state.seal`
 > (Rule 7); `status` (SEALED/AUDIT_FAILED) is separate from the scientific `VERDICT`
 > (CERTIFIED/NOT_CERTIFIED), and downstream pole resolution requires **both** CERTIFIED and a SEALED

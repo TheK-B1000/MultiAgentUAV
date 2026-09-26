@@ -177,3 +177,78 @@ def test_decision_table_own_id_disjoint_from_own_prior_block_is_a_fresh_check(re
     normal (here: free) request, not auto-approved and not auto-rejected."""
     ok, msg = SR.check_block(20900001, 20900032, "exploratory", experiment_id="CONF_A")
     assert ok and "free" in msg
+
+
+# ---- per-seed training launch (trainer-side Rule 9) ----------------------------------
+
+@pytest.fixture
+def pair(reg):
+    SR.allocate("PAIR_TRAIN", 20500001, 20500002, "exploratory", "pi_A, pi_B training")
+    SR.allocate("OLD_PAIR", 20600001, 20600002, "exploratory", "finished pair")
+    SR.set_status("OLD_PAIR", "SPENT")
+    SR.allocate("GONE_PAIR", 20700001, 20700002, "exploratory", "superseded pair")
+    SR.set_status("GONE_PAIR", "RETIRED")
+    return reg
+
+
+def test_each_seed_of_a_reserved_pair_block_may_be_spent(pair):
+    """The reason check_block is not enough: one seed of a pair block self-collides."""
+    assert not SR.check_block(20500001, 20500001, "exploratory", "PAIR_TRAIN")[0]
+    for s in (20500001, 20500002):
+        ok, msg, b = SR.check_training_seed(s, "PAIR_TRAIN")
+        assert ok, msg
+        assert b["experiment_id"] == "PAIR_TRAIN"
+
+
+@pytest.mark.parametrize("seed,exp,needle", [
+    (20500001, None, "no experiment id"),
+    (20500001, "", "no experiment id"),
+    (20500001, "NOT_REGISTERED", "not registered"),
+    (20500003, "PAIR_TRAIN", "outside"),
+    (20100001, "PAIR_TRAIN", "outside"),        # a real seed, but another experiment's
+    (20600001, "OLD_PAIR", "SPENT"),
+    (20700001, "GONE_PAIR", "RETIRED"),
+])
+def test_training_seed_refusals(pair, seed, exp, needle):
+    ok, msg, _ = SR.check_training_seed(seed, exp)
+    assert not ok and needle in msg
+
+
+def test_smoke_block_cannot_be_spent_as_training(pair):
+    SR.allocate("SMOKE_BLOCK", SR.SMOKE_LO + 1, SR.SMOKE_LO + 2, "smoke", "smoke")
+    ok, msg, _ = SR.check_training_seed(SR.SMOKE_LO + 1, "SMOKE_BLOCK")
+    assert not ok and "smoke" in msg
+
+
+def _manifest(d, seed, record="train_specialist_scale run manifest"):
+    d.mkdir(parents=True)
+    (d / "run_manifest.json").write_text(json.dumps({"record": record, "seed": seed}),
+                                         encoding="utf-8")
+
+
+def test_prior_training_uses_finds_a_second_launch_of_the_same_seed(tmp_path):
+    """The 19100001 incident: one seed trained into three run directories."""
+    rec = "train_specialist_scale run manifest"
+    a = tmp_path / "artifacts"
+    _manifest(a / "scale" / "pi_B_run", 19100001)
+    _manifest(a / "scale" / "INVALID_moved_aside", 19100001)
+    _manifest(a / "scale" / "other_seed", 19100002)
+    _manifest(a / "scale" / "other_record", 19100001, record="some eval manifest")
+    uses = SR.prior_training_uses(19100001, rec, root=tmp_path)
+    assert uses == ["scale/INVALID_moved_aside", "scale/pi_B_run"]
+    # A restart or --resume of the SAME run is not a reuse.
+    assert SR.prior_training_uses(19100001, rec, root=tmp_path,
+                                  exclude_dir=a / "scale" / "pi_B_run") == \
+        ["scale/INVALID_moved_aside"]
+    assert SR.prior_training_uses(19100003, rec, root=tmp_path) == []
+
+
+def test_unreadable_manifest_naming_the_seed_counts_as_a_use(tmp_path):
+    d = tmp_path / "artifacts" / "broken"
+    d.mkdir(parents=True)
+    (d / "run_manifest.json").write_text(
+        '{"record": "train_specialist_scale run manifest", "seed": 19100001, ',
+        encoding="utf-8")
+    uses = SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
+                                  root=tmp_path)
+    assert uses == ["broken (UNREADABLE manifest)"]

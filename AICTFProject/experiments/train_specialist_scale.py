@@ -212,6 +212,11 @@ def main() -> int:
     ap.add_argument("--team-size", type=int, required=True, choices=SUPPORTED_TEAM_SIZES)
     ap.add_argument("--policy", required=True, choices=("A", "B"))
     ap.add_argument("--seed", type=int, required=True)
+    ap.add_argument("--experiment-id", default="",
+                    help="the seed registry (Rule 9) experiment id this run spends its seed "
+                         "against. Required for every non-smoke run: the seed must lie in "
+                         "that experiment's registered, RESERVED block, and no other run "
+                         "may already have trained it. See experiments/seed_registry.py.")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--total-timesteps", type=int, default=None)
     ap.add_argument("--smoke", action="store_true",
@@ -435,6 +440,18 @@ def main() -> int:
                          f"[{SMOKE_SEED_MIN}, {SMOKE_SEED_MAX}], got {seed}")
     if not is_smoke and SMOKE_SEED_MIN <= seed <= SMOKE_SEED_MAX:
         raise SystemExit(f"FAIL-CLOSED: seed {seed} is reserved for non-scientific smokes")
+
+    # ---- Rule 9 at training time. Every launcher that spends seeds consults the registry
+    # before the first episode; this one did not, so a training run could spend an
+    # unregistered, finished, retired or already-trained seed and nothing would refuse.
+    # Checked here, before certification, before any environment or GPU work.
+    from experiments import seed_registry as SR
+    seed_block = None
+    if not is_smoke:
+        ok, msg, seed_block = SR.check_training_seed(seed, args.experiment_id)
+        if not ok:
+            raise SystemExit(f"FAIL-CLOSED (Rule 9 seed registry): {msg}")
+        print(f"  RULE 9: {msg}", flush=True)
 
     verdict, cert_path = _certification_verdict(n)
     if not is_smoke and verdict != "CERTIFIED" and exploratory is None and redesign is None:
@@ -874,6 +891,15 @@ def main() -> int:
                 f"pass --resume <ckpt.zip> for crash recovery."
             )
 
+    if not is_smoke:
+        prior = SR.prior_training_uses(seed, "train_specialist_scale run manifest",
+                                       exclude_dir=art)
+        if prior:
+            raise SystemExit(
+                f"FAIL-CLOSED (Rule 9 seed registry): seed {seed} was already trained by "
+                f"{len(prior)} other run(s): {prior}. A seed is spent once; a registered "
+                f"block does not make a second launch of the same seed legal.")
+
     sha, dirty = _git_sha(), _git_dirty()
     print("=" * 78)
     print(f"SPECIALIST_SCALE  pi_{policy}  {n}v{n}   "
@@ -962,6 +988,12 @@ def main() -> int:
         "record": "train_specialist_scale run manifest", "utc": _now(),
         "smoke_non_scientific": is_smoke, "team_size": n, "policy": policy,
         "pole_base": BASE_KEY[policy], "seed": seed, "device": cfg.device,
+        "seed_registry": (None if seed_block is None else {
+            "experiment_id": seed_block["experiment_id"],
+            "block": [int(seed_block["lo"]), int(seed_block["hi"])],
+            "seed_class": seed_block["seed_class"],
+            "status_at_launch": seed_block["status"],
+        }),
         "git_sha": sha, "git_dirty": dirty,
         "total_timesteps": int(cfg.total_timesteps),
         "certification_verdict": verdict,
