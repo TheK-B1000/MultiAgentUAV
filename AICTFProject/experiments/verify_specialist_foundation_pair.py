@@ -1,5 +1,11 @@
 r"""Verify a trained specialist pair against its frozen spec before the seeds are marked SPENT.
 
+Covers both specialist stages, detected from the spec itself (never from the runs):
+  foundation     (RECIPE_identical_to_4v4_base)           fresh init, entity repair OFF
+  entity repair  (RECIPE_identical_to_4v4_entity_repair)  warm start from SOURCE_CHECKPOINTS,
+                 entity repair ON; the resolved config may differ from the foundation run of the
+                 same policy ONLY in REPAIR_ALLOWED_CONFIG_DIFF
+
     python experiments/verify_specialist_foundation_pair.py \
         --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_FOUNDATION_SPEC.json \
         --trainer-git-sha ca52a24bc19f9817675c1213de4a95007a7c519a [--write]
@@ -30,6 +36,18 @@ if str(ROOT) not in sys.path:
 
 MANIFEST_RECORD = "train_specialist_scale run manifest"
 
+#: Keys an entity-repair run's resolved PPO config may change relative to the foundation run it
+#: warm-starts from: run identity/paths, the warm-start plumbing, and the repair switch itself.
+REPAIR_ALLOWED_CONFIG_DIFF = frozenset({
+    "seed", "run_tag", "checkpoint_dir", "metrics_csv_path", "episode_csv_path",
+    "load_path", "warm_start_reset_progress", "allow_active_actor_module_migration",
+    "entity_repair_enabled",
+})
+
+
+def _norm(p) -> str | None:
+    return None if p in (None, "") else str(p).replace(chr(92), "/")
+
 
 def _sha256(p: Path) -> str:
     h = hashlib.sha256()
@@ -57,7 +75,12 @@ def verify(spec_path: Path, trainer_git_sha: str) -> dict:
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
     if not str(spec.get("status", "")).startswith("FROZEN"):
         raise SystemExit(f"FAIL-CLOSED: spec is not frozen: {spec.get('status')!r}")
-    seeds, launch, recipe = spec["SEEDS"], spec["LAUNCH"], spec["RECIPE_identical_to_4v4_base"]
+    seeds, launch = spec["SEEDS"], spec["LAUNCH"]
+    repair = "RECIPE_identical_to_4v4_entity_repair" in spec
+    recipe = spec["RECIPE_identical_to_4v4_entity_repair" if repair else "RECIPE_identical_to_4v4_base"]
+    stem, done_marker = (("std_entity_repair", "entity repair DONE") if repair
+                         else ("std_foundation", "foundation DONE"))
+    sources = spec["SOURCE_CHECKPOINTS"] if repair else {}
     n_expected = int(_arg(launch["A"], "--team-size"))
     budget = int(recipe["total_timesteps"])
 
@@ -70,7 +93,7 @@ def verify(spec_path: Path, trainer_git_sha: str) -> dict:
     def check(policy: str, name: str, ok: bool, detail) -> None:
         checks.append({"policy": policy, "check": name, "ok": bool(ok), "detail": detail})
 
-    watch = ROOT / "artifacts" / f"scale_{n_expected}v{n_expected}_specialists" / "std_foundation_watch.log"
+    watch = ROOT / "artifacts" / f"scale_{n_expected}v{n_expected}_specialists" / f"{stem}_watch.log"
     watch_txt = _read_text(watch) if watch.is_file() else ""
     per_policy: dict[str, dict] = {}
 
@@ -81,6 +104,14 @@ def verify(spec_path: Path, trainer_git_sha: str) -> dict:
         final = ROOT / launch["expected_finals"][pol]
         run_dir = final.parent.parent
         info: dict = {"final": final.relative_to(ROOT).as_posix(), "seed": seed}
+        pin = sources.get(pol) if repair else None
+        pin_path = _norm(pin["path"]) if pin else None
+        if repair:
+            wp = ROOT / pin["path"]
+            have = _sha256(wp) if wp.is_file() else None
+            check(pol, "warm_start_file_matches_pinned_sha256", have == pin["sha256"],
+                  f"{str(have)[:16]}... vs {pin['sha256'][:16]}...")
+            info["warm_start"] = {"path": pin_path, "sha256": pin["sha256"]}
 
         # final checkpoint
         check(pol, "final_checkpoint_exists", final.is_file(), info["final"])
@@ -94,13 +125,16 @@ def verify(spec_path: Path, trainer_git_sha: str) -> dict:
             check(pol, "global_step_reached_budget", budget <= step < budget + rollout, step)
             ccfg = ck.get("cfg") or {}
             check(pol, "checkpoint_cfg_seed", ccfg.get("seed") == seed, ccfg.get("seed"))
-            check(pol, "checkpoint_cfg_entity_repair_off", ccfg.get("entity_repair_enabled") is False,
-                  ccfg.get("entity_repair_enabled"))
+            check(pol, f"checkpoint_cfg_entity_repair_{'on' if repair else 'off'}",
+                  ccfg.get("entity_repair_enabled") is repair, ccfg.get("entity_repair_enabled"))
             check(pol, "checkpoint_cfg_anchor_dataset_empty", ccfg.get("sappo_anchor_dataset", None) == "",
                   ccfg.get("sappo_anchor_dataset", "<absent>"))
-            check(pol, "checkpoint_cfg_no_load_path", not ccfg.get("load_path"), ccfg.get("load_path"))
-            ent = [k for k in (ck.get("model_state_dict") or {}) if "entity" in k]
-            check(pol, "checkpoint_has_no_entity_parameters", not ent and bool(ck.get("model_state_dict")), ent[:3])
+            check(pol, "checkpoint_cfg_load_path", _norm(ccfg.get("load_path")) == pin_path, ccfg.get("load_path"))
+            ent = [k for k in (ck.get("model_state_dict") or {}) if k.startswith("entity_encoder.")]
+            if repair:
+                check(pol, "checkpoint_has_entity_encoder_parameters", len(ent) > 0, f"{len(ent)} tensors")
+            else:
+                check(pol, "checkpoint_has_no_entity_parameters", not ent and bool(ck.get("model_state_dict")), ent[:3])
 
         # run manifest
         mp = run_dir / "run_manifest.json"
@@ -123,9 +157,25 @@ def verify(spec_path: Path, trainer_git_sha: str) -> dict:
               m.get("certified_config_hash"))
         check(pol, "manifest_live_hash_equals_certified", m.get("live_config_hash") == certified_hash[pol],
               m.get("live_config_hash"))
-        check(pol, "manifest_entity_repair_off", m.get("entity_repair_enabled") is False, m.get("entity_repair_enabled"))
-        check(pol, "manifest_no_warm_start", m.get("warm_start_from", "<absent>") is None, m.get("warm_start_from", "<absent>"))
-        check(pol, "manifest_no_resume", m.get("resume_from", "<absent>") is None, m.get("resume_from", "<absent>"))
+        check(pol, f"manifest_entity_repair_{'on' if repair else 'off'}", m.get("entity_repair_enabled") is repair,
+              m.get("entity_repair_enabled"))
+        wsf = m.get("warm_start_from", "<absent>")
+        check(pol, "manifest_warm_start_from", wsf != "<absent>" and _norm(wsf) == pin_path, wsf)
+        if repair:
+            check(pol, "manifest_entity_hidden_dim", m.get("entity_hidden_dim") == recipe["entity_hidden_dim"],
+                  m.get("entity_hidden_dim"))
+            # A --load-path run records the warm start as resume_from too (cfg.load_path); a real
+            # --resume would point inside this run's own ckpts dir instead.
+            rf = m.get("resume_from", "<absent>")
+            check(pol, "manifest_no_crash_resume", rf != "<absent>" and _norm(rf) == pin_path, rf)
+            sr = m.get("seed_registry") or {}
+            blk = sr.get("block") or [None, None]
+            check(pol, "manifest_seed_registry_block",
+                  sr.get("experiment_id") == seeds["registry_experiment_id"]
+                  and sr.get("status_at_launch") == "RESERVED"
+                  and f"{blk[0]}..{blk[1]}" == seeds["block"], sr)
+        else:
+            check(pol, "manifest_no_resume", m.get("resume_from", "<absent>") is None, m.get("resume_from", "<absent>"))
         check(pol, "manifest_pole_b_canonical", m.get("pole_b_source") == "canonical_pole_B_genome", m.get("pole_b_source"))
         info["manifest_git_sha"] = m.get("git_sha")
         info["live_config_hash"] = m.get("live_config_hash")
@@ -138,21 +188,38 @@ def verify(spec_path: Path, trainer_git_sha: str) -> dict:
         argv = rc.get("argv") or []
         spec_argv = cmd.split()[2:]          # drop interpreter and script
         check(pol, "run_config_argv_equals_spec_launch", argv[1:] == spec_argv, argv[1:])
-        check(pol, "run_config_load_path_none", rc.get("load_path", "<absent>") is None and c.get("load_path", "<absent>") is None,
+        check(pol, "run_config_load_path",
+              "load_path" in rc and "load_path" in c
+              and _norm(rc.get("load_path")) == pin_path and _norm(c.get("load_path")) == pin_path,
               [rc.get("load_path", "<absent>"), c.get("load_path", "<absent>")])
         check(pol, "run_config_anchor_dataset_empty", c.get("sappo_anchor_dataset", None) == "",
               c.get("sappo_anchor_dataset", "<absent>"))
-        check(pol, "run_config_entity_repair_off", c.get("entity_repair_enabled") is False, c.get("entity_repair_enabled"))
+        check(pol, f"run_config_entity_repair_{'on' if repair else 'off'}", c.get("entity_repair_enabled") is repair,
+              c.get("entity_repair_enabled"))
         check(pol, "run_config_seed", c.get("seed") == seed, c.get("seed"))
         check(pol, "run_config_team_size", c.get("max_blue_agents") == n_expected, c.get("max_blue_agents"))
-        check(pol, "run_config_recipe_n_envs", c.get("n_envs") == recipe["n_envs"], c.get("n_envs"))
-        check(pol, "run_config_recipe_n_steps", c.get("n_steps") == recipe["n_steps"], c.get("n_steps"))
-        check(pol, "run_config_recipe_lr", c.get("learning_rate") == recipe["learning_rate"], c.get("learning_rate"))
+        if repair:
+            base_rcs = sorted((ROOT / pin["path"]).parent.parent.glob("*_run_config.json"))
+            bc = ((json.loads(base_rcs[0].read_text(encoding="utf-8")).get("resolved_ppo_config") or {})
+                  if len(base_rcs) == 1 else {})
+            check(pol, "foundation_run_config_found", bool(bc), [q.name for q in base_rcs])
+            diff = sorted(k for k in set(bc) | set(c) if bc.get(k, "<absent>") != c.get(k, "<absent>"))
+            extra = [k for k in diff if k not in REPAIR_ALLOWED_CONFIG_DIFF]
+            check(pol, "config_diff_vs_foundation_within_allowlist", bool(bc) and not extra,
+                  {"changed": diff, "not_allowed": extra})
+            check(pol, "run_config_warm_start_reset_progress", c.get("warm_start_reset_progress") is True,
+                  c.get("warm_start_reset_progress"))
+            check(pol, "run_config_entity_hidden_dim", c.get("entity_hidden_dim") == recipe["entity_hidden_dim"],
+                  c.get("entity_hidden_dim"))
+        else:
+            check(pol, "run_config_recipe_n_envs", c.get("n_envs") == recipe["n_envs"], c.get("n_envs"))
+            check(pol, "run_config_recipe_n_steps", c.get("n_steps") == recipe["n_steps"], c.get("n_steps"))
+            check(pol, "run_config_recipe_lr", c.get("learning_rate") == recipe["learning_rate"], c.get("learning_rate"))
         check(pol, "run_config_git_sha", rc.get("git_sha") == trainer_git_sha, rc.get("git_sha"))
 
         # termination
         check(pol, "launcher_logged_exit_0", f"pi_{pol} exited 0" in watch_txt, watch.name)
-        log = ROOT / "artifacts" / f"scale_{n_expected}v{n_expected}_specialists" / f"std_foundation_{pol}.log"
+        log = ROOT / "artifacts" / f"scale_{n_expected}v{n_expected}_specialists" / f"{stem}_{pol}.log"
         err = log.with_suffix(".log.err")
         txt = (_read_text(log) if log.is_file() else "") + (_read_text(err) if err.is_file() else "")
         check(pol, "run_log_present", log.is_file(), log.name)
@@ -162,7 +229,7 @@ def verify(spec_path: Path, trainer_git_sha: str) -> dict:
 
     shas = {per_policy[p].get("manifest_git_sha") for p in ("A", "B")}
     check("pair", "same_trainer_git_identity_for_both", len(shas) == 1 and trainer_git_sha in shas, sorted(map(str, shas)))
-    check("pair", "launcher_logged_pair_done", "foundation DONE" in watch_txt, watch.name)
+    check("pair", "launcher_logged_pair_done", done_marker in watch_txt, watch.name)
 
     failed = [c for c in checks if not c["ok"]]
     return {
@@ -171,6 +238,7 @@ def verify(spec_path: Path, trainer_git_sha: str) -> dict:
         "spec": spec_path.name,
         "spec_sha256": _sha256(spec_path),
         "certification_record": cert_path.name,
+        "stage": "entity_repair" if repair else "foundation",
         "trainer_git_sha": trainer_git_sha,
         "registry_experiment_id": seeds["registry_experiment_id"],
         "PASS": not failed,

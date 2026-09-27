@@ -110,5 +110,13 @@
       "block": "23200001..23200002",
       "experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING"
     }
+  },
+  "AMENDMENT_INFRA_RESTART_2026_09_26": {
+    "utc": "2026-09-27T03:45:00Z",
+    "what_happened": "pi_A (seed 23300001, launched 22:13:38Z from 990f5d65) died at ~93k of 1,000,000 steps when Windows Update restarted the host (System event 1074, MoUsoCoreWorker.exe, 22:29:23Z). No checkpoint had been written (periodic interval 100,000), so --resume was impossible. pi_B never started.",
+    "decision": "PI, 2026-09-26: 'rerun' -- restart seed 23300001 from step 0 as a crash restart of the same run; the V2 block stays RESERVED (not retired)",
+    "evidence": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair_ABORTED_INFRA_REBOOT_seed23300001/ (manifest, config, metrics, episode rows, ABORTED_INFRA_RESTART.json) + its logs; INVALID_FOR_SCIENTIFIC_USE",
+    "mechanism": "seed_registry.infra_restart_exempt: prior_training_uses skips a dead attempt only if it carries ABORTED_INFRA_RESTART.json naming the same seed with rerun_authorized and authorized_by, and no checkpoint *.zip exists under it (checked on disk). The premature-launch attempt (23200001) has no such marker and stays refused.",
+    "unchanged": "recipe, seeds (23300001, 23300002), LAUNCH commands, pinned warm-start checkpoints and hashes, poles"
   }
 }

@@ -252,3 +252,59 @@ def test_unreadable_manifest_naming_the_seed_counts_as_a_use(tmp_path):
     uses = SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
                                   root=tmp_path)
     assert uses == ["broken (UNREADABLE manifest)"]
+
+
+# ---- authorized re-run after an infrastructure abort ---------------------------------
+
+def _infra_marker(d, seed=19100001, **over):
+    rec = {"classification": "ABORTED_INFRA_RESTART", "seed": seed, "rerun_authorized": True,
+           "authorized_by": "PI", "valid_for_scientific_use": False}
+    rec.update(over)
+    (d / SR.INFRA_RESTART_MARKER).write_text(json.dumps(rec), encoding="utf-8")
+
+
+def test_infra_restart_marker_exempts_exactly_that_dead_attempt(tmp_path):
+    """Host died before any checkpoint; the PI authorized re-running the same seed."""
+    rec = "train_specialist_scale run manifest"
+    dead = tmp_path / "artifacts" / "run_ABORTED_INFRA_REBOOT"
+    _manifest(dead, 19100001)
+    (dead / "ckpts").mkdir()
+    _infra_marker(dead)
+    assert SR.prior_training_uses(19100001, rec, root=tmp_path) == []
+    # a second, unmarked run of the same seed is still a use
+    _manifest(tmp_path / "artifacts" / "another_run", 19100001)
+    assert SR.prior_training_uses(19100001, rec, root=tmp_path) == ["another_run"]
+
+
+@pytest.mark.parametrize("over", [
+    {"seed": 19100002},                       # marker names a different seed
+    {"classification": "ABORTED_PREMATURE_LAUNCH"},
+    {"rerun_authorized": False},
+    {"authorized_by": ""},
+    {"valid_for_scientific_use": True},
+])
+def test_infra_restart_marker_with_any_field_wrong_is_not_exempt(tmp_path, over):
+    dead = tmp_path / "artifacts" / "dead"
+    _manifest(dead, 19100001)
+    _infra_marker(dead, **over)
+    assert SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
+                                  root=tmp_path) == ["dead"]
+
+
+def test_infra_restart_marker_is_void_if_the_attempt_wrote_a_checkpoint(tmp_path):
+    """Checked on disk, not taken from the marker: produced weights are never exempt."""
+    dead = tmp_path / "artifacts" / "dead"
+    _manifest(dead, 19100001)
+    (dead / "ckpts").mkdir()
+    (dead / "ckpts" / "ckpt_100000.zip").write_bytes(b"w")
+    _infra_marker(dead)
+    assert SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
+                                  root=tmp_path) == ["dead"]
+
+
+def test_malformed_infra_restart_marker_is_not_exempt(tmp_path):
+    dead = tmp_path / "artifacts" / "dead"
+    _manifest(dead, 19100001)
+    (dead / SR.INFRA_RESTART_MARKER).write_text("{not json", encoding="utf-8")
+    assert SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
+                                  root=tmp_path) == ["dead"]

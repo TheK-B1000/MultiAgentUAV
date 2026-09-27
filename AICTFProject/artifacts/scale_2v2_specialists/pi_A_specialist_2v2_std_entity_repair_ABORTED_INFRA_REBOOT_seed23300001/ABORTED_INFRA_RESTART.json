@@ -1,0 +1,31 @@
+{
+  "record_id": "ABORTED_INFRA_RESTART_pi_A_2v2_std_entity_repair_seed23300001",
+  "classification": "ABORTED_INFRA_RESTART",
+  "valid_for_scientific_use": false,
+  "seed": 23300001,
+  "policy": "A",
+  "team_size": 2,
+  "launched_utc": "2026-09-26T22:13:38Z",
+  "git_sha_at_launch": "990f5d650744ed1094173fe45655f3b22a136237",
+  "seed_registry_at_launch": {
+    "experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2",
+    "block": [
+      23300001,
+      23300002
+    ],
+    "seed_class": "exploratory",
+    "status_at_launch": "RESERVED"
+  },
+  "steps_executed": {
+    "last_progress_bar": 93296,
+    "last_logged_ppo_update_step": 92160,
+    "approx": "~93k of 1,000,000"
+  },
+  "termination": "Windows Update restart of the host: System event 1074, MoUsoCoreWorker.exe, 2026-09-26 18:29:23 local (22:29:23Z), reason 'Operating System: Service pack (Planned)'; host back 18:30:09. No trainer error or traceback; the launcher never logged an exit.",
+  "checkpoint_produced": null,
+  "checkpoint_produced_verified": "no *.zip anywhere under this directory (periodic checkpoints are every 100,000 steps; the run died at ~93k)",
+  "rerun_authorized": true,
+  "authorized_by": "PI, 2026-09-26 ('rerun'): restart seed 23300001 from step 0 as a crash restart of the same run, instead of retiring the V2 block",
+  "why_a_rerun_is_not_a_reuse": "nothing from this attempt survives or is used: no checkpoint, no weights, no metrics enter any result. The rerun starts from the same pinned warm start with the same seed, so it is the run the spec authorized, started again.",
+  "exemption_scope": "seed_registry.prior_training_uses skips this directory for seed 23300001 ONLY, and only while it contains this marker naming that seed and no checkpoint *.zip"
+}

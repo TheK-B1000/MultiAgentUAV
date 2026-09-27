@@ -14,3 +14,68 @@
 2026-09-26T18:12:39.6721769-04:00   guard pi_A   OK     warm_start_sha256      5b01de6bd391ffb9... vs pinned 5b01de6bd391ffb9...
 2026-09-26T18:12:39.6726744-04:00   guard pi_A frozen launch guard pi_A: REFUSE
 2026-09-26T18:12:39.6761755-04:00 STOP (CHECK-ONLY preflight): guard refused pi_A; nothing started
+2026-09-26T18:13:22.1853578-04:00 entity repair CHECK-ONLY start (commit 990f5d65)
+2026-09-26T18:13:22.6255290-04:00   guard pi_A   OK     spec_tracked           artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:22.6260311-04:00   guard pi_A   OK     spec_no_unstaged       artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:22.6265313-04:00   guard pi_A   OK     spec_no_staged         artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:22.6265313-04:00   guard pi_A   OK     spec_frozen            FROZEN_BEFORE_ANY_TRAINING_STEP
+2026-09-26T18:13:22.6275402-04:00   guard pi_A   OK     launch_seed            --seed 23300001 vs SEEDS.A=23300001
+2026-09-26T18:13:22.6280499-04:00   guard pi_A   OK     launch_experiment_id   --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 vs STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2
+2026-09-26T18:13:22.6280499-04:00   guard pi_A   OK     registry_seed          seed 23300001 in STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 23300001..23300002 [exploratory/RESERVED]
+2026-09-26T18:13:22.6290581-04:00   guard pi_A   OK     seed_never_trained     no run manifest holds 23300001
+2026-09-26T18:13:22.6295688-04:00   guard pi_A   OK     warm_start_path        --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip vs pinned artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip
+2026-09-26T18:13:22.6300688-04:00   guard pi_A   OK     warm_start_exists      artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip
+2026-09-26T18:13:22.6305696-04:00   guard pi_A   OK     warm_start_sha256      5b01de6bd391ffb9... vs pinned 5b01de6bd391ffb9...
+2026-09-26T18:13:22.6314625-04:00   guard pi_A frozen launch guard pi_A: PASS
+2026-09-26T18:13:23.0613361-04:00   guard pi_B   OK     spec_tracked           artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:23.0618374-04:00   guard pi_B   OK     spec_no_unstaged       artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:23.0623376-04:00   guard pi_B   OK     spec_no_staged         artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:23.0628376-04:00   guard pi_B   OK     spec_frozen            FROZEN_BEFORE_ANY_TRAINING_STEP
+2026-09-26T18:13:23.0633379-04:00   guard pi_B   OK     launch_seed            --seed 23300002 vs SEEDS.B=23300002
+2026-09-26T18:13:23.0638380-04:00   guard pi_B   OK     launch_experiment_id   --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 vs STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2
+2026-09-26T18:13:23.0643377-04:00   guard pi_B   OK     registry_seed          seed 23300002 in STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 23300001..23300002 [exploratory/RESERVED]
+2026-09-26T18:13:23.0648377-04:00   guard pi_B   OK     seed_never_trained     no run manifest holds 23300002
+2026-09-26T18:13:23.0653382-04:00   guard pi_B   OK     warm_start_path        --load-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip vs pinned artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip
+2026-09-26T18:13:23.0658378-04:00   guard pi_B   OK     warm_start_exists      artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip
+2026-09-26T18:13:23.0663381-04:00   guard pi_B   OK     warm_start_sha256      dc3e9ba420e0c25a... vs pinned dc3e9ba420e0c25a...
+2026-09-26T18:13:23.0668379-04:00   guard pi_B frozen launch guard pi_B: PASS
+2026-09-26T18:13:23.0683377-04:00 CHECK-ONLY PASS: both policies authorized; no training started (pass -Launch to train)
+2026-09-26T18:13:33.7738165-04:00 entity repair LAUNCH start (commit 990f5d65)
+2026-09-26T18:13:34.2615638-04:00   guard pi_A   OK     spec_tracked           artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:34.2630757-04:00   guard pi_A   OK     spec_no_unstaged       artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:34.2635758-04:00   guard pi_A   OK     spec_no_staged         artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:34.2640759-04:00   guard pi_A   OK     spec_frozen            FROZEN_BEFORE_ANY_TRAINING_STEP
+2026-09-26T18:13:34.2645757-04:00   guard pi_A   OK     launch_seed            --seed 23300001 vs SEEDS.A=23300001
+2026-09-26T18:13:34.2650756-04:00   guard pi_A   OK     launch_experiment_id   --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 vs STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2
+2026-09-26T18:13:34.2655760-04:00   guard pi_A   OK     registry_seed          seed 23300001 in STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 23300001..23300002 [exploratory/RESERVED]
+2026-09-26T18:13:34.2660757-04:00   guard pi_A   OK     seed_never_trained     no run manifest holds 23300001
+2026-09-26T18:13:34.2665760-04:00   guard pi_A   OK     warm_start_path        --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip vs pinned artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip
+2026-09-26T18:13:34.2670758-04:00   guard pi_A   OK     warm_start_exists      artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip
+2026-09-26T18:13:34.2675761-04:00   guard pi_A   OK     warm_start_sha256      5b01de6bd391ffb9... vs pinned 5b01de6bd391ffb9...
+2026-09-26T18:13:34.2680761-04:00   guard pi_A frozen launch guard pi_A: PASS
+2026-09-26T18:13:34.7502403-04:00   guard pi_B   OK     spec_tracked           artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:34.7507406-04:00   guard pi_B   OK     spec_no_unstaged       artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:34.7512408-04:00   guard pi_B   OK     spec_no_staged         artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:34.7517407-04:00   guard pi_B   OK     spec_frozen            FROZEN_BEFORE_ANY_TRAINING_STEP
+2026-09-26T18:13:34.7522407-04:00   guard pi_B   OK     launch_seed            --seed 23300002 vs SEEDS.B=23300002
+2026-09-26T18:13:34.7532411-04:00   guard pi_B   OK     launch_experiment_id   --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 vs STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2
+2026-09-26T18:13:34.7537410-04:00   guard pi_B   OK     registry_seed          seed 23300002 in STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 23300001..23300002 [exploratory/RESERVED]
+2026-09-26T18:13:34.7542409-04:00   guard pi_B   OK     seed_never_trained     no run manifest holds 23300002
+2026-09-26T18:13:34.7547410-04:00   guard pi_B   OK     warm_start_path        --load-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip vs pinned artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip
+2026-09-26T18:13:34.7552410-04:00   guard pi_B   OK     warm_start_exists      artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip
+2026-09-26T18:13:34.7557410-04:00   guard pi_B   OK     warm_start_sha256      dc3e9ba420e0c25a... vs pinned dc3e9ba420e0c25a...
+2026-09-26T18:13:34.7562422-04:00   guard pi_B frozen launch guard pi_B: PASS
+2026-09-26T18:13:35.2263452-04:00   guard pi_A   OK     spec_tracked           artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:35.2268435-04:00   guard pi_A   OK     spec_no_unstaged       artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:35.2278440-04:00   guard pi_A   OK     spec_no_staged         artifacts/strategic_demand/sppo/STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json
+2026-09-26T18:13:35.2283448-04:00   guard pi_A   OK     spec_frozen            FROZEN_BEFORE_ANY_TRAINING_STEP
+2026-09-26T18:13:35.2288448-04:00   guard pi_A   OK     launch_seed            --seed 23300001 vs SEEDS.A=23300001
+2026-09-26T18:13:35.2288448-04:00   guard pi_A   OK     launch_experiment_id   --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 vs STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2
+2026-09-26T18:13:35.2298491-04:00   guard pi_A   OK     registry_seed          seed 23300001 in STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 23300001..23300002 [exploratory/RESERVED]
+2026-09-26T18:13:35.2303548-04:00   guard pi_A   OK     seed_never_trained     no run manifest holds 23300001
+2026-09-26T18:13:35.2308552-04:00   guard pi_A   OK     warm_start_path        --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip vs pinned artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip
+2026-09-26T18:13:35.2313550-04:00   guard pi_A   OK     warm_start_exists      artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip
+2026-09-26T18:13:35.2318545-04:00   guard pi_A   OK     warm_start_sha256      5b01de6bd391ffb9... vs pinned 5b01de6bd391ffb9...
+2026-09-26T18:13:35.2323546-04:00   guard pi_A frozen launch guard pi_A: PASS
+2026-09-26T18:13:35.2718582-04:00 train pi_A : .venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy A --seed 23300001 --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip --run-label-suffix _std_entity_repair
+2026-09-26T23:38:52-04:00 ABORTED_INFRA_RESTART: pi_A (seed 23300001) died at ~93k steps in the Windows Update restart at 18:29:23 (event 1074); no checkpoint. Run dir moved to pi_A_specialist_2v2_std_entity_repair_ABORTED_INFRA_REBOOT_seed23300001. PI authorized a rerun of the same seed from step 0.

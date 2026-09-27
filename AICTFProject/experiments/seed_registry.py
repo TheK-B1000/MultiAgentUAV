@@ -172,6 +172,37 @@ def check_training_seed(seed: int, experiment_id: str | None) -> tuple[bool, str
                   f"[{b['seed_class']}/RESERVED]"), b
 
 
+INFRA_RESTART_MARKER = "ABORTED_INFRA_RESTART.json"
+
+
+def infra_restart_exempt(run_dir: Path, seed: int) -> bool:
+    """Is ``run_dir`` a dead attempt whose seed the PI authorized re-running from step 0?
+
+    The one legitimate way to launch a seed a manifest already holds: the host died (e.g. a
+    forced OS restart) before the run wrote ANY checkpoint, so nothing from the attempt can
+    enter a result and there is nothing to --resume from. Exempt only if ALL hold:
+      * the directory carries ABORTED_INFRA_RESTART.json with classification
+        ABORTED_INFRA_RESTART, the SAME seed, rerun_authorized true, a non-empty
+        authorized_by, and valid_for_scientific_use false;
+      * no checkpoint *.zip exists anywhere under the directory (checked on disk, not taken
+        from the marker) -- an attempt that produced weights is never exempt.
+    Anything missing or malformed means NOT exempt: the seed stays refused.
+    """
+    mk = run_dir / INFRA_RESTART_MARKER
+    if not mk.is_file():
+        return False
+    try:
+        d = json.loads(mk.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return False
+    if not (isinstance(d, dict) and d.get("classification") == "ABORTED_INFRA_RESTART"
+            and d.get("seed") == int(seed) and d.get("rerun_authorized") is True
+            and str(d.get("authorized_by") or "").strip()
+            and d.get("valid_for_scientific_use") is False):
+        return False
+    return not any(run_dir.rglob("*.zip"))
+
+
 def prior_training_uses(seed: int, record: str, *, exclude_dir: Path | None = None,
                         root: Path | None = None) -> list[str]:
     """Run directories under ``artifacts/`` whose manifest (``record``) already spent ``seed``.
@@ -187,6 +218,8 @@ def prior_training_uses(seed: int, record: str, *, exclude_dir: Path | None = No
     uses = []
     for f in sorted(base.rglob("run_manifest.json")):
         if skip is not None and f.parent.resolve() == skip:
+            continue
+        if infra_restart_exempt(f.parent, seed):
             continue
         try:
             d = json.loads(f.read_text(encoding="utf-8-sig"))
