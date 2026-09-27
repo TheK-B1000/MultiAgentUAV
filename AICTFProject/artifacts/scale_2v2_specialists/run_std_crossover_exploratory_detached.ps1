@@ -2,7 +2,8 @@
 # (STANDARDIZED_2V2_SEPARATED_CROSSOVER_EXPLORATORY_SPEC.json). Runs the spec's LAUNCH.command verbatim
 # after refusing unless the spec is tracked, has no staged/unstaged changes, and is FROZEN.
 # -SpecRel / -Stem reuse it for the confirmatory pass (-Stem std_crossover_confirmatory).
-param([string]$SpecRel = "artifacts/strategic_demand/sppo/STANDARDIZED_2V2_SEPARATED_CROSSOVER_EXPLORATORY_SPEC.json",
+# SAFE BY DEFAULT: without -Launch it runs the spec checks and the evaluator's own --dry-run only.
+param([switch]$Launch, [string]$SpecRel = "artifacts/strategic_demand/sppo/STANDARDIZED_2V2_SEPARATED_CROSSOVER_EXPLORATORY_SPEC.json",
       [string]$Stem = "std_crossover_exploratory")
 $ErrorActionPreference = "Continue"
 $Root = "K:\MultiAgentUAV\AICTFProject"
@@ -21,6 +22,13 @@ if (-not ([string]$specObj.status).StartsWith("FROZEN")) { Log "STOP: spec statu
 $parts = ([string]$specObj.LAUNCH.command).Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
 $exe = Join-Path $Root $parts[0]
 $args_ = $parts[1..($parts.Length - 1)]
+if (-not $Launch) {
+  Log "CHECK-ONLY: spec committed+clean+FROZEN; running evaluator --dry-run"
+  & $exe @args_ --dry-run *> $null
+  $rc = $LASTEXITCODE
+  Log "CHECK-ONLY dry-run exited $rc (pass -Launch to spend seeds)"
+  exit $rc
+}
 Log "run: $($specObj.LAUNCH.command)"
 & $exe @args_ 1> (Join-Path $Dir "$($Stem).log") 2> (Join-Path $Dir "$($Stem).log.err")
 $rc = $LASTEXITCODE
