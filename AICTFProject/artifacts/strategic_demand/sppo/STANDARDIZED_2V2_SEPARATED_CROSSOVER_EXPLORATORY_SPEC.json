@@ -1,0 +1,63 @@
+{
+  "record_id": "STANDARDIZED_2V2_SEPARATED_CROSSOVER_EXPLORATORY_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-27T11:05:00Z",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "classification": "EXPERIMENTAL PROTOCOL (Separated crossover evaluation, exploratory). Not PAPER-FAITHFUL.",
+  "authorized_by": "PI, 2026-09-26: 2v2 runs the exact 4v4 pipeline (one methodology; only N and k differ). Stage 4 of the canonical lineage after the verified split pi_D (27541731).",
+  "parent": [
+    "CROSS_SCALE_CANONICAL_RECIPE_V1.json",
+    "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC_VERIFICATION.json (21/21 PASS; commit 27541731)",
+    "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC_VERIFICATION.json (90/90 PASS; commit f5f9cb72)",
+    "4v4 reference: DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json#EVALUATION_after_training_not_during (exploratory n=64) -> DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC.json (n=128, only after the exploratory pass)",
+    "6v6 reference: SCHOOL_PC_6V6_LOCKED_PIPELINE.json seeds.crossover_exploratory (64) / crossover_confirmatory (128, spend_only_if_exploratory_PASS)"
+  ],
+
+  "THE_QUESTION": "At 2v2, does the Separated system -- pi_A as the split composite (frozen repaired pi_A on ATTACK + trained pi_D on DEFEND, CLOSEST_DEFENDS k=1) -- and the repaired pi_B show the crossover: each wins more on its own pole?",
+
+  "INSTRUMENT_identical_to_4v4": {
+    "evaluator": "experiments/eval_specialist_crossover_scaled.py --team-size 2 (one module, same as 4v4/6v6)",
+    "pi_A_evaluated_team": "split composite: --pi-a-path <pi_D final> + --frozen-attack-path <repaired pi_A final> (sha256-pinned); roles assigned once per episode (--role-fixed-for-episode), CLOSEST_DEFENDS with --role-k-defend 1; no teacher, no N' at evaluation",
+    "pi_B_evaluated_team": "the repaired pi_B final",
+    "poles": "resolved by the evaluator through pole_attestation (the sealed 2v2 certification): A da87ea17..., B a6bd288a...; no Pole B genome override",
+    "gate": "PASS iff mean(delta_A)>0 AND LCB95(delta_A)>0 AND mean(delta_B)>0 AND LCB95(delta_B)>0 (canonical delta convention: delta_A = V(pi_A,A) - V(pi_B,A), delta_B = V(pi_B,B) - V(pi_A,B))",
+    "bootstrap": {"procedure": "paired percentile bootstrap over evaluation seeds", "samples": 20000, "alpha": 0.05, "rng_seed": 7},
+    "n": 64,
+    "device": "cuda"
+  },
+
+  "CHECKPOINTS": {
+    "pi_D": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+             "sha256": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97"},
+    "frozen_attack_pi_A": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+                           "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"},
+    "pi_B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+             "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"},
+    "post_run_check": "the result record's checkpoint hashes and split_policy_pi_A block must equal these three pins"
+  },
+
+  "SEEDS": {
+    "block": "23500001..23500064",
+    "n": 64,
+    "seed_class": "exploratory",
+    "registry_experiment_id": "STANDARDIZED_2V2_SPLIT_K1_EXPLORATORY_SPECIALIST_CROSSOVER",
+    "chosen_by": "seed_registry.py next 64 --class exploratory (23500001) before this freeze; the evaluator allocates it under its label-derived id on the real run",
+    "disjoint_from": "training seeds 23100001-2, 23300001-2, 23400001 and the certification block 23000001-192"
+  },
+
+  "LAUNCH": {
+    "command": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_SEPARATED_CROSSOVER_EXPLORATORY_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23500001 --n-seeds 64 --label STANDARDIZED_2V2_SPLIT_K1_EXPLORATORY --device cuda --role-fixed-for-episode --frozen-attack-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --frozen-attack-path-sha256 858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f --role-k-defend 1",
+    "preflight": "the same command with --dry-run must pass first (spec frozen, Rule 9 block free, checkpoints present, frozen-attack sha, live pole resolution)",
+    "one_shot": "the evaluator refuses if any output for this label exists"
+  },
+
+  "READING_RULE_exploratory": "point-estimate evidence on whether the 2v2 Separated system shows the crossover -- NOT a confirmatory pass. A PASS licenses writing a confirmatory spec on a fresh, disjoint n=128 sealed_confirmatory block (as at 4v4); a FAIL goes to the PI before anything else, with no retuning of the recipe from this outcome.",
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "the confirmatory crossover (own spec, own sealed_confirmatory block, only after an exploratory PASS)",
+    "dataset collection, distillation or any suite arm",
+    "re-running this label, changing k, the checkpoints or the gate",
+    "any model selection: the three pinned finals are the only checkpoints evaluated"
+  ]
+}
