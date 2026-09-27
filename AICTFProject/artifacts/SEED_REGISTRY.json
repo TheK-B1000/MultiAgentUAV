@@ -1743,9 +1743,21 @@
         }
       ],
       "spent_utc": "2026-09-27T10:00:46Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_TRAINING",
+      "purpose": "standardized 2v2 split pi_D: frozen repaired pi_A on ATTACK, pi_D warm-started from the same repaired pi_A on DEFEND, CLOSEST_DEFENDS k=1, 200k, N' teacher unchanged",
+      "seed_class": "exploratory",
+      "lo": 23400001,
+      "hi": 23400001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-27T10:03:22Z"
     }
   ],
-  "updated_utc": "2026-09-27T10:00:46Z",
+  "updated_utc": "2026-09-27T10:03:22Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

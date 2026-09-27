@@ -1,0 +1,12 @@
+2026-09-27T06:04:08.4598206-04:00 std_split CHECK-ONLY policies=A start (commit f5f9cb72)
+2026-09-27T06:04:08.8343819-04:00   guard pi_A   REFUSE spec_tracked           artifacts/strategic_demand/sppo/STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC.json
+2026-09-27T06:04:08.8355266-04:00   guard pi_A   OK     spec_frozen            FROZEN_BEFORE_ANY_TRAINING_STEP
+2026-09-27T06:04:08.8355266-04:00   guard pi_A   OK     launch_seed            --seed 23400001 vs SEEDS.A=23400001
+2026-09-27T06:04:08.8360360-04:00   guard pi_A   OK     launch_experiment_id   --experiment-id STANDARDIZED_2V2_SPLIT_DEFEND_K1_TRAINING vs STANDARDIZED_2V2_SPLIT_DEFEND_K1_TRAINING
+2026-09-27T06:04:08.8365460-04:00   guard pi_A   OK     registry_seed          seed 23400001 in STANDARDIZED_2V2_SPLIT_DEFEND_K1_TRAINING 23400001..23400001 [exploratory/RESERVED]
+2026-09-27T06:04:08.8375393-04:00   guard pi_A   OK     seed_never_trained     no run manifest holds 23400001
+2026-09-27T06:04:08.8380427-04:00   guard pi_A   OK     warm_start_path        --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip vs pinned artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip
+2026-09-27T06:04:08.8385454-04:00   guard pi_A   OK     warm_start_exists      artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip
+2026-09-27T06:04:08.8388673-04:00   guard pi_A   OK     warm_start_sha256      858805dde3588a68... vs pinned 858805dde3588a68...
+2026-09-27T06:04:08.8393671-04:00   guard pi_A frozen launch guard pi_A: REFUSE
+2026-09-27T06:04:08.8423667-04:00 STOP (CHECK-ONLY policies=A preflight): guard refused pi_A; nothing started
