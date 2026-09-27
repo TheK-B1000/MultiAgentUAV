@@ -1762,9 +1762,28 @@
           "note": "pi_D split (k=1) seed 23400001 trained 200,704 steps from c190c5ae; exit 0; verified 21/21 (STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC_VERIFICATION.json); final sha256 e75b2775..."
         }
       ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SPLIT_K1_EXPLORATORY_SPECIALIST_CROSSOVER",
+      "purpose": "STANDARDIZED_2V2_SPLIT_K1_EXPLORATORY specialist crossover eval (2v2)",
+      "seed_class": "exploratory",
+      "lo": 23500001,
+      "hi": 23500064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "STANDARDIZED_2V2_SEPARATED_CROSSOVER_EXPLORATORY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-27T10:49:37Z",
+      "spent_utc": "2026-09-27T13:00:46Z",
+      "notes": [
+        {
+          "utc": "2026-09-27T13:00:46Z",
+          "note": "sealed SEALED; gate_passes=True"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-27T10:47:40Z",
+  "updated_utc": "2026-09-27T13:00:46Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
