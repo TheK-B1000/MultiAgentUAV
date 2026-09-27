@@ -201,3 +201,5 @@
 2026-09-27T03:11:52.1882489-04:00   guard pi_B   OK     warm_start_sha256      dc3e9ba420e0c25a... vs pinned dc3e9ba420e0c25a...
 2026-09-27T03:11:52.1887493-04:00   guard pi_B frozen launch guard pi_B: PASS
 2026-09-27T03:11:52.2222987-04:00 train pi_B : .venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy B --seed 23300002 --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip --run-label-suffix _std_entity_repair
+2026-09-27T05:59:26.6096831-04:00 pi_B exited 0
+2026-09-27T05:59:26.6106813-04:00 entity repair DONE

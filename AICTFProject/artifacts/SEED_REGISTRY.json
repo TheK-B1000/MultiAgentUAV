@@ -1728,7 +1728,7 @@
       "lo": 23300001,
       "hi": 23300002,
       "n": 2,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-26T22:09:11Z",
@@ -1736,11 +1736,16 @@
         {
           "utc": "2026-09-27T03:40:04Z",
           "note": "pi_A seed 23300001 attempt 1 died at ~93k steps in a Windows Update host restart (22:29:23Z), no checkpoint; PI authorized a rerun of the same seed from step 0 (ABORTED_INFRA_RESTART.json on the dead attempt). Block stays RESERVED."
+        },
+        {
+          "utc": "2026-09-27T10:00:46Z",
+          "note": "pi_A 23300001 (rerun after infra restart) and pi_B 23300002 each trained 1,001,472 entity-repair steps from 7fbfdafc; exit 0; pair verified 90/90 (STANDARDIZED_2V2_ENTITY_REPAIR_SPEC_VERIFICATION.json); finals sha256 A 858805dd..., B 9ee024ad..."
         }
-      ]
+      ],
+      "spent_utc": "2026-09-27T10:00:46Z"
     }
   ],
-  "updated_utc": "2026-09-27T03:40:04Z",
+  "updated_utc": "2026-09-27T10:00:46Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
