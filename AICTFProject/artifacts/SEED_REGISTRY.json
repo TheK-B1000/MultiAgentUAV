@@ -1751,13 +1751,20 @@
       "lo": 23400001,
       "hi": 23400001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-27T10:03:22Z"
+      "allocated_utc": "2026-09-27T10:03:22Z",
+      "spent_utc": "2026-09-27T10:47:40Z",
+      "notes": [
+        {
+          "utc": "2026-09-27T10:47:40Z",
+          "note": "pi_D split (k=1) seed 23400001 trained 200,704 steps from c190c5ae; exit 0; verified 21/21 (STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC_VERIFICATION.json); final sha256 e75b2775..."
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-27T10:03:22Z",
+  "updated_utc": "2026-09-27T10:47:40Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

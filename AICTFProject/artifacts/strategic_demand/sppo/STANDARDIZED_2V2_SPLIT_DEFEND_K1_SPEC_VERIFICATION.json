@@ -1,0 +1,135 @@
+{
+  "record_id": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC_VERIFICATION",
+  "utc": "2026-09-27T10:50:00Z",
+  "spec": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC.json",
+  "PASS": true,
+  "n_checks": 21,
+  "final": {
+    "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+    "sha256": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97",
+    "global_step": 200704
+  },
+  "teacher_last_stats": {
+    "defend_teacher_lambda": 0.0,
+    "defend_teacher_cadence": 4.0,
+    "defend_teacher_n_ppo_actor_updates": 1489.5,
+    "defend_teacher_n_teacher_updates": 372.0,
+    "defend_teacher_n_updates": 274.0,
+    "defend_teacher_n_skipped_empty_gate": 0.0,
+    "defend_teacher_n_skipped_zero_lambda": 98.0,
+    "defend_teacher_loss": 0.0
+  },
+  "reference_4v4_teacher_last_stats": {
+    "n_teacher_updates": 368,
+    "n_skipped_zero_lambda": 98,
+    "n_skipped_empty_gate": 0,
+    "lambda": 0.0
+  },
+  "checks": [
+    {
+      "check": "final_exists",
+      "ok": true,
+      "detail": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_split_defend_k1\\ckpts\\final_pi_A_specialist_2v2_std_split_defend_k1.zip"
+    },
+    {
+      "check": "global_step_200k",
+      "ok": true,
+      "detail": "200704"
+    },
+    {
+      "check": "warm_start_file_sha_matches_pin",
+      "ok": true,
+      "detail": "858805dde3588a68"
+    },
+    {
+      "check": "frozen_ckpt_sha_in_cfg",
+      "ok": true,
+      "detail": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"
+    },
+    {
+      "check": "frozen_ckpt_path_is_pin",
+      "ok": true,
+      "detail": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip"
+    },
+    {
+      "check": "load_path_is_pin",
+      "ok": true,
+      "detail": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip"
+    },
+    {
+      "check": "seed",
+      "ok": true,
+      "detail": "23400001"
+    },
+    {
+      "check": "k_defend_1",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "check": "role_conditioning_fixed_H8",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "split_enabled",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "entity_repair_on_with_weights",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "teacher_schedule_locked",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "teacher_ran",
+      "ok": true,
+      "detail": "(372.0, 0.0)"
+    },
+    {
+      "check": "teacher_decayed_to_zero",
+      "ok": true,
+      "detail": "0.0"
+    },
+    {
+      "check": "anchor_off",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "live_pole_A_certified",
+      "ok": true,
+      "detail": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"
+    },
+    {
+      "check": "seed_registry_block",
+      "ok": true,
+      "detail": "{'experiment_id': 'STANDARDIZED_2V2_SPLIT_DEFEND_K1_TRAINING', 'block': [23400001, 23400001], 'seed_class': 'exploratory', 'status_at_launch': 'RESERVED'}"
+    },
+    {
+      "check": "argv_equals_spec_launch",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "check": "git_sha_recorded_consistent",
+      "ok": true,
+      "detail": "c190c5aef92d3f2906e7f75f63afd0651c451be3"
+    },
+    {
+      "check": "config_diff_vs_4v4_split_within_allowlist",
+      "ok": true,
+      "detail": "['checkpoint_dir', 'episode_csv_path', 'fully_shared_z_conditioned_enabled', 'fully_shared_z_pole_match', 'load_path', 'max_blue_agents', 'metrics_csv_path', 'role_conditioning_allow_pre_entity_base', 'role_k_defend', 'role_k_defend_choices', 'run_tag', 'seed', 'split_attack_defend_frozen_ckpt', 'sp"
+    },
+    {
+      "check": "clean_exit",
+      "ok": true,
+      "detail": null
+    }
+  ]
+}
