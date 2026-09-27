@@ -246,7 +246,7 @@ def next_free(n: int, seed_class: str = "exploratory", stride: int = 100_000) ->
 
 def allocate(experiment_id: str, lo: int, hi: int, seed_class: str, purpose: str,
              spec: str | None = None, subdivides: str | None = None,
-             status: str = "RESERVED") -> dict:
+             status: str = "RESERVED", shared_by_labels: list[str] | None = None) -> dict:
     ok, msg = check_block(lo, hi, seed_class, experiment_id, subdivides)
     if not ok:
         raise SystemExit(f"REFUSING to allocate: {msg}")
@@ -258,6 +258,10 @@ def allocate(experiment_id: str, lo: int, hi: int, seed_class: str, purpose: str
              "seed_class": seed_class, "lo": lo, "hi": hi, "n": hi - lo + 1,
              "status": status, "spec": spec, "subdivides": subdivides,
              "allocated_utc": _now()}
+    if shared_by_labels:
+        # A paired multi-label diagnostic: exactly these evaluation labels may spend this
+        # one block (declared up front, never extended). See eval_specialist_crossover_scaled.
+        entry["shared_by_labels"] = list(shared_by_labels)
     doc["blocks"].append(entry)
     doc["blocks"].sort(key=lambda b: (b["lo"], b["hi"]))
     save(doc)

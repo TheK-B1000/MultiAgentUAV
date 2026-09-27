@@ -57,6 +57,47 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def shared_block_owner(reg_id: str, label: str, lo: int, hi: int, seed_class: str) -> dict:
+    """Validate a SHARED diagnostic block before any episode. Returns the registry entry.
+
+    A paired diagnostic evaluates several labels on the SAME seeds. The per-label default
+    (one block per label) cannot express that without reusing seeds, so the block is
+    registered once, up front, with the exact labels allowed to spend it
+    (``shared_by_labels``). Refuses unless: the id is registered with exactly this range and
+    class, it is still RESERVED, and this label is declared on it.
+    """
+    b = next((x for x in sr.load()["blocks"] if x["experiment_id"] == reg_id), None)
+    if b is None:
+        raise SystemExit(f"REFUSING (Rule 9): shared block {reg_id!r} is not registered")
+    if (b["lo"], b["hi"]) != (lo, hi):
+        raise SystemExit(f"REFUSING (Rule 9): shared block {reg_id} is {b['lo']}..{b['hi']}, "
+                         f"this run asks for {lo}..{hi}")
+    if b["seed_class"] != seed_class:
+        raise SystemExit(f"REFUSING (Rule 9): shared block {reg_id} is {b['seed_class']}, "
+                         f"the spec implies {seed_class}")
+    if b["status"] != "RESERVED":
+        raise SystemExit(f"REFUSING (Rule 9): shared block {reg_id} is {b['status']}")
+    labels = b.get("shared_by_labels") or []
+    if label not in labels:
+        raise SystemExit(f"REFUSING (Rule 9): label {label!r} is not declared on shared block "
+                         f"{reg_id} (shared_by_labels={labels})")
+    return b
+
+
+def shared_block_all_sealed(block: dict, sd: Path) -> bool:
+    """True once every declared label has a sealed result record (only then is it SPENT)."""
+    for lab in block.get("shared_by_labels") or []:
+        out = sd / f"{lab}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+        if not out.is_file():
+            return False
+        try:
+            if json.loads(out.read_text(encoding="utf-8")).get("status") not in ("SEALED", "AUDIT_FAILED"):
+                return False
+        except (OSError, ValueError):
+            return False
+    return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--team-size", type=int, required=True, choices=(2, 4, 6))
@@ -99,6 +140,10 @@ def main() -> int:
     ap.add_argument("--role-k-defend", type=int, default=0,
                     help="explicit CLOSEST_DEFENDS defender count. 0 = default role_k(N)=N/2. "
                          "6v6 locked closure uses 1 (5A/1D). Passed to RoleHoldState.k_defend.")
+    ap.add_argument("--registry-experiment-id", default="",
+                    help="spend a SHARED diagnostic block registered up front under this id with "
+                         "shared_by_labels listing this --label (paired multi-label diagnostics). "
+                         "Default: one block per label, id <LABEL>_SPECIALIST_CROSSOVER.")
     args = ap.parse_args()
 
     N = int(args.team_size)
@@ -122,10 +167,16 @@ def main() -> int:
     seed_class = (
         "sealed_confirmatory" if bool(spec.get("confirmatory", False)) else "exploratory"
     )
-    ok, msg = sr.check_block(lo, hi, seed_class, experiment_id=EXP_ID)
+    REG_ID = str(args.registry_experiment_id or "").strip() or EXP_ID
+    shared_block = None
+    if REG_ID != EXP_ID:
+        shared_block = shared_block_owner(REG_ID, label, lo, hi, seed_class)
+        print(f"  Rule 9: shared block {REG_ID} {lo}..{hi} [{seed_class}/RESERVED], "
+              f"label {label} declared among {shared_block.get('shared_by_labels')}")
+    ok, msg = sr.check_block(lo, hi, seed_class, experiment_id=REG_ID)
     if not ok:
         raise SystemExit(f"REFUSING (Rule 9): {msg}")
-    if not any(b["experiment_id"] == EXP_ID for b in sr.load()["blocks"]):
+    if shared_block is None and not any(b["experiment_id"] == EXP_ID for b in sr.load()["blocks"]):
         if args.dry_run:
             print(f"  Rule 9: block {lo}..{hi} free; would allocate as {EXP_ID} on real run")
         else:
@@ -477,7 +528,7 @@ def main() -> int:
         checkpoints={n: (paths[n], _sha(paths[n])) for n in POLICIES},
         spec_path=spec_path, claims=claims,
         n_boot=N_BOOT, alpha=ALPHA, rng_seed=BOOTSTRAP_SEED,
-        seed_class=seed_class, experiment_id=EXP_ID,
+        seed_class=seed_class, experiment_id=REG_ID,
     )
     # status is owned by seal(); do not set it here. Sealed != gate PASS.
     payload = {
@@ -490,7 +541,8 @@ def main() -> int:
         "seeds": {
             "block": [seeds[0], seeds[-1]], "n": len(seeds),
             "shared_across_policies": True,
-            "seed_class": seed_class, "registry_experiment_id": EXP_ID,
+            "seed_class": seed_class, "registry_experiment_id": REG_ID,
+            "shared_by_labels": (shared_block.get("shared_by_labels") if shared_block else None),
         },
         "poles": {p: {"base": BASE_KEY[p],
                       "overlay": dict((pole_a_resolved if p == "A" else pole_b_resolved).overlay or {}),
@@ -517,8 +569,20 @@ def main() -> int:
     }
     rs.seal(out_path=OUT, payload=payload, plan=plan, state=state, strict=False)
     sealed = json.loads(OUT.read_text(encoding="utf-8"))
-    sr.set_status(EXP_ID, "SPENT",
-                  note=f"sealed {sealed.get('status')}; gate_passes={gate_passes}")
+    if shared_block is None:
+        sr.set_status(EXP_ID, "SPENT",
+                      note=f"sealed {sealed.get('status')}; gate_passes={gate_passes}")
+    else:
+        fresh = next(x for x in sr.load()["blocks"] if x["experiment_id"] == REG_ID)
+        if shared_block_all_sealed(fresh, SD):
+            sr.set_status(REG_ID, "SPENT", note=f"all shared labels sealed (last: {label})")
+        else:
+            doc = sr.load()
+            b = next(x for x in doc["blocks"] if x["experiment_id"] == REG_ID)
+            b.setdefault("notes", []).append({"utc": _now(), "note": f"label {label} sealed "
+                                              f"{sealed.get('status')}; block stays RESERVED for "
+                                              f"the remaining shared labels"})
+            sr.save(doc)
     print(f"\n  -> {OUT} ({sealed.get('status')})")
     return 0 if gate_passes else 1
 

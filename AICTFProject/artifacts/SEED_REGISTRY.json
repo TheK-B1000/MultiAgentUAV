@@ -1800,9 +1800,25 @@
           "note": "sealed SEALED; gate_passes=False"
         }
       ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG",
+      "purpose": "paired diagnostic: where was 2v2 Pole-A separation lost? repaired pi_A (pre-split) vs repaired pi_B, and split pi_A+pi_D (k=1) vs repaired pi_B, on the same seeds",
+      "seed_class": "exploratory",
+      "lo": 23700001,
+      "hi": 23700128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-27T18:41:28Z",
+      "shared_by_labels": [
+        "STANDARDIZED_2V2_DIAG_PRESPLIT",
+        "STANDARDIZED_2V2_DIAG_SPLIT"
+      ]
     }
   ],
-  "updated_utc": "2026-09-27T17:25:30Z",
+  "updated_utc": "2026-09-27T18:41:28Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
