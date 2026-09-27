@@ -1781,9 +1781,28 @@
           "note": "sealed SEALED; gate_passes=True"
         }
       ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER",
+      "purpose": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY specialist crossover eval (2v2)",
+      "seed_class": "sealed_confirmatory",
+      "lo": 23600001,
+      "hi": 23600128,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "STANDARDIZED_2V2_SEPARATED_CROSSOVER_CONFIRMATORY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-27T13:04:33Z",
+      "spent_utc": "2026-09-27T17:25:30Z",
+      "notes": [
+        {
+          "utc": "2026-09-27T17:25:30Z",
+          "note": "sealed SEALED; gate_passes=False"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-27T13:00:46Z",
+  "updated_utc": "2026-09-27T17:25:30Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
