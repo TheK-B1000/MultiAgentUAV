@@ -22,6 +22,8 @@ git -C $Root diff --quiet -- $SpecRel; if ($LASTEXITCODE -ne 0) { Log "STOP: spe
 git -C $Root diff --cached --quiet -- $SpecRel; if ($LASTEXITCODE -ne 0) { Log "STOP: spec has staged changes"; exit 3 }
 $specObj = Get-Content -Raw -LiteralPath (Join-Path $Root $SpecRel) | ConvertFrom-Json
 if (-not ([string]$specObj.status).StartsWith("FROZEN")) { Log "STOP: spec status $($specObj.status)"; exit 3 }
+# powershell -File passes an array argument as ONE string ("a,b"); split it explicitly.
+$CommandKeys = @($CommandKeys | ForEach-Object { $_ -split "," } | Where-Object { $_ })
 foreach ($key in $CommandKeys) {
   $cmd = [string]$specObj.LAUNCH.$key
   if (-not $cmd) { Log "STOP: spec has no LAUNCH.$key"; exit 3 }
