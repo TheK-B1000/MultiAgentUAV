@@ -9,7 +9,9 @@
 # registry block RESERVED, seed never trained, warm-start path + sha256 match the pins).
 # Preflight checks BOTH policies before anything starts; each policy is re-checked immediately
 # before its own launch. The spec's LAUNCH command is run verbatim.
-param([switch]$Launch)
+# -Policies limits the run to a subset (e.g. B alone after A finished); default is A then B.
+# NOTE: PowerShell variable names are case-insensitive -- never reuse $Spec for the parsed JSON.
+param([switch]$Launch, [string[]]$Policies = @("A", "B"))
 $ErrorActionPreference = "Continue"
 $Root = "K:\MultiAgentUAV\AICTFProject"
 $Py = Join-Path $Root ".venv\Scripts\python.exe"
@@ -29,19 +31,20 @@ function Guard([string]$pol) {
 }
 
 $mode = if ($Launch) { "LAUNCH" } else { "CHECK-ONLY" }
+$mode = "$mode policies=$($Policies -join ',')"
 Log "entity repair $mode start (commit $(git -C K:\MultiAgentUAV log -1 --format=%h))"
-foreach ($pol in @("A", "B")) {
+foreach ($pol in $Policies) {
   if ((Guard $pol) -ne 0) { Log "STOP ($mode preflight): guard refused pi_$pol; nothing started"; exit 3 }
 }
 if (-not $Launch) { Log "CHECK-ONLY PASS: both policies authorized; no training started (pass -Launch to train)"; exit 0 }
 
-foreach ($pol in @("A", "B")) {
+foreach ($pol in $Policies) {
   if ((Guard $pol) -ne 0) { Log "STOP: guard refused pi_$pol immediately before launch"; exit 3 }
-  $spec = Get-Content -Raw -LiteralPath $Spec | ConvertFrom-Json
-  $parts = ([string]$spec.LAUNCH.$pol).Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
+  $specObj = Get-Content -Raw -LiteralPath $Spec | ConvertFrom-Json
+  $parts = ([string]$specObj.LAUNCH.$pol).Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries)
   $exe = Join-Path $Root $parts[0]
   $args_ = $parts[1..($parts.Length - 1)]
-  Log "train pi_$pol : $($spec.LAUNCH.$pol)"
+  Log "train pi_$pol : $($specObj.LAUNCH.$pol)"
   & $exe @args_ 1> (Join-Path $Dir "std_entity_repair_$pol.log") 2> (Join-Path $Dir "std_entity_repair_$pol.log.err")
   $rc = $LASTEXITCODE
   Log "pi_$pol exited $rc"
