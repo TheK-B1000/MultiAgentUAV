@@ -1,0 +1,12 @@
+{
+  "record_id": "SUITE_DISTILLATION_2V2_ABORTED_MIXED_COLLECTOR_COMMIT",
+  "classification": "ABORTED / SUPERSEDED -- not a dataset, not consumable",
+  "valid_for_distillation": false,
+  "utc_written": "2026-09-28T13:30:00Z",
+  "what": "partial 2v2 suite collection: 119 of 192 shards (A_23800001..096 complete, B_23900001..023)",
+  "why_aborted": "shards A_23800001 and A_23800002 were written by collector commit 54ec8829 before the run was stopped to land the naming-only --dataset-tag (ff7ca32f); the relaunch at ff7ca32f resumed them because the shard fingerprint did not include the collector commit. PI, 2026-09-28: do not seal a dataset whose shards came from two collector commits; restart 2v2 from zero under one committed collector, and preserve this partial set as provenance.",
+  "stopped": "manually, 2026-09-28 09:16 local, before any manifest was written",
+  "seeds": "STANDARDIZED_2V2_SUITE_DATASET_POLE_A 23800001..096 and _POLE_B 23900001..096 stay RESERVED: the collector sets them SPENT only when SUITE_DISTILLATION_2V2_DATASET.json is written, which never happened; the restart re-collects the same seeds from zero",
+  "fix": "the collector commit is now inside every shard's fingerprint (resume can never splice two collector versions), a real collection refuses uncommitted experiments/ code, and the cross-scale audit checks every shard's embedded commit against the manifest",
+  "location_after_move": "artifacts/strategic_demand/sppo/suite_distillation_2v2_ABORTED_MIXED_COLLECTOR_COMMIT/"
+}

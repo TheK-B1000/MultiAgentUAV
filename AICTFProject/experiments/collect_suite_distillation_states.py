@@ -321,14 +321,21 @@ def main() -> int:
         out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
         return out
 
+    ident = _git_identity()
+    # The collector's own code is part of a shard's identity: a real collection refuses to run
+    # from uncommitted collector code, and the commit is inside every shard's fingerprint, so
+    # --resume can never splice shards from two collector versions into one dataset.
+    if not smoke and ident["git_dirty"]:
+        raise SystemExit("REFUSING: experiments/ has uncommitted changes; a dataset must be "
+                         "collected by committed collector code (its git sha is recorded per shard)")
     fingerprint = json.dumps({
         "team_size": N_AGENTS, "k_defend": K_DEFEND, "allocator": alloc,
         "pins": {k: v["sha256"] for k, v in pins.items()},
         "poles": {p: POLE_IDENTITY[p]["pole_config_hash"] for p in ("A", "B")},
         "seeds": {k: [v[0], v[-1]] for k, v in seeds.items()},
         "spec_sha256": _sha(SPEC_PATH), "device": str(device),
+        "collector_git_sha": ident["git_sha"],
     }, sort_keys=True)
-    ident = _git_identity()
 
     shards, totals = [], {
         "A": {"episodes": 0, "steps": 0, "decision_rows": 0, "wins": 0},

@@ -61,6 +61,18 @@ def test_shard_reused_only_on_exact_fingerprint(tmp_path):
     assert C.shard_is_resumable(r, "fp") is None
 
 
+def test_shard_from_another_collector_commit_is_not_reused(tmp_path):
+    """The collector sha is inside the fingerprint, so resume cannot splice two code versions."""
+    import json
+    base = {"team_size": 2, "seeds": {"A": [1, 2]}}
+    old = json.dumps({**base, "collector_git_sha": "54ec8829"}, sort_keys=True)
+    new = json.dumps({**base, "collector_git_sha": "ff7ca32f"}, sort_keys=True)
+    p = tmp_path / "A_1.npz"
+    _shard(p, old)
+    assert C.shard_is_resumable(p, new) is None
+    assert C.shard_is_resumable(p, old) is not None
+
+
 def test_dataset_tag_changes_names_only():
     assert C._spec_path(4).name == "SUITE_DISTILLATION_4V4_SPEC.json"
     assert C._spec_path(4, "V2").name == "SUITE_DISTILLATION_4V4_V2_SPEC.json"

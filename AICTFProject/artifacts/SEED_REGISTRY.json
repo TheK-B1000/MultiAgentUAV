@@ -1855,9 +1855,33 @@
       "spec": "SUITE_DISTILLATION_2V2_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-28T12:09:21Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_4V4_SUITE_DATASET_V2_POLE_A",
+      "purpose": "corrected 4v4 suite distillation dataset (V2, certified B3-3 Pole B): Pole-A collection episodes (split composite acting, CLOSEST_DEFENDS k=2)",
+      "seed_class": "exploratory",
+      "lo": 24000001,
+      "hi": 24000096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_4V4_V2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T12:17:58Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_4V4_SUITE_DATASET_V2_POLE_B",
+      "purpose": "corrected 4v4 suite distillation dataset (V2, certified B3-3 Pole B): Pole-B collection episodes (pi_B3-corrected acting)",
+      "seed_class": "exploratory",
+      "lo": 24100001,
+      "hi": 24100096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_4V4_V2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T12:17:58Z"
     }
   ],
-  "updated_utc": "2026-09-28T12:09:21Z",
+  "updated_utc": "2026-09-28T12:17:58Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
