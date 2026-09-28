@@ -1,0 +1,33 @@
+{
+  "record_id": "GENERALIST_DEFINITION_V1",
+  "status": "FROZEN_DEFINITION",
+  "utc": "2026-09-28T19:30:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL.",
+  "decided_by": "PI, 2026-09-28: define the Generalist once, before the next 2v2 baseline; reuse it unchanged at 4v4 and 6v6.",
+  "fills": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#FOUR_ARMS_locked.A_generalist (pi_G(a|o), no strategy code) -- that record fixes the policy form only, not how pi_G is produced or scored.",
+  "supersedes_for_the_suite": "the legacy r1_pi_G_generalist_seed7000001 (PPO, 2M steps, legacy pipeline) remains provenance only (PI_G_EVAL_SPEC.json); it is not a suite Generalist at any scale.",
+
+  "PRODUCTION_locked": {
+    "method": "distilled, no z",
+    "architecture": "the scale's specialist architecture exactly (read from the KL teacher pi_A checkpoint), one network, latent_k=0, no z embedding, no strategy encoder, no router",
+    "builder": "rl/suite_fully_shared_distill.py::build_generalist_student",
+    "initialisation": "fresh random draw under one registered training seed; a bit-identical specialist weight matrix is refused as a silent warm start",
+    "objective": "0.5*KL(pi_A||pi_G) + 0.5*KL(pi_B||pi_G) on every stored decision-eligible state (the Fully Shared+z objective with z removed: both KL terms act on the same output)",
+    "dataset": "the SAME frozen suite dataset every sharing arm at that scale consumes",
+    "recipe": "identical to the sharing arms: 20 epochs, batch 256, Adam lr 3e-4, grad-norm clip 1.0, no weight decay, actor-only (critic frozen), no early stopping, terminal weights only",
+    "split_and_sampling": "identical to the sharing arms (holdout = episode % 10 == 9 per pole; batches stratified half Pole A / half Pole B)",
+    "runner": "experiments/run_suite_sharing_distillation.py --arm generalist",
+    "why": "the only difference from Fully Shared+z is the strategy code, so the Generalist row isolates what telling the network which strategy to play buys"
+  },
+
+  "SCORING_locked": {
+    "why_not_crossover_delta": "a single policy has Delta_A = Delta_B = 0 by construction",
+    "report": ["V(pi_G, Pole A)", "V(pi_G, Pole B)", "Delta_G_A = V(ours, A) - V(pi_G, A)", "Delta_G_B = V(ours, B) - V(pi_G, B)"],
+    "ours": "the scale's main Separated system (frozen pi_A ATTACK + pi_D DEFEND, CLOSEST_DEFENDS), evaluated on the SAME seeds as pi_G so Delta_G is paired; that run is a matched reference and never replaces the scale's main Separated value",
+    "bootstrap": "experiments/eval_hog_psp_v3.py::_mean_ci (paired percentile over seeds, n_boot=20000, alpha=0.05, rng_seed=7)",
+    "headline": "mean effects; 95% intervals for figures (PI reporting rule 2026-09-27)"
+  },
+
+  "ALLOWED_TO_DIFFER_ACROSS_SCALES": ["N", "k", "seeds", "artifact paths", "tensor dimensions that follow mechanically from N"],
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["any training or seed spend (each scale's sharing spec authorizes its own)", "PPO-training a Generalist", "changing this definition at 4v4 or 6v6"]
+}

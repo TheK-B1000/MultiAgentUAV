@@ -1,18 +1,16 @@
-"""Cross-scale suite distillation: Fully Shared+z and ladder sharing arms.
+"""Suite distillation: Share-Encoder, Fully Shared+z and the Generalist, one scale at a time.
 
 Same teachers, same frozen state set, same KL objective, same budget
 (20 epochs, batch 256, Adam 3e-4, grad-norm clip 1.0, no weight decay).
 Only the sharing structure changes.
 
-  python experiments/run_suite_sharing_distillation.py --arm fully_shared --team-size 2 --preflight --device cpu
-  python experiments/run_suite_sharing_distillation.py --arm fully_shared --team-size 4 --device cuda
-  python experiments/run_suite_sharing_distillation.py --arm share_encoder --team-size 4 --preflight --device cuda
-  python experiments/run_suite_sharing_distillation.py --arm share_backbone --team-size 4 --preflight --device cuda
-  python experiments/run_suite_sharing_distillation.py --arm share_macro --team-size 4 --preflight --device cuda
+  python experiments/run_suite_sharing_distillation.py --arm share_encoder --team-size 2 --preflight --device cuda
+  python experiments/run_suite_sharing_distillation.py --arm share_encoder --team-size 2 --device cuda
 
-2v2 Share-Encoder is the sealed Rung-1 student (reused, not retrained).
-4v4 Share-Encoder / Backbone / Macro require their construction amendments
-and SUITE_DISTILLATION_4V4_DATASET.json.
+Everything scale-specific -- dataset, teachers, poles, seeds, arm order -- comes from the
+scale's frozen STANDARDIZED_<N>V<N>_SHARING_SPEC.json (2026-09-28); a scale without one refuses.
+Seeds are spent only out of RESERVED registry blocks the spec names. The preflight verifies
+the spec's PREFLIGHT_REQUIRED list, and a real launch re-verifies it before training.
 """
 from __future__ import annotations
 
@@ -31,62 +29,31 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
-EPOCHS, BATCH, LR, CLIP = 20, 256, 3e-4, 1.0
+EPOCHS, BATCH, LR, CLIP, WEIGHT_DECAY = 20, 256, 3e-4, 1.0, 0.0
 FIT_MIN = 0.50
-# Fully Shared+z: single init seed. Ladder arms: (z0, z1) branch seeds.
-#: CLOSEST_DEFENDS defender count per scale -- the one scale knob besides N
-#: (CROSS_SCALE_CANONICAL_RECIPE_V1.json#ALLOWED_TO_DIFFER).
-K_DEFEND = {2: 1, 4: 2, 6: 1}
-SEEDS_FULLY = {2: 11_980_001, 4: 22_580_001, 6: 22_680_001}
-SEEDS_LADDER = {
-    "share_encoder": {
-        # 2v2 deliberately absent. The old entry was (11961001, 11961002) -- the SPENT
-        # training seeds of the natural-setup Rung-1 student, carried here only because
-        # 2v2 reused that student instead of distilling. Now that 2v2 is distilled by this
-        # same path it needs a FRESH block allocated through experiments/seed_registry.py;
-        # silently inheriting a spent block would breach Rule 9. Absence fails closed below.
-        4: (22_581_001, 22_581_002),
-        6: (22_681_001, 22_681_002),
-    },
-    "share_backbone": {
-        4: (22_582_001, 22_582_002),
-    },
-    "share_macro": {
-        4: (22_583_001, 22_583_002),
-    },
-}
 LADDER_RUNG = {
     "share_encoder": 1,
     "share_backbone": 2,
     "share_macro": 3,
 }
-#: Which scales each arm is authorized at, as data rather than a team-size branch.
-#: Fully Shared+z and Share-Encoder are cross-scale suite arms; Share-Backbone and
-#: Share-Macro are a 4v4-only depth extension, not suite arms
-#: (CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#DEPTH_VS_BREADTH).
-ARM_SCALES = {
-    "fully_shared": (2, 4, 6),
-    "share_encoder": (2, 4, 6),
-    "share_backbone": (4,),
-    "share_macro": (4,),
-}
-LADDER_AMEND = {
-    "share_encoder": {4: SD / "SUITE_SHARE_ENCODER_4V4_CONSTRUCTION_AMENDMENT.json"},
-    "share_backbone": {4: SD / "SUITE_SHARE_BACKBONE_4V4_CONSTRUCTION_AMENDMENT.json"},
-    "share_macro": {4: SD / "SUITE_SHARE_MACRO_4V4_CONSTRUCTION_AMENDMENT.json"},
-}
+#: Seeds each arm's builder consumes: ladder arms draw one fresh branch per z.
+N_INIT_SEEDS = {"fully_shared": 1, "generalist": 1, "share_encoder": 2, "share_backbone": 2, "share_macro": 2}
 ARM_TAG = {
     "fully_shared": "fully_shared_z",
+    "generalist": "generalist",
     "share_encoder": "share_encoder",
     "share_backbone": "share_backbone",
     "share_macro": "share_macro",
 }
 ARM_LABEL = {
     "fully_shared": "FULLY SHARED+z",
+    "generalist": "GENERALIST",
     "share_encoder": "SHARE-ENCODER",
     "share_backbone": "SHARE-BACKBONE",
     "share_macro": "SHARE-MACRO",
 }
+#: Legacy output root: legacy-dataset 2v2 and invalidated 4v4 students. Never read or written.
+LEGACY_OUT = SD / "suite_sharing"
 
 
 def _now() -> str:
@@ -97,21 +64,90 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def _dataset_for(n: int) -> Path:
-    """The suite dataset for team size n -- one naming rule at every scale.
+def spec_path(n: int) -> Path:
+    return SD / f"STANDARDIZED_{n}V{n}_SHARING_SPEC.json"
 
-    The former `n == 2` route to TEACHER_DISTILLATION_DATASET.json is gone: that manifest
-    was collected with no allocator and no entity/role tensors, so it is a legacy dataset,
-    not a suite dataset (CROSS_SCALE_CANONICAL_RECIPE_V1.json#HISTORICAL_VS_SUITE_ARTIFACTS).
-    2v2 fails closed here until SUITE_DISTILLATION_2V2_DATASET.json is collected under
-    CLOSEST_DEFENDS by the same collector as the other scales.
-    """
-    return SD / f"SUITE_DISTILLATION_{n}V{n}_DATASET.json"
+
+def load_spec(n: int, arm: str) -> dict:
+    """The scale's frozen sharing spec. The dataset path comes from here, never from N: an
+    N-derived name resolved 4v4 to the invalidated SUITE_DISTILLATION_4V4_DATASET.json."""
+    p = spec_path(n)
+    if not p.is_file():
+        raise SystemExit(f"FAIL-CLOSED: {p.name} missing; every scale needs its own frozen sharing spec")
+    spec = json.loads(p.read_text(encoding="utf-8"))
+    if not str(spec.get("status", "")).startswith("FROZEN"):
+        raise SystemExit(f"REFUSING: {p.name} not frozen: {spec.get('status')!r}")
+    if arm not in spec.get("ARM_ORDER", []) or arm not in spec.get("ARMS_locked", {}):
+        raise SystemExit(f"REFUSING: {arm} is not an arm of {p.name} ({spec.get('ARM_ORDER')})")
+    return spec
+
+
+def dataset_content_sha256(man: dict) -> str:
+    """sha256 over '<file>\\t<sha256>' of every listed shard -- binds a spec to the exact bytes."""
+    lines = sorted(f"{s['file']}\t{_sha(ROOT / s['file'])}" for s in man["shards"])
+    return hashlib.sha256("\n".join(lines).encode()).hexdigest()
+
+
+def arm_seeds(spec: dict, arm: str) -> tuple[str, list[int]]:
+    """The arm's registry block and its init seeds (every seed of the block, in order)."""
+    from experiments import seed_registry as SR
+    eid = spec["ARMS_locked"][arm]["seed_block"]
+    b = next((x for x in SR.load()["blocks"] if x["experiment_id"] == eid), None)
+    if b is None:
+        raise SystemExit(f"FAIL-CLOSED: seed block {eid} is not registered")
+    seeds = list(range(int(b["lo"]), int(b["hi"]) + 1))
+    if len(seeds) != N_INIT_SEEDS[arm] or spec["SEEDS_locked"]["training"].get(eid) != f"{b['lo']}..{b['hi']}":
+        raise SystemExit(f"FAIL-CLOSED: {eid} {b['lo']}..{b['hi']} disagrees with the spec or the arm's "
+                         f"{N_INIT_SEEDS[arm]} init seed(s)")
+    return eid, seeds
+
+
+def spec_checks(spec: dict, arm: str, n: int, dataset: Path, man: dict, n_rows: dict) -> dict:
+    """PREFLIGHT_REQUIRED items that do not need the model. A real launch re-runs these."""
+    from experiments import audit_suite_datasets_cross_scale as AU
+    from experiments import code_identity as CI
+    from experiments import seed_registry as SR
+    ds, c = spec["DATASET_locked"], {}
+    c["dataset_is_the_spec_manifest"] = dataset.resolve() == (ROOT / ds["manifest"]).resolve()
+    c["dataset_not_forbidden"] = not any(dataset.name in f for f in spec["FORBIDDEN_INPUTS"])
+    c["dataset_FROZEN"] = man.get("status") == ds["status_required"]
+    c["dataset_manifest_sha256"] = _sha(dataset) == ds["manifest_sha256"]
+    c["dataset_content_sha256"] = dataset_content_sha256(man) == ds["content_sha256"]
+    audit = json.loads((ROOT / ds["audit_record"]).read_text(encoding="utf-8"))
+    c["audit_record_GREEN"] = audit.get("verdict") == "GREEN"
+    scale = f"{n}v{n}"
+    live: list = []
+    AU.audit_one(scale, *AU.DATASETS[scale], live)
+    c["live_dataset_audit_all_pass"] = (AU.DATASETS[scale][1] == dataset.name
+                                        and bool(live) and all(x["ok"] for x in live))
+    c["pole_hashes_equal_spec"] = all(
+        (man.get("poles") or {}).get(p, {}).get("pole_config_hash") == spec["POLES_locked"][p]["pole_config_hash"]
+        for p in ("A", "B"))
+    t = spec["TEACHERS_locked"]
+    c["teachers_equal_spec_and_manifest"] = all(
+        man["teachers"][k]["sha256"] == t[k]["sha256"] and man["teachers"][k]["path"] == t[k]["path"]
+        and _sha(ROOT / t[k]["path"]) == t[k]["sha256"] for k in ("pi_A", "pi_B"))
+    c["N_and_k"] = (int(man.get("team_size", -1)) == n == spec["SCALE"]["N"]
+                    and (man.get("allocator") or {}).get("k_defend") == spec["SCALE"]["k_defend"])
+    r = spec["RECIPE_locked"]
+    c["recipe_equals_spec"] = (r["epochs"], r["batch"], r["lr"], r["grad_clip_norm"], r["weight_decay"]) == \
+        (EPOCHS, BATCH, LR, CLIP, WEIGHT_DECAY) and r["optimizer"] == "Adam"
+    c["split_rows_equal_spec"] = n_rows == spec["SPLIT_AND_SAMPLING_locked"]["rows"]
+    c["scientific_tree_clean"] = not CI.scientific_dirty(ROOT)
+    ev = spec["SEEDS_locked"]["evaluation"]              # block ids map to "lo..hi"; other keys are notes
+    blocks = [arm_seeds(spec, arm)[0], *(k for k, v in ev.items() if isinstance(v, str) and ".." in v
+                                         and v.replace("..", "").isdigit())]
+    reg = {x["experiment_id"]: x for x in SR.load()["blocks"]}
+    c["seed_blocks_RESERVED"] = all(reg.get(b, {}).get("status") == "RESERVED" for b in blocks)
+    if arm == "generalist":
+        d = ROOT / spec["ARMS_locked"][arm]["definition"]
+        c["generalist_definition_sha256"] = d.is_file() and _sha(d) == spec["ARMS_locked"][arm]["definition_sha256"]
+    return c
 
 
 def _paths(arm: str, n: int):
     tag = ARM_TAG[arm]
-    out = SD / "suite_sharing" / f"{n}v{n}" / tag
+    out = SD / "suite_sharing_std" / f"{n}v{n}" / tag
     return {
         "out": out,
         "ckpt": out / "ckpts" / f"final_{tag}_{n}v{n}.pt",
@@ -126,7 +162,7 @@ def main() -> int:
     ap.add_argument(
         "--arm",
         required=True,
-        choices=("fully_shared", "share_encoder", "share_backbone", "share_macro"),
+        choices=tuple(ARM_TAG),
     )
     ap.add_argument("--team-size", type=int, required=True, choices=(2, 4, 6))
     ap.add_argument("--device", default="cpu")
@@ -138,37 +174,18 @@ def main() -> int:
     paths = _paths(arm, n)
     is_ladder = arm in LADDER_RUNG
 
-    # The 2v2 Share-Encoder reuse shortcut is gone. It returned the sealed Rung-1 student,
-    # which was distilled from the legacy 2v2 dataset by the natural-setup ladder -- a
-    # different methodology from the suite's Share-Encoder. Reusing it made 2v2's Share-Encoder
-    # row incomparable to 4v4/6v6. 2v2 is now distilled by this same code path from the suite
-    # dataset. Rung 1 remains on disk as provenance.
-    if n not in ARM_SCALES[arm]:
-        raise SystemExit(
-            f"REFUSING: {arm} is authorized at {ARM_SCALES[arm]}, not {n}v{n}. "
-            f"Share-Backbone / Share-Macro are a 4v4-only depth extension, not cross-scale "
-            f"suite arms (CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#DEPTH_VS_BREADTH)."
-        )
-
-    if is_ladder:
-        amend_path = LADDER_AMEND.get(arm, {}).get(n)
-        if amend_path is None or not amend_path.is_file():
-            raise SystemExit(
-                f"FAIL-CLOSED: {arm} at {n}v{n} needs a frozen construction "
-                f"amendment (missing {amend_path.name if amend_path else 'record'})."
-            )
-        amend = json.loads(amend_path.read_text(encoding="utf-8"))
-        if not str(amend.get("status", "")).startswith("FROZEN"):
-            raise SystemExit(f"REFUSING: {amend_path.name} not frozen: {amend.get('status')!r}")
-
-    dataset = _dataset_for(n)
+    # Which arms exist at a scale, their order, seeds and dataset are the scale's frozen spec --
+    # not tables here. A scale or arm the spec does not name refuses.
+    spec = load_spec(n, arm)
+    seed_block, init_seeds = arm_seeds(spec, arm)
+    dataset = ROOT / spec["DATASET_locked"]["manifest"]
     if not dataset.is_file():
-        raise SystemExit(
-            f"FAIL-CLOSED: {dataset.name} is missing. "
-            f"{n}v{n} suite distillation needs the matched teacher-state set "
-            f"Every scale's suite dataset is collected under CLOSEST_DEFENDS "
-            f"k={K_DEFEND.get(n, '?')} by the shared collector."
-        )
+        raise SystemExit(f"FAIL-CLOSED: {dataset.name} (the spec's dataset) is missing")
+    if not args.preflight:
+        order = spec["ARM_ORDER"]
+        missing = [a for a in order[:order.index(arm)] if not _paths(a, n)["frozen"].is_file()]
+        if missing:
+            raise SystemExit(f"REFUSING: arm order {order}; freeze {missing} before {arm}")
 
     import torch
     import experiments.r2_learned_crossover as R2
@@ -187,19 +204,13 @@ def main() -> int:
     hold_idx = np.where(hold)[0]
     tspec = man["teachers"]
 
-    # Absence is an error state, never a default: a scale with no registered block must
-    # stop here rather than fall back to another scale's (possibly spent) seeds.
-    seed_table = SEEDS_FULLY if arm == "fully_shared" else SEEDS_LADDER[arm]
-    if n not in seed_table:
-        raise SystemExit(
-            f"FAIL-CLOSED: no init/branch seed registered for {arm} at {n}v{n}. Allocate a "
-            f"fresh block with experiments/seed_registry.py and add it to this table before "
-            f"training; do not reuse another scale's or a SPENT block (Rule 9)."
-        )
-    probe_seed = (
-        SEEDS_FULLY[n] if arm == "fully_shared" else SEEDS_LADDER[arm][n][0]
-    )
-    probe = R2.build_env(device, probe_seed)
+    n_rows = {"train_pole_A": int((arr["pole"][train_idx] == 0).sum()),
+              "train_pole_B": int((arr["pole"][train_idx] == 1).sum()), "holdout": int(hold_idx.size)}
+    gate = spec_checks(spec, arm, n, dataset, man, n_rows)
+    if not args.preflight and not all(gate.values()):
+        raise SystemExit(f"REFUSING: spec checks fail at launch: {[k for k, v in gate.items() if not v]}")
+
+    probe = R2.build_env(device, init_seeds[0])
     obs_space, act_space = probe.observation_space, probe.action_space
     probe.close()
 
@@ -219,16 +230,18 @@ def main() -> int:
     if not args.preflight and not paths["preflight"].is_file():
         raise SystemExit("REFUSING: run --preflight first")
 
-    if arm == "fully_shared":
-        from rl.suite_fully_shared_distill import (
-            build_fully_shared_student, load_fully_shared, save_fully_shared,
-        )
-        seed = SEEDS_FULLY[n]
+    if arm in ("fully_shared", "generalist"):
+        from rl import suite_fully_shared_distill as FS
+        build_fn, save_fn, load_fn = (
+            (FS.build_fully_shared_student, FS.save_fully_shared, FS.load_fully_shared)
+            if arm == "fully_shared" else
+            (FS.build_generalist_student, FS.save_generalist, FS.load_generalist))
+        seed = init_seeds[0]
         branch_seeds = None
         rung = None
 
         def build_student():
-            return build_fully_shared_student(
+            return build_fn(
                 str(ROOT / tspec["pi_A"]["path"]), obs_space, act_space,
                 seed=seed, device=device,
             )
@@ -240,10 +253,10 @@ def main() -> int:
             return TD.critic_parameters(m)
 
         def save_student(m, cfg, kw, path, prov):
-            save_fully_shared(m, cfg, kw, path, {**prov, "suite_arm": arm, "team_size": n})
+            save_fn(m, cfg, kw, path, {**prov, "suite_arm": arm, "team_size": n})
 
         def load_student(path):
-            return load_fully_shared(path, obs_space, act_space, device=device)
+            return load_fn(path, obs_space, act_space, device=device)
 
         def unique_count(m, actor):
             return sum(int(p.numel()) for _, p in actor)
@@ -260,7 +273,7 @@ def main() -> int:
     else:
         from rl import ladder_rung1 as L1
         rung = int(LADDER_RUNG[arm])
-        branch_seeds = SEEDS_LADDER[arm][n]
+        branch_seeds = tuple(init_seeds)
         seed = branch_seeds[0]
 
         def build_student():
@@ -322,7 +335,7 @@ def main() -> int:
     critic = critic_params(model)
     for _, p in critic:
         p.requires_grad_(False)
-    opt = torch.optim.Adam([p for _, p in actor], lr=LR)
+    opt = torch.optim.Adam([p for _, p in actor], lr=LR, weight_decay=WEIGHT_DECAY)
     n_unique = unique_count(model, actor)
 
     label = ARM_LABEL[arm]
@@ -355,7 +368,7 @@ def main() -> int:
     obs0, dm0 = RTD.to_torch(arr, idx0, device)
 
     if args.preflight:
-        checks = {}
+        checks = {f"spec:{k}": bool(v) for k, v in gate.items()}
         checks["dataset_both_poles"] = bool(
             train_idx.size > 0 and hold_idx.size > 0
             and (arr["pole"][train_idx] == 0).any() and (arr["pole"][train_idx] == 1).any()
@@ -368,8 +381,11 @@ def main() -> int:
             a = torch.cat([t.reshape(t.shape[0], -1) for t in TD.head_logits(model, obs0, z_idx=z0)], -1)
             b = torch.cat([t.reshape(t.shape[0], -1) for t in TD.head_logits(model, obs0, z_idx=z1)], -1)
         checks["teacher_self_kl_zero"] = bool(float(self_kl) == 0.0)
-        checks["z_changes_logits"] = bool(float((a - b).abs().max()) > 0.0)
-        if arm == "fully_shared":
+        if arm == "generalist":   # pi_G(a|o): z must reach nothing (GENERALIST_DEFINITION_V1)
+            checks["z_has_no_pathway"] = bool(float((a - b).abs().max()) == 0.0)
+        else:
+            checks["z_changes_logits"] = bool(float((a - b).abs().max()) > 0.0)
+        if arm in ("fully_shared", "generalist"):
             checks["single_actor_no_second_branch"] = bool(not hasattr(model, "branch"))
         else:
             from rl import ladder_rung1 as L1
@@ -398,7 +414,7 @@ def main() -> int:
         opt.zero_grad(set_to_none=True)
         loss.backward()
         g = lambda ps: any(p.grad is not None and float(p.grad.abs().max()) > 0 for _, p in ps)
-        if arm == "fully_shared":
+        if arm in ("fully_shared", "generalist"):
             checks["grad_actor_not_critic"] = bool(g(actor) and not g(critic))
         else:
             shared = shared_params(model)
@@ -436,7 +452,9 @@ def main() -> int:
             print(f"  [{'PASS' if v else 'FAIL'}] {k}")
         paths["preflight"].write_text(json.dumps({
             "record": f"suite {arm} {n}v{n} preflight",
-            "utc": _now(), "checks": checks, "passed": f"{n_pass}/{len(checks)}",
+            "utc": _now(), "spec": spec_path(n).name, "spec_sha256": _sha(spec_path(n)),
+            "seed_block": seed_block, "init_seeds": init_seeds,
+            "checks": checks, "passed": f"{n_pass}/{len(checks)}",
             "initial_loss": float(loss.detach()), "unique_actor_params": n_unique,
             "branch_seeds": list(branch_seeds) if branch_seeds else None,
             "rung": rung,
@@ -454,7 +472,7 @@ def main() -> int:
     critic = critic_params(model)
     for _, p in critic:
         p.requires_grad_(False)
-    opt = torch.optim.Adam([p for _, p in actor], lr=LR)
+    opt = torch.optim.Adam([p for _, p in actor], lr=LR, weight_decay=WEIGHT_DECAY)
     n_unique = unique_count(model, actor)
 
     batches = RTD.Batches(arr, train_idx, batch=BATCH, seed=seed)
@@ -516,10 +534,15 @@ def main() -> int:
         "branch_seeds": list(branch_seeds) if branch_seeds else None,
         "rung": rung,
         "final_holdout": final,
-        "recipe": {"epochs": EPOCHS, "batch": BATCH, "lr": LR, "clip": CLIP, "weight_decay": 0.0},
+        "recipe": {"epochs": EPOCHS, "batch": BATCH, "lr": LR, "clip": CLIP, "weight_decay": WEIGHT_DECAY},
         "dataset": str(dataset.relative_to(ROOT)),
+        "dataset_manifest_sha256": _sha(dataset),
+        "spec": spec_path(n).name, "spec_sha256": _sha(spec_path(n)),
+        "seed_block": seed_block, "init_seeds": init_seeds,
     }, indent=2), encoding="utf-8")
-    print(f"  -> {paths['frozen']} fit_ok={fit_ok}")
+    from experiments import seed_registry as SR
+    SR.set_status(seed_block, "SPENT", f"{paths['frozen'].name} written ({arm} {n}v{n})")
+    print(f"  -> {paths['frozen']} fit_ok={fit_ok}; {seed_block} SPENT")
     return 0 if fit_ok else 2
 
 

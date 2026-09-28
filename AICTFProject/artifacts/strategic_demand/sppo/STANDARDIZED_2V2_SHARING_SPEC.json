@@ -1,0 +1,143 @@
+{
+  "record_id": "STANDARDIZED_2V2_SHARING_SPEC",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "utc": "2026-09-28T19:40:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL.",
+  "decided_by": "PI, 2026-09-28: finish 2v2 completely -- Share-Encoder, then Fully Shared+z, then Generalist, then the three deployment-noise cases -- before touching 4v4 or 6v6.",
+  "scope": "2v2 only. Authorizes the three distillation runs below and reserves their evaluation block; the evaluation itself is frozen separately once the three students are frozen.",
+
+  "THE_QUESTION": "On one frozen 2v2 teacher-state set, with the same teachers, objective and budget, how much of the Separated system's specialization survives when the strategies share an encoder (Share-Encoder), share the whole network with a strategy ID (Fully Shared+z), or share the whole network with no strategy ID (Generalist)?",
+
+  "SCALE": {"N": 2, "k_defend": 1, "allocator": "CLOSEST_DEFENDS, fixed_for_episode, hold_ticks_H_r=8"},
+
+  "ARM_ORDER": ["share_encoder", "fully_shared", "generalist"],
+  "ARM_ORDER_rule": "an arm may launch only after every earlier arm has written STUDENT_FROZEN.json; preflight is exempt",
+
+  "DATASET_locked": {
+    "manifest": "artifacts/strategic_demand/sppo/SUITE_DISTILLATION_2V2_DATASET.json",
+    "manifest_sha256": "2899568d1874172e770a18e78ffe4577eb460dfe521045a3c171d5faf3dd03dc",
+    "content_sha256": "45b9324ffc11e0bdf3c12c33c1c58c00f7c13c6fd69bd1955bc6c74b7bca4d5f",
+    "content_sha256_definition": "sha256 of the sorted lines '<shard file>\\t<sha256 of shard bytes>' over every shard the manifest lists",
+    "status_required": "FROZEN_DATASET",
+    "collected_at": "342cbc46",
+    "decision_rows": 33305,
+    "audit_record": "artifacts/strategic_demand/sppo/SUITE_DATASETS_CROSS_SCALE_AUDIT.json",
+    "audit_required": "GREEN on disk AND a live re-run of this dataset's per-scale audit (audit_one) passes every check at preflight",
+    "same_for_every_arm": true
+  },
+
+  "TEACHERS_locked": {
+    "pi_A": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+             "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"},
+    "pi_B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+             "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"},
+    "must_equal": "the dataset manifest's teachers block"
+  },
+
+  "POLES_locked": {
+    "A": {"pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"},
+    "B": {"pole_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"},
+    "must_equal": "the dataset manifest's poles AND a fresh resolution through experiments/pole_attestation.py (checked by the live audit)"
+  },
+
+  "RECIPE_locked": {
+    "loss": "0.5*KL(pi_A||pi(.|o,z0)) + 0.5*KL(pi_B||pi(.|o,z1)), decision-eligible heads only",
+    "optimizer": "Adam", "lr": 0.0003, "weight_decay": 0.0,
+    "batch": 256, "epochs": 20, "grad_clip_norm": 1.0,
+    "parameters_trained": "actor only; critic frozen (requires_grad False, no gradient, not stepped)",
+    "early_stopping": false, "weights_kept": "terminal only",
+    "fit_floor": "holdout agreement >= 0.50 on both z (status FIT_FAILED otherwise; the student is still frozen and reported)"
+  },
+
+  "SPLIT_AND_SAMPLING_locked": {
+    "holdout": "episode % 10 == 9, per pole (episodes 9,19,...,89 of each pole)",
+    "rows": {"train_pole_A": 14960, "train_pole_B": 15170, "holdout": 3175},
+    "sampling": "every batch half Pole A rows, half Pole B rows (run_teacher_distillation.Batches), permutation seeded by the arm's training seed",
+    "same_for_every_arm": true
+  },
+
+  "ARMS_locked": {
+    "share_encoder": {
+      "label": "Share-Encoder",
+      "builder": "rl/ladder_rung1.py::build_rung1",
+      "shared": "actor_cnn only, tied by module identity",
+      "private_per_z": ["latent_actor.body", "latent_actor.action_head", "critic.*"],
+      "branch_arch": "the specialists' own architecture (from KL teacher pi_A)",
+      "init": "fresh; branch z0 under seed 24200001, branch z1 under 24200002",
+      "seed_block": "STANDARDIZED_2V2_SHARE_ENCODER_TRAINING"
+    },
+    "fully_shared": {
+      "label": "Fully Shared+z",
+      "builder": "rl/suite_fully_shared_distill.py::build_fully_shared_student",
+      "architecture": "one SharedActorCentralizedCritic, specialist trunk, latent_k=2, concat z embedding d_z=16; no private trunks, no per-z heads, no FiLM, no router",
+      "init": "fresh under seed 24300001",
+      "seed_block": "STANDARDIZED_2V2_FULLY_SHARED_Z_TRAINING"
+    },
+    "generalist": {
+      "label": "Generalist",
+      "definition": "artifacts/strategic_demand/sppo/GENERALIST_DEFINITION_V1.json",
+      "definition_sha256": "613e042e90360898ba8dfd00ff3b45358abe4d308606c87a9cb09b84513674bb",
+      "builder": "rl/suite_fully_shared_distill.py::build_generalist_student",
+      "architecture": "the specialist architecture, latent_k=0, no z pathway",
+      "init": "fresh under seed 24400001",
+      "seed_block": "STANDARDIZED_2V2_GENERALIST_TRAINING"
+    }
+  },
+
+  "SEEDS_locked": {
+    "training": {
+      "STANDARDIZED_2V2_SHARE_ENCODER_TRAINING": "24200001..24200002",
+      "STANDARDIZED_2V2_FULLY_SHARED_Z_TRAINING": "24300001..24300001",
+      "STANDARDIZED_2V2_GENERALIST_TRAINING": "24400001..24400001"
+    },
+    "evaluation": {
+      "STANDARDIZED_2V2_SHARING_EVAL": "24500001..24500128",
+      "seed_class": "sealed_confirmatory",
+      "shared_by_labels": ["STANDARDIZED_2V2_SHARE_ENCODER", "STANDARDIZED_2V2_FULLY_SHARED_Z", "STANDARDIZED_2V2_GENERALIST", "STANDARDIZED_2V2_SEPARATED_GENERALIST_REF"],
+      "why_one_block": "matched seeds within the scale (CROSS_SCALE_CANONICAL_RECIPE_V1 evaluation.matched_seeds_within_scale): every arm, and the Separated reference for Delta_G, is scored on the same 128 seeds",
+      "separated_ref_note": "the Separated run on this block exists only to pair Delta_G (GENERALIST_DEFINITION_V1#SCORING_locked); the 2v2 main Separated value stays the fresh confirmatory +0.117/+0.539"
+    },
+    "all_must_be": "registered in artifacts/SEED_REGISTRY.json and RESERVED at preflight"
+  },
+
+  "EVALUATION_planned": {
+    "sharing_arms": "forced z, no router, deterministic; Delta_A = V(z0,A) - V(z1,A), Delta_B = V(z1,B) - V(z0,B)",
+    "generalist": "GENERALIST_DEFINITION_V1#SCORING_locked",
+    "n": 128,
+    "frozen_later_in": "STANDARDIZED_2V2_SHARING_EVAL_SPEC.json, after the three students are frozen and their checkpoint sha256s can be pinned"
+  },
+
+  "OUTPUTS": {
+    "root": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2/<arm tag>/",
+    "why_a_new_root": "suite_sharing/2v2/fully_shared_z holds a student distilled from the legacy 2v2 dataset; it stays as provenance and is never overwritten or reused"
+  },
+
+  "FORBIDDEN_INPUTS": [
+    "artifacts/strategic_demand/sppo/SUITE_DISTILLATION_4V4_DATASET.json (invalidated: wrong Pole B)",
+    "artifacts/strategic_demand/sppo/TEACHER_DISTILLATION_DATASET.json (legacy 2v2, no allocator/entities/roles)",
+    "any student or result under artifacts/strategic_demand/sppo/suite_sharing/ (legacy-dataset 2v2 and invalidated 4v4)",
+    "artifacts/strategic_demand/sppo/suite_distillation_2v2_ABORTED_MIXED_COLLECTOR_COMMIT/"
+  ],
+
+  "PREFLIGHT_REQUIRED": [
+    "this spec FROZEN; the arm is in ARM_ORDER",
+    "dataset manifest sha256 and content sha256 equal the pins; status FROZEN_DATASET",
+    "audit record GREEN and live re-audit of this dataset passes every check (pole identities vs certification, teacher pins, shards, k=1, N=2)",
+    "teacher checkpoints on disk equal TEACHERS_locked and the manifest's teachers",
+    "N=2, k_defend=1 from the manifest",
+    "scientific tree clean (experiments/ rl/ gpu_env/ configs/ root *.py)",
+    "the arm's training block and the evaluation block registered and RESERVED",
+    "recipe constants in the runner equal RECIPE_locked",
+    "split row counts equal SPLIT_AND_SAMPLING_locked",
+    "no forbidden input is read (dataset path resolves to DATASET_locked.manifest)",
+    "architecture checks per arm (existing): shared/private identity + arithmetic, z changes logits (sharing arms) / z has no pathway (generalist), fresh init, teacher self-KL 0, finite positive loss, gradient on actor only, round-trip"
+  ],
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "any 4v4 or 6v6 run",
+    "changing the dataset, teachers, recipe, split or arm order",
+    "the evaluation run (needs STANDARDIZED_2V2_SHARING_EVAL_SPEC.json)",
+    "the deployment-noise cases",
+    "claiming PAPER-FAITHFUL"
+  ]
+}

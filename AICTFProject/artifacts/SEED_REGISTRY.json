@@ -1839,10 +1839,17 @@
       "lo": 23800001,
       "hi": 23800096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SUITE_DISTILLATION_2V2_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-28T12:09:21Z"
+      "allocated_utc": "2026-09-28T12:09:21Z",
+      "spent_utc": "2026-09-28T15:03:23Z",
+      "notes": [
+        {
+          "utc": "2026-09-28T15:03:23Z",
+          "note": "SUITE_DISTILLATION_2V2_DATASET.json written (collection_A)"
+        }
+      ]
     },
     {
       "experiment_id": "STANDARDIZED_2V2_SUITE_DATASET_POLE_B",
@@ -1851,10 +1858,17 @@
       "lo": 23900001,
       "hi": 23900096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SUITE_DISTILLATION_2V2_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-28T12:09:21Z"
+      "allocated_utc": "2026-09-28T12:09:21Z",
+      "spent_utc": "2026-09-28T15:03:23Z",
+      "notes": [
+        {
+          "utc": "2026-09-28T15:03:23Z",
+          "note": "SUITE_DISTILLATION_2V2_DATASET.json written (collection_B)"
+        }
+      ]
     },
     {
       "experiment_id": "STANDARDIZED_4V4_SUITE_DATASET_V2_POLE_A",
@@ -1863,10 +1877,17 @@
       "lo": 24000001,
       "hi": 24000096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SUITE_DISTILLATION_4V4_V2_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-28T12:17:58Z"
+      "allocated_utc": "2026-09-28T12:17:58Z",
+      "spent_utc": "2026-09-28T18:04:56Z",
+      "notes": [
+        {
+          "utc": "2026-09-28T18:04:56Z",
+          "note": "SUITE_DISTILLATION_4V4_V2_DATASET.json written (collection_A)"
+        }
+      ]
     },
     {
       "experiment_id": "STANDARDIZED_4V4_SUITE_DATASET_V2_POLE_B",
@@ -1875,13 +1896,74 @@
       "lo": 24100001,
       "hi": 24100096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SUITE_DISTILLATION_4V4_V2_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-28T12:17:58Z"
+      "allocated_utc": "2026-09-28T12:17:58Z",
+      "spent_utc": "2026-09-28T18:04:56Z",
+      "notes": [
+        {
+          "utc": "2026-09-28T18:04:56Z",
+          "note": "SUITE_DISTILLATION_4V4_V2_DATASET.json written (collection_B)"
+        }
+      ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SHARE_ENCODER_TRAINING",
+      "purpose": "2v2 Share-Encoder distillation init (branch z0, z1)",
+      "seed_class": "exploratory",
+      "lo": 24200001,
+      "hi": 24200002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_2V2_SHARING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T18:52:53Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_FULLY_SHARED_Z_TRAINING",
+      "purpose": "2v2 Fully Shared+z distillation init",
+      "seed_class": "exploratory",
+      "lo": 24300001,
+      "hi": 24300001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_2V2_SHARING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T18:52:53Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_GENERALIST_TRAINING",
+      "purpose": "2v2 Generalist distillation init (GENERALIST_DEFINITION_V1)",
+      "seed_class": "exploratory",
+      "lo": 24400001,
+      "hi": 24400001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_2V2_SHARING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T18:52:53Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SHARING_EVAL",
+      "purpose": "2v2 matched evaluation of Share-Encoder, Fully Shared+z, Generalist and the Separated Delta_G reference",
+      "seed_class": "sealed_confirmatory",
+      "lo": 24500001,
+      "hi": 24500128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_2V2_SHARING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T18:52:53Z",
+      "shared_by_labels": [
+        "STANDARDIZED_2V2_SHARE_ENCODER",
+        "STANDARDIZED_2V2_FULLY_SHARED_Z",
+        "STANDARDIZED_2V2_GENERALIST",
+        "STANDARDIZED_2V2_SEPARATED_GENERALIST_REF"
+      ]
     }
   ],
-  "updated_utc": "2026-09-28T12:17:58Z",
+  "updated_utc": "2026-09-28T18:52:53Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
