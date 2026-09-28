@@ -57,6 +57,37 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def load_partial(partial: Path, fingerprint: dict) -> dict:
+    """Completed cells from an interrupted run's PARTIAL rows file, keyed (policy, pole, seed).
+
+    Line 1 is the run's fingerprint (every input that decides an episode's outcome); each
+    later line is one finished episode row. Resuming is legal only if the fingerprint matches
+    exactly -- otherwise the partial belongs to a different run and mixing it in would
+    fabricate a result. A torn last line (the process died mid-write) is dropped; any other
+    malformed line refuses.
+    """
+    lines = partial.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        return {}
+    try:
+        head = json.loads(lines[0])
+    except ValueError:
+        raise SystemExit(f"REFUSING: {partial.name} has an unreadable fingerprint line")
+    if head.get("fingerprint") != fingerprint:
+        raise SystemExit(f"REFUSING: {partial.name} was written by a different run configuration; "
+                         f"recorded {head.get('fingerprint')} vs now {fingerprint}")
+    done: dict = {}
+    for i, ln in enumerate(lines[1:], start=2):
+        try:
+            row = json.loads(ln)
+        except ValueError:
+            if i == len(lines):
+                break                                   # torn final write
+            raise SystemExit(f"REFUSING: {partial.name} line {i} is malformed")
+        done[(row["policy"], row["pole"], int(row["seed"]))] = row
+    return done
+
+
 def shared_block_owner(reg_id: str, label: str, lo: int, hi: int, seed_class: str) -> dict:
     """Validate a SHARED diagnostic block before any episode. Returns the registry entry.
 
@@ -140,6 +171,10 @@ def main() -> int:
     ap.add_argument("--role-k-defend", type=int, default=0,
                     help="explicit CLOSEST_DEFENDS defender count. 0 = default role_k(N)=N/2. "
                          "6v6 locked closure uses 1 (5A/1D). Passed to RoleHoldState.k_defend.")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue an interrupted run of THIS label from its PARTIAL rows file "
+                         "(fingerprint must match exactly); with no PARTIAL file it starts fresh. "
+                         "Without --resume an existing PARTIAL file refuses.")
     ap.add_argument("--registry-experiment-id", default="",
                     help="spend a SHARED diagnostic block registered up front under this id with "
                          "shared_by_labels listing this --label (paired multi-label diagnostics). "
@@ -155,6 +190,7 @@ def main() -> int:
     OUT = SD / f"{label}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
     ROWS_CSV = SD / f"{label.lower()}_specialist_crossover_eval_rows.csv"
     PREAUDIT_FLAG = SD / f"{label}_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json"
+    PARTIAL = SD / f"{label.lower()}_specialist_crossover_eval_rows.PARTIAL.jsonl"
 
     # ---- preflight: fail closed on everything that must already be true --------------
     spec_path = Path(args.spec)
@@ -197,6 +233,9 @@ def main() -> int:
         paths[name] = ck
     if OUT.is_file() or ROWS_CSV.is_file() or PREAUDIT_FLAG.is_file():
         raise SystemExit(f"REFUSING: an output for label {label!r} already exists; one-shot")
+    if PARTIAL.is_file() and not args.resume:
+        raise SystemExit(f"REFUSING: {PARTIAL.name} exists (an interrupted run of this label); "
+                         f"pass --resume to continue it")
 
     frozen_attack_path_str = str(args.frozen_attack_path or "")
     frozen_attack_ckpt_path: Path | None = None
@@ -464,14 +503,43 @@ def main() -> int:
     state.begin(seed_base=seeds[0], n_seeds=len(seeds), team_size=N,
                 pi_a=str(paths["pi_A"]), pi_b=str(paths["pi_B"]))
 
+    # Crash safety: every finished episode is appended (and fsynced) to PARTIAL, headed by a
+    # fingerprint of everything that decides an outcome. Each cell is a fresh env built from its
+    # own seed with deterministic actions, so a resumed run yields exactly the rows an
+    # uninterrupted one would.
+    fingerprint = {
+        "label": label, "team_size": N, "seeds": [seeds[0], seeds[-1], len(seeds)],
+        "checkpoints": {n: _sha(paths[n]) for n in POLICIES},
+        "frozen_attack_sha256": (_sha(frozen_attack_ckpt_path) if frozen_attack_ckpt_path is not None else None),
+        "role_fixed_for_episode": bool(args.role_fixed_for_episode),
+        "role_k_defend": int(getattr(args, "role_k_defend", 0) or 0),
+        "spec_sha256": _sha(spec_path),
+        "pole_config_hash": {p: pole_attestations[p]["live_config_hash"] for p in ("A", "B")},
+        "device": str(device),
+    }
+    done = load_partial(PARTIAL, fingerprint) if PARTIAL.is_file() else {}
+    if done:
+        print(f"  RESUME: {len(done)} finished episode(s) read from {PARTIAL.name}", flush=True)
+    else:
+        PARTIAL.write_text(json.dumps({"fingerprint": fingerprint}) + "\n", encoding="utf-8")
+    import os as _os
+
     cells = [(name, pole, seed) for name in POLICIES for pole in ("A", "B") for seed in seeds]
     rows = []
     bar = tqdm_iter(cells, desc=f"{label} crossover", unit="ep")
     for name, pole, seed in bar:
         set_postfix(bar, f"{name}@Pole{pole} seed={seed}")
-        cell_attack_policy = frozen_attack_policy if name == "pi_A" else None
-        rows.append({"policy": name, "pole": pole, "seed": seed,
-                     **run_cell(policies[name], pole, seed, attack_policy=cell_attack_policy)})
+        if (name, pole, seed) in done:
+            rows.append(done[(name, pole, seed)])
+        else:
+            cell_attack_policy = frozen_attack_policy if name == "pi_A" else None
+            row = {"policy": name, "pole": pole, "seed": seed,
+                   **run_cell(policies[name], pole, seed, attack_policy=cell_attack_policy)}
+            with PARTIAL.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row) + "\n")
+                fh.flush()
+                _os.fsync(fh.fileno())
+            rows.append(row)
         if seed == seeds[-1]:
             wr = np.mean([r["win"] for r in rows if r["policy"] == name and r["pole"] == pole])
             print(f"  {name:5s} on Pole {pole}: win rate {wr:.4f}", flush=True)
@@ -568,6 +636,7 @@ def main() -> int:
         "integrity_flag": (str(PREAUDIT_FLAG.relative_to(ROOT)) if tie_or_reversal else None),
     }
     rs.seal(out_path=OUT, payload=payload, plan=plan, state=state, strict=False)
+    PARTIAL.unlink(missing_ok=True)       # the sealed rows CSV is now the record
     sealed = json.loads(OUT.read_text(encoding="utf-8"))
     if shared_block is None:
         sr.set_status(EXP_ID, "SPENT",

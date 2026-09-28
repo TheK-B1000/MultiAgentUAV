@@ -1,0 +1,18 @@
+{
+  "record_id": "STANDARDIZED_2V2_DIAG_PRESPLIT_ABORTED_INFRA_RESTART",
+  "classification": "ABORTED_INFRA_RESTART",
+  "valid_for_scientific_use": false,
+  "label": "STANDARDIZED_2V2_DIAG_PRESPLIT",
+  "launched_utc": "2026-09-27T18:43:30Z",
+  "git_sha": "8ae628213ca429dbe470ef81a2bc1ec30db0b1e4",
+  "termination": "Windows Update restart of the host: System event 1074, MoUsoCoreWorker.exe, 2026-09-27 19:14:20 local (23:14:20Z). No evaluator error; the launcher never logged an exit.",
+  "rows_written": 0,
+  "why_nothing_survived": "the evaluator wrote its rows CSV only after the last episode; it had finished 3 of 4 cells (the console printed pi_A@A 0.5234, pi_A@B 0.6484, pi_B@A 0.4688) -- console output only, never recorded, never sealed, NOT a result",
+  "seed_block": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG 23700001..23700128 stays RESERVED: no row from this attempt exists or is used",
+  "rerun": "PI, 2026-09-27 ('do it'): make the evaluator crash-safe (PARTIAL rows + --resume, fingerprint-matched), then rerun both diagnostic arms from scratch on the same reserved block",
+  "evidence": [
+    "STANDARDIZED_2V2_DIAG_PRESPLIT_ABORTED_INFRA_RESTART_RUN_STATE.json",
+    "artifacts/scale_2v2_specialists/std_pole_a_diag_command_presplit_ABORTED_INFRA_RESTART.log(.err)",
+    "artifacts/scale_2v2_specialists/std_pole_a_diag_watch.log"
+  ]
+}

@@ -40,7 +40,10 @@ foreach ($key in $CommandKeys) {
   $label = $parts[[array]::IndexOf($parts, "--label") + 1]
   $sfx = if ($CommandKeys.Count -gt 1) { "_$key" } else { "" }
   Log "run $key : $cmd"
-  & $exe @args_ 1> (Join-Path $Dir "$($Stem)$sfx.log") 2> (Join-Path $Dir "$($Stem)$sfx.log.err")
+  # --resume: continue this label from its fingerprinted PARTIAL rows if a host restart killed a
+  # previous launch (starts fresh when there is none). A label that already sealed refuses as
+  # one-shot and is accepted below by its SEALED record, so relaunching after a crash is safe.
+  & $exe @args_ --resume 1>> (Join-Path $Dir "$($Stem)$sfx.log") 2>> (Join-Path $Dir "$($Stem)$sfx.log.err")
   $rc = $LASTEXITCODE
   Log "$Stem $key exited $rc"
   $res = Join-Path $Root "artifacts\strategic_demand\sppo\$($label)_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
