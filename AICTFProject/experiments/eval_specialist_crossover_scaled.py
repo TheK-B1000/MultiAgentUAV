@@ -134,6 +134,40 @@ def shared_block_all_sealed(block: dict, sd: Path) -> bool:
     return True
 
 
+def resolve_perturbation(family: str, severity: str) -> dict | None:
+    """The frozen tier values for one deployment-only disturbance, or None for nominal.
+
+    Values come only from DEPLOYMENT_ROBUSTNESS_SPEC.json (via eval_deployment_robustness, which
+    also refuses unless DEPLOYMENT_ONLY_GUARANTEE_CHECK.json is PASS); nothing is invented here.
+    """
+    if family == "nominal":
+        if severity:
+            raise SystemExit("REFUSING: --severity is meaningless for nominal")
+        return None
+    if not severity:
+        raise SystemExit(f"REFUSING: --perturbation {family} needs --severity")
+    from experiments import eval_deployment_robustness as EDR
+    cells = EDR.build_matrix(EDR.load_spec(), severities=(severity,), families=(family,), skip_nominal=True)
+    if len(cells) != 1:
+        raise SystemExit(f"FAIL-CLOSED: {family}/{severity} resolved to {len(cells)} cells")
+    return cells[0]
+
+
+def perturb_entities(obs: dict, sigma: float, gen: np.random.Generator) -> dict:
+    """Localization noise on the entity pathway: every observed dx/dy gets independent N(0, sigma^2)
+    and dist is recomputed. The core's sensor noise only reaches grid/vec; entity tensors are built
+    from true positions (gpu_env/_core/_entity_obs.py), so without this an entity-repair policy
+    would see exact positions under 'localization noise'. Deployment-only: eval code, not the env."""
+    out = dict(obs)
+    for key in ("teammates", "enemies"):
+        e = np.array(obs[key], dtype=np.float32, copy=True)
+        e[..., 0] += gen.normal(0.0, sigma, e[..., 0].shape).astype(np.float32)
+        e[..., 1] += gen.normal(0.0, sigma, e[..., 1].shape).astype(np.float32)
+        e[..., 2] = np.sqrt(e[..., 0] ** 2 + e[..., 1] ** 2 + 1e-8)
+        out[key] = e
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--team-size", type=int, required=True, choices=(2, 4, 6))
@@ -180,6 +214,12 @@ def main() -> int:
                     help="continue an interrupted run of THIS label from its PARTIAL rows file "
                          "(fingerprint must match exactly); with no PARTIAL file it starts fresh. "
                          "Without --resume an existing PARTIAL file refuses.")
+    ap.add_argument("--perturbation", default="nominal",
+                    choices=("nominal", "localization_noise", "motion_error", "control_delay"),
+                    help="deployment-only disturbance (DEPLOYMENT_ROBUSTNESS_SPEC.json TIERS). "
+                         "nominal (default) leaves every code path exactly as before.")
+    ap.add_argument("--severity", default="", choices=("", "low", "medium", "high"),
+                    help="frozen tier of --perturbation; required unless nominal")
     ap.add_argument("--registry-experiment-id", default="",
                     help="spend a SHARED diagnostic block registered up front under this id with "
                          "shared_by_labels listing this --label (paired multi-label diagnostics). "
@@ -188,6 +228,7 @@ def main() -> int:
 
     N = int(args.team_size)
     label = str(args.label)
+    pert = resolve_perturbation(args.perturbation, args.severity)
     seeds = list(range(int(args.seed_base), int(args.seed_base) + int(args.n_seeds)))
     EXP_ID = f"{label}_SPECIALIST_CROSSOVER"
     lo, hi = int(seeds[0]), int(seeds[-1])
@@ -365,12 +406,23 @@ def main() -> int:
     # policies are untouched. Assignment-v1 policies similarly need
     # obs['assignment'] via AssignmentHoldState (H_a=8).
     from rl.custom_ppo.rule_role_assignment import RoleHoldState, roles_from_core
+    from rl.control_delay import DelayBuffer
     from rl.custom_ppo.guard_assignment import AssignmentHoldState, assignment_from_core
 
-    def _maybe_attach_roles(obs, core, hold: RoleHoldState | None, *, force: bool):
+    def _maybe_attach_roles(obs, core, hold: RoleHoldState | None, *, force: bool, noise=None):
         if hold is None:
             return obs
-        roles = roles_from_core(core, hold, force=force, advance_age=True)
+        if noise is None:
+            roles = roles_from_core(core, hold, force=force, advance_age=True)
+        else:
+            # Localization noise reaches the allocator too (PI 2026-09-28): it ranks agents by
+            # their noisy own-position estimates; hold rules and k are unchanged.
+            sigma, tgen = noise
+            home = core.blue_flag_home
+            home = home[:, 0, :] if home.dim() == 3 else home
+            nx = core.blue_x + torch.randn(core.blue_x.shape, generator=tgen, device="cpu").to(core.blue_x.device) * sigma
+            ny = core.blue_y + torch.randn(core.blue_y.shape, generator=tgen, device="cpu").to(core.blue_y.device) * sigma
+            roles = hold.update(nx, ny, home, core.blue_alive.bool(), force=force, advance_age=True)
         out = dict(obs)
         out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
         return out
@@ -427,6 +479,17 @@ def main() -> int:
                 int(env.num_envs), int(policy.model.n_agents),
                 hold_ticks=hold_ticks, device=device,
             )
+        # Deployment-disturbance streams exist before reset: with roles fixed for the episode the
+        # ONLY assignment is the first one, so under localization noise it must already be noisy.
+        # Every stream is seeded by the episode seed (a resumed run reproduces its rows).
+        delay = ent_gen = role_noise = None
+        if pert is not None and int(pert["delay_ticks"]) > 0:
+            delay = DelayBuffer(int(pert["delay_ticks"]))
+        if pert is not None and float(pert["sensor_noise"]) > 0.0:
+            ent_gen = np.random.default_rng([int(seed), 1])
+            tgen = torch.Generator(device="cpu")
+            tgen.manual_seed(int(seed) * 2 + 1)
+            role_noise = (float(pert["sensor_noise"]), tgen)
         try:
             policy.reset_strategy()
             core._bt_profile_override = None
@@ -442,7 +505,9 @@ def main() -> int:
             # policy (predict() only reads these keys when the loaded model's
             # entity_encoder is not None); required for pi_A3/pi_B3.
             obs = augment_obs_with_entities(obs, core, side="blue")
-            obs = _maybe_attach_roles(obs, core, role_hold, force=True)
+            if ent_gen is not None:
+                obs = perturb_entities(obs, float(pert["sensor_noise"]), ent_gen)
+            obs = _maybe_attach_roles(obs, core, role_hold, force=True, noise=role_noise)
             obs = _maybe_attach_assignment(obs, core, assignment_hold, force=True)
             assert_live_opponent_batch(core, genomes, allowed_keys=(key,),
                                        context=f"{label} {pole} seed {seed}")
@@ -453,17 +518,24 @@ def main() -> int:
             if got_val != N:
                 raise SystemExit(f"FAIL-CLOSED: live pole {pole} resolves "
                                  f"min_alive_for_defender={got_val}, expected {N}")
+            if pert is not None:
+                # Deployment-only disturbance, applied AFTER reset by direct assignment exactly as
+                # eval_deployment_robustness does (reset re-initialises these tensors from cfg).
+                core.rt_sensor_noise_sigma_cells[:] = float(pert["sensor_noise"])
+                core.rt_drift_sigma_cells[:] = float(pert["drift"])
             terminal = None
             for _ in range(R2.MAX_STEPS):
                 if attack_policy is not None:
                     action = _composite_predict(policy, attack_policy, obs)
                 else:
                     action, _ = policy.predict(obs, deterministic=True)
-                env.step_async(action)
+                env.step_async(delay.push(action) if delay is not None else action)
                 obs, _r, done, info = env.step_wait()
                 obs["global_state"] = env.state()
                 obs = augment_obs_with_entities(obs, core, side="blue")
-                obs = _maybe_attach_roles(obs, core, role_hold, force=False)
+                if ent_gen is not None:
+                    obs = perturb_entities(obs, float(pert["sensor_noise"]), ent_gen)
+                obs = _maybe_attach_roles(obs, core, role_hold, force=False, noise=role_noise)
                 obs = _maybe_attach_assignment(obs, core, assignment_hold, force=False)
                 if bool(np.asarray(done).any()):
                     i0 = info[0] if isinstance(info, (list, tuple)) else info
@@ -522,6 +594,8 @@ def main() -> int:
         "pole_config_hash": {p: pole_attestations[p]["live_config_hash"] for p in ("A", "B")},
         "device": str(device),
     }
+    if pert is not None:            # absent for nominal, so pre-existing PARTIAL files still resume
+        fingerprint["perturbation"] = pert
     done = load_partial(PARTIAL, fingerprint) if PARTIAL.is_file() else {}
     if done:
         print(f"  RESUME: {len(done)} finished episode(s) read from {PARTIAL.name}", flush=True)
@@ -610,6 +684,10 @@ def main() -> int:
         "arm": spec.get("arm", "n/a"), "confirmatory": bool(spec.get("confirmatory", False)),
         "implements": f"{spec_path.name}#EVALUATION",
         "team_size": N, "device": device,
+        "perturbation": ({"family": "nominal"} if pert is None else
+                         {**pert, "entity_noise": float(pert["sensor_noise"]) > 0.0,
+                          "allocator_noise": float(pert["sensor_noise"]) > 0.0,   # whenever roles are used
+                          "tiers": "DEPLOYMENT_ROBUSTNESS_SPEC.json"}),
         "role_fixed_for_episode": bool(args.role_fixed_for_episode),
         "seeds": {
             "block": [seeds[0], seeds[-1]], "n": len(seeds),
