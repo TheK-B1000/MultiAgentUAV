@@ -18,3 +18,6 @@
 2026-09-28T09:24:30.1779307-04:00 suite_distillation_2v2_collect LAUNCH start (commit 342cbc46)
 2026-09-28T09:24:30.5656661-04:00   rule9: {'collection_A': (23800001, 23800096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_A'), 'collection_B': (23900001, 23900096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_B')}
 2026-09-28T09:24:30.5781819-04:00 run: .venv/Scripts/python.exe experiments/collect_suite_distillation_states.py --team-size 2 --device cuda --resume
+2026-09-28T11:03:24.2527410-04:00 suite_distillation_2v2_collect exited 0
+2026-09-28T11:03:24.2727478-04:00 dataset manifest status FROZEN_DATASET
+2026-09-28T11:03:24.2762528-04:00 suite_distillation_2v2_collect DONE
