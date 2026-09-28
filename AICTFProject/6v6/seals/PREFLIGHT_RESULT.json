@@ -1,0 +1,72 @@
+{
+  "utc": "2026-09-26T19:31:46Z",
+  "stage": "split",
+  "record_id": "SCHOOL_PC_6V6_PREFLIGHT_RESULT",
+  "framing": "same algorithmic recipe, scale-specific configuration",
+  "scale_specific": {
+    "N": 6,
+    "k": 1,
+    "composition": "5A/1D"
+  },
+  "method_unchanged": [
+    "mature A/B specialists",
+    "frozen pi_A on ATTACK",
+    "pi_D warm-started from pi_A",
+    "200k split PPO",
+    "same N' defender-teacher schedule as 4v4",
+    "CLOSEST_DEFENDS",
+    "Delta_A/Delta_B LCB95 gate"
+  ],
+  "passed": true,
+  "n_checks": 9,
+  "n_pass": 9,
+  "checks": [
+    {
+      "check": "C0_SPEC_FROZEN_FOR_SCHOOL_PC",
+      "pass": true,
+      "detail": "status='FROZEN_FOR_SCHOOL_PC'"
+    },
+    {
+      "check": "C0b_TEACHER_LOSS_IS_4V4_N_PRIME",
+      "pass": true,
+      "detail": "loss=\"CE(macro, GO_TO) + CE(waypoint, w_N')\""
+    },
+    {
+      "check": "C0c_TEACHER_SCHEDULE_IDENTICAL",
+      "pass": true,
+      "detail": "CLI={'defend_teacher_lambda': 0.1, 'defend_teacher_lambda_end': 0.0, 'defend_teacher_decay_start_step': 50000, 'defend_teacher_decay_end_step': 150000, 'defend_teacher_cadence': 4}"
+    },
+    {
+      "check": "C0d_SCALE_SPECIFIC_K_IS_1_NOT_N_OVER_2",
+      "pass": true,
+      "detail": "split step locks CLOSEST_DEFENDS(k=1), fixed_for_episode"
+    },
+    {
+      "check": "C0e_NO_TEACHER_RETUNE_FORBIDDEN",
+      "pass": true,
+      "detail": "forbidden list includes teacher retune"
+    },
+    {
+      "check": "C5_REPAIR_A_FINAL_EXISTS",
+      "pass": true,
+      "detail": "sha256=3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e"
+    },
+    {
+      "check": "C5b_REPAIR_B_FINAL_EXISTS",
+      "pass": true,
+      "detail": "sha256=fc0043235d3abc23f87f5157a46920921f5eced0e9aa252347084d2b500258b5"
+    },
+    {
+      "check": "C6_SPLIT_DRY_RUN",
+      "pass": true,
+      "detail": "  WARM START from final_pi_A_specialist_6v6_c2_entity_repair.zip [entity_repair_enabled=True] (weight init only: global_step resets to 0; fresh run/label; metrics start fresh; total_timesteps = 200,000 is this run's OWN fresh budget) | SPECIALIST_SCALE  pi_A  6v6   [PRODUCTION] |   seed             22600001 |   total timesteps  200,000 |   checkpoint dir   /home/n01388138/Desktop/MultiAgentUAV-cuda/MultiAgentUAV/.worktrees/new-macros/AICTFProject/artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts |   entity_repair    enabled  hidden_dim=32  warm_start=artifacts/scale_"
+    },
+    {
+      "check": "C7_RESOLVED_ATTESTATION_PRINTED",
+      "pass": true,
+      "detail": "{\"closest_defends_k\": 1, \"defender_warm_start\": \"3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e\", \"frozen_attack\": \"3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e\", \"frozen_attack_equals_defender_warm_start\": true, \"pi_B_eval_hash\": \"fc0043235d3abc23f87f5157a46920921f5eced0e9aa252347084d2b500258b5\", \"role_fixed_for_episode\": true, \"split_attack_defend\": true, \"teacher_cadence\": 4, \"teacher_decay_end\": 150000, \"teacher_enabled\": true, \"teacher_lambda_peak\": 0.1, \"team_size\": 6, \"total_timesteps_split\": 200000}"
+    }
+  ],
+  "ready_for_long_school_pc_run": false,
+  "ready_for_split_200k": true
+}

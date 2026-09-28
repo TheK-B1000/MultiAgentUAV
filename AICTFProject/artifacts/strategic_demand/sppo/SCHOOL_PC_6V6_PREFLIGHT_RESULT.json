@@ -1,6 +1,6 @@
 {
-  "utc": "2026-09-23T22:37:11Z",
-  "stage": "foundation",
+  "utc": "2026-09-26T19:31:46Z",
+  "stage": "split",
   "record_id": "SCHOOL_PC_6V6_PREFLIGHT_RESULT",
   "framing": "same algorithmic recipe, scale-specific configuration",
   "scale_specific": {
@@ -18,8 +18,8 @@
     "Delta_A/Delta_B LCB95 gate"
   ],
   "passed": true,
-  "n_checks": 11,
-  "n_pass": 11,
+  "n_checks": 9,
+  "n_pass": 9,
   "checks": [
     {
       "check": "C0_SPEC_FROZEN_FOR_SCHOOL_PC",
@@ -47,36 +47,26 @@
       "detail": "forbidden list includes teacher retune"
     },
     {
-      "check": "C1_BASE_PI_A_HASH",
+      "check": "C5_REPAIR_A_FINAL_EXISTS",
       "pass": true,
-      "detail": "path=artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip sha_ok=True"
+      "detail": "sha256=3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e"
     },
     {
-      "check": "C1b_BASE_PI_B_HASH",
+      "check": "C5b_REPAIR_B_FINAL_EXISTS",
       "pass": true,
-      "detail": "path=artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip sha_ok=True"
+      "detail": "sha256=fc0043235d3abc23f87f5157a46920921f5eced0e9aa252347084d2b500258b5"
     },
     {
-      "check": "C2_REPAIR_A_DRY_RUN",
+      "check": "C6_SPLIT_DRY_RUN",
       "pass": true,
-      "detail": "  WARM START from final_pi_A_specialist_6v6.zip [entity_repair_enabled=True] (weight init only: global_step resets to 0; fresh run/label; metrics start fresh; total_timesteps = 1,000,000 is this run's OWN fresh budget) | SPECIALIST_SCALE  pi_A  6v6   [PRODUCTION] |   seed             22500001 |   total timesteps  1,000,000 |   checkpoint dir   K:\\MultiAgentUAV\\AICTFProject\\artifacts\\scale_6v6_specialists\\pi_A_specialist_6v6_c2_entity_repair\\ckpts |   entity_repair    enabled  hidden_dim=32  warm"
+      "detail": "  WARM START from final_pi_A_specialist_6v6_c2_entity_repair.zip [entity_repair_enabled=True] (weight init only: global_step resets to 0; fresh run/label; metrics start fresh; total_timesteps = 200,000 is this run's OWN fresh budget) | SPECIALIST_SCALE  pi_A  6v6   [PRODUCTION] |   seed             22600001 |   total timesteps  200,000 |   checkpoint dir   /home/n01388138/Desktop/MultiAgentUAV-cuda/MultiAgentUAV/.worktrees/new-macros/AICTFProject/artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts |   entity_repair    enabled  hidden_dim=32  warm_start=artifacts/scale_"
     },
     {
-      "check": "C2b_REPAIR_B_DRY_RUN",
+      "check": "C7_RESOLVED_ATTESTATION_PRINTED",
       "pass": true,
-      "detail": "  WARM START from final_pi_B_specialist_6v6.zip [entity_repair_enabled=True] (weight init only: global_step resets to 0; fresh run/label; metrics start fresh; total_timesteps = 1,000,000 is this run's OWN fresh budget) | SPECIALIST_SCALE  pi_B  6v6   [PRODUCTION] |   seed             22500002 |   total timesteps  1,000,000 |   checkpoint dir   K:\\MultiAgentUAV\\AICTFProject\\artifacts\\scale_6v6_specialists\\pi_B_specialist_6v6_c2_entity_repair\\ckpts |   entity_repair    enabled  hidden_dim=32  warm"
-    },
-    {
-      "check": "C3_N_PRIME_TEACHER_MECHANISMS",
-      "pass": true,
-      "detail": ".............                                                            [100%] | 13 passed, 19 deselected in 4.18s"
-    },
-    {
-      "check": "C4_T0_EQUIVALENCE_AND_FROZEN_ATTACK_NEVER_IN_OPTIMIZER",
-      "pass": true,
-      "detail": ".....                                                                    [100%] | 5 passed, 20 deselected in 7.82s"
+      "detail": "{\"closest_defends_k\": 1, \"defender_warm_start\": \"3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e\", \"frozen_attack\": \"3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e\", \"frozen_attack_equals_defender_warm_start\": true, \"pi_B_eval_hash\": \"fc0043235d3abc23f87f5157a46920921f5eced0e9aa252347084d2b500258b5\", \"role_fixed_for_episode\": true, \"split_attack_defend\": true, \"teacher_cadence\": 4, \"teacher_decay_end\": 150000, \"teacher_enabled\": true, \"teacher_lambda_peak\": 0.1, \"team_size\": 6, \"total_timesteps_split\": 200000}"
     }
   ],
-  "ready_for_long_school_pc_run": true,
-  "ready_for_split_200k": false
+  "ready_for_long_school_pc_run": false,
+  "ready_for_split_200k": true
 }
