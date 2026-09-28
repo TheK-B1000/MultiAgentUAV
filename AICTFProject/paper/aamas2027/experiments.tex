@@ -78,7 +78,32 @@ $\TwoFullZAgreeA$/$\TwoFullZAgreeB$ (Fully Shared+$z$) and
 $\TwoGenAgreeA$/$\TwoGenAgreeB$ (Generalist), with
 \TwoShareEncParams, \TwoFullZParams{} and \TwoGenParams{} unique actor parameters.
 
-% NOISE: our system under deployment noise -- added with the noise results.
+\begin{table}[t]
+\centering
+\caption{$2$v$2$ our system under deployment noise (medium tier), all conditions on the same
+$\TwoNoiseNomN$ seeds. Change is the per-seed difference from nominal, paired by seed.
+Localization noise ($\sigma = 0.06$ cells) corrupts every position the team observes,
+including the role allocator's; motion error ($\sigma = 0.06$ cells) perturbs realized motion;
+control delay executes each action two decisions (1\,s) late.
+For localization and motion perturbations, we use a matched numeric severity schedule of
+0.03, 0.06, and 0.12 cells to enable controlled comparison across perturbation families.
+These levels are not assumed to represent equivalent behavioral difficulty.}
+\label{tab:2v2-noise}
+\begin{tabular}{lcccc}
+\toprule
+Condition & $\Delta_A$ & $\Delta_B$ & Change in $\Delta_A$ & Change in $\Delta_B$ \\
+\midrule
+Nominal      & $\TwoNoiseNomDA$ & $\TwoNoiseNomDB$ & --- & --- \\
+Localization & $\TwoNoiseLocDA$ & $\TwoNoiseLocDB$ & $\TwoNoiseLocDDA$ {\scriptsize$[\TwoNoiseLocDDALo, \TwoNoiseLocDDAHi]$} & $\TwoNoiseLocDDB$ {\scriptsize$[\TwoNoiseLocDDBLo, \TwoNoiseLocDDBHi]$} \\
+Motion       & $\TwoNoiseMotDA$ & $\TwoNoiseMotDB$ & $\TwoNoiseMotDDA$ {\scriptsize$[\TwoNoiseMotDDALo, \TwoNoiseMotDDAHi]$} & $\TwoNoiseMotDDB$ {\scriptsize$[\TwoNoiseMotDDBLo, \TwoNoiseMotDDBHi]$} \\
+Delay        & $\TwoNoiseDelDA$ & $\TwoNoiseDelDB$ & $\TwoNoiseDelDDA$ {\scriptsize$[\TwoNoiseDelDDALo, \TwoNoiseDelDDAHi]$} & $\TwoNoiseDelDDB$ {\scriptsize$[\TwoNoiseDelDDBLo, \TwoNoiseDelDDBHi]$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Our system under noise.}
+% IMPLICATION for Table~\ref{tab:2v2-noise} (two sentences, written from the sealed numbers).
+% The nominal row is the noise reference on its own seeds; our headline 2v2 value is above.
 
 % \subsection{$4$v$4$}   -- opened after 2v2 locks.
 % \subsection{$6$v$6$}   -- opened after 4v4 locks.
