@@ -6,3 +6,15 @@
 2026-09-28T08:15:19.3032547-04:00 suite_distillation_2v2_collect LAUNCH start (commit 54ec8829)
 2026-09-28T08:15:19.6758986-04:00   rule9: {'collection_A': (23800001, 23800096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_A'), 'collection_B': (23900001, 23900096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_B')}
 2026-09-28T08:15:19.6888554-04:00 run: .venv/Scripts/python.exe experiments/collect_suite_distillation_states.py --team-size 2 --device cuda --resume
+2026-09-28T08:17:28.7033006-04:00 suite_distillation_2v2_collect CHECK-ONLY start (commit ff7ca32f)
+2026-09-28T08:17:29.1139456-04:00   rule9: {'collection_A': (23800001, 23800096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_A'), 'collection_B': (23900001, 23900096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_B')}
+2026-09-28T08:17:29.1154511-04:00 CHECK-ONLY PASS (pass -Launch to collect)
+2026-09-28T08:17:37.8746916-04:00 suite_distillation_2v2_collect LAUNCH start (commit ff7ca32f)
+2026-09-28T08:17:38.2589560-04:00   rule9: {'collection_A': (23800001, 23800096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_A'), 'collection_B': (23900001, 23900096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_B')}
+2026-09-28T08:17:38.2714742-04:00 run: .venv/Scripts/python.exe experiments/collect_suite_distillation_states.py --team-size 2 --device cuda --resume
+2026-09-28T09:24:20.9407257-04:00 suite_distillation_2v2_collect CHECK-ONLY start (commit 342cbc46)
+2026-09-28T09:24:21.3337698-04:00   rule9: {'collection_A': (23800001, 23800096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_A'), 'collection_B': (23900001, 23900096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_B')}
+2026-09-28T09:24:21.3352701-04:00 CHECK-ONLY PASS (pass -Launch to collect)
+2026-09-28T09:24:30.1779307-04:00 suite_distillation_2v2_collect LAUNCH start (commit 342cbc46)
+2026-09-28T09:24:30.5656661-04:00   rule9: {'collection_A': (23800001, 23800096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_A'), 'collection_B': (23900001, 23900096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_B')}
+2026-09-28T09:24:30.5781819-04:00 run: .venv/Scripts/python.exe experiments/collect_suite_distillation_states.py --team-size 2 --device cuda --resume

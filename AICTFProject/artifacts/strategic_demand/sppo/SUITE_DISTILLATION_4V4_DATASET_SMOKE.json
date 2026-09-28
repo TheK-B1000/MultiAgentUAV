@@ -1,0 +1,271 @@
+{
+  "record": "Suite distillation state set (4v4) -- NON-SCIENTIFIC SMOKE",
+  "status": "SMOKE_NOT_SCIENTIFIC",
+  "utc": "2026-09-24T11:57:26Z",
+  "implements": "SUITE_DISTILLATION_4V4_SPEC.json#DATASET",
+  "team_size": 4,
+  "allocator": {
+    "rule": "CLOSEST_DEFENDS",
+    "k_defend": 2,
+    "fixed_for_episode": true,
+    "hold_ticks_H_r": 8
+  },
+  "acting": {
+    "Pole_A": "DEFEND_ATTACK_SPLIT(pi_D + frozen_attack)",
+    "Pole_B": "pi_B entity-repair",
+    "pi_D": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1/ckpts/final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+      "sha256": "b538cdf4ba5d2c5d2834c2307285b7bef6f8ab7232e5471798bd52e42d734f2c"
+    },
+    "frozen_attack": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "pi_B": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+    }
+  },
+  "teachers": {
+    "pi_A": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "pi_B": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+    }
+  },
+  "seeds": {
+    "A": [
+      99920001,
+      99920010
+    ],
+    "B": [
+      99920101,
+      99920110
+    ]
+  },
+  "device": "cuda",
+  "decision_rows_only": true,
+  "stored_entity_tensors": true,
+  "stored_roles": true,
+  "totals": {
+    "A": {
+      "episodes": 10,
+      "steps": 2053,
+      "decision_rows": 2001,
+      "wins": 10,
+      "teacher_deployment_win_rate": 1.0
+    },
+    "B": {
+      "episodes": 10,
+      "steps": 2400,
+      "decision_rows": 2138,
+      "wins": 8,
+      "teacher_deployment_win_rate": 0.8
+    }
+  },
+  "shards": [
+    {
+      "pole": "A",
+      "episode": 0,
+      "seed": 99920001,
+      "steps": 171,
+      "decision_rows": 168,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920001.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 1,
+      "seed": 99920002,
+      "steps": 240,
+      "decision_rows": 239,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920002.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 2,
+      "seed": 99920003,
+      "steps": 240,
+      "decision_rows": 226,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920003.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 3,
+      "seed": 99920004,
+      "steps": 156,
+      "decision_rows": 155,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920004.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 4,
+      "seed": 99920005,
+      "steps": 232,
+      "decision_rows": 229,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920005.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 5,
+      "seed": 99920006,
+      "steps": 174,
+      "decision_rows": 173,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920006.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 6,
+      "seed": 99920007,
+      "steps": 166,
+      "decision_rows": 162,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920007.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 7,
+      "seed": 99920008,
+      "steps": 240,
+      "decision_rows": 229,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920008.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 8,
+      "seed": 99920009,
+      "steps": 194,
+      "decision_rows": 191,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920009.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 9,
+      "seed": 99920010,
+      "steps": 240,
+      "decision_rows": 229,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\A_99920010.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 0,
+      "seed": 99920101,
+      "steps": 240,
+      "decision_rows": 193,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920101.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 1,
+      "seed": 99920102,
+      "steps": 240,
+      "decision_rows": 225,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920102.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 2,
+      "seed": 99920103,
+      "steps": 240,
+      "decision_rows": 224,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920103.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 3,
+      "seed": 99920104,
+      "steps": 240,
+      "decision_rows": 224,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920104.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 4,
+      "seed": 99920105,
+      "steps": 240,
+      "decision_rows": 226,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920105.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 5,
+      "seed": 99920106,
+      "steps": 240,
+      "decision_rows": 190,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920106.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 6,
+      "seed": 99920107,
+      "steps": 240,
+      "decision_rows": 222,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920107.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 7,
+      "seed": 99920108,
+      "steps": 240,
+      "decision_rows": 201,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920108.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 8,
+      "seed": 99920109,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920109.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 9,
+      "seed": 99920110,
+      "steps": 240,
+      "decision_rows": 225,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\suite_distillation_4v4_SMOKE\\states\\B_99920110.npz"
+    }
+  ]
+}
