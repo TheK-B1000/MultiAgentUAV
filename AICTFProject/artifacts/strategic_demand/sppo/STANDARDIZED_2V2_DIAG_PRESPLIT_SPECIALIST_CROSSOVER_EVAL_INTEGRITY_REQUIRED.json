@@ -1,0 +1,14 @@
+{
+  "record": "STANDARDIZED_2V2_DIAG_PRESPLIT specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-28T07:31:23Z",
+  "implements": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.0546875,
+    "delta_B": -0.0546875
+  },
+  "rule": "requires a row-level integrity audit before any scientific interpretation. Raw rows: standardized_2v2_diag_presplit_specialist_crossover_eval_rows.csv. Sealing still proceeds for immutability."
+}

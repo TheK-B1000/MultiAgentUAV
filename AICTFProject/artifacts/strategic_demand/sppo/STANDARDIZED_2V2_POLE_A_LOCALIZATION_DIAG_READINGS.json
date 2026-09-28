@@ -1,0 +1,72 @@
+{
+  "record_id": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_READINGS",
+  "spec": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json",
+  "seeds": {
+    "block": [
+      23700001,
+      23700128
+    ],
+    "n": 128
+  },
+  "win_rates": {
+    "presplit": {
+      "pi_A@A": 0.5234375,
+      "pi_A@B": 0.6484375,
+      "pi_B@A": 0.46875,
+      "pi_B@B": 0.59375
+    },
+    "split": {
+      "pi_A@A": 0.6484375,
+      "pi_A@B": 0.0703125,
+      "pi_B@A": 0.46875,
+      "pi_B@B": 0.59375
+    }
+  },
+  "delta_A_presplit": {
+    "mean": 0.0546875,
+    "lcb95": -0.0546875,
+    "ucb95": 0.1640625,
+    "n": 128
+  },
+  "delta_A_split": {
+    "mean": 0.1796875,
+    "lcb95": 0.0625,
+    "ucb95": 0.296875,
+    "n": 128
+  },
+  "split_effect_on_A": {
+    "mean": -0.125,
+    "lcb95": -0.2421875,
+    "ucb95": 0.0,
+    "n": 128
+  },
+  "delta_B_presplit": {
+    "mean": -0.0546875,
+    "lcb95": -0.171875,
+    "ucb95": 0.0625,
+    "n": 128
+  },
+  "delta_B_split": {
+    "mean": 0.5234375,
+    "lcb95": 0.4296875,
+    "ucb95": 0.6171875,
+    "n": 128
+  },
+  "pi_B_cross_arm_agreement": {
+    "A": 1.0,
+    "B": 1.0
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "reading": "WEAKNESS_PREDATES_SPLIT",
+  "reading_rule": {
+    "SPLIT_WEAKENS_A": "split_effect_on_A mean > 0 with LCB95 > 0 -- the ATTACK/DEFEND split at k=1 costs Pole-A performance; investigate the split/defender stage, not the specialists",
+    "WEAKNESS_PREDATES_SPLIT": "split_effect_on_A LCB95 <= 0 AND delta_A_presplit is not clearly larger than delta_A_split -- Pole-A separation was already weak after foundation/entity repair; inspect the specialist trajectory, not role allocation",
+    "SPLIT_HELPS_A": "split_effect_on_A mean < 0 with UCB95 < 0 -- the split improves Pole A; the confirmatory shortfall is not the split",
+    "note": "exploratory, n=128: a point-estimate localization aid. It licenses a scientifically motivated next change; it is not a confirmatory claim and does not revise efe4ee3c."
+  }
+}

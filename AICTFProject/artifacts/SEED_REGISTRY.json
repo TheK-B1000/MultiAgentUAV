@@ -1808,7 +1808,7 @@
       "lo": 23700001,
       "hi": 23700128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-27T18:41:28Z",
@@ -1820,11 +1820,20 @@
         {
           "utc": "2026-09-28T02:00:03Z",
           "note": "PRESPLIT attempt 1 killed by a Windows Update host restart (23:14:20Z) with 0 rows written; block stays RESERVED; both arms rerun from scratch with the crash-safe evaluator (STANDARDIZED_2V2_DIAG_PRESPLIT_ABORTED_INFRA_RESTART.json)."
+        },
+        {
+          "utc": "2026-09-28T07:31:23Z",
+          "note": "label STANDARDIZED_2V2_DIAG_PRESPLIT sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-09-28T11:47:10Z",
+          "note": "all shared labels sealed (last: STANDARDIZED_2V2_DIAG_SPLIT)"
         }
-      ]
+      ],
+      "spent_utc": "2026-09-28T11:47:10Z"
     }
   ],
-  "updated_utc": "2026-09-28T02:00:03Z",
+  "updated_utc": "2026-09-28T11:47:10Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
