@@ -3,14 +3,17 @@
 # and FROZEN, and that the Rule-9 collection blocks are registered and RESERVED. With -Launch it runs the spec's
 # LAUNCH.command verbatim plus --resume (fingerprint-exact shard reuse after an interrupted run), then requires
 # the FROZEN_DATASET manifest to exist.
-param([switch]$Launch, [Parameter(Mandatory = $true)][ValidateSet(2, 4, 6)][int]$TeamSize)
+# -DatasetTag names a new collection beside an older frozen one (e.g. V2 for the corrected 4v4); its spec
+# LAUNCH.command must carry the same --dataset-tag.
+param([switch]$Launch, [Parameter(Mandatory = $true)][ValidateSet(2, 4, 6)][int]$TeamSize, [string]$DatasetTag = "")
 $ErrorActionPreference = "Continue"
 $Root = "K:\MultiAgentUAV\AICTFProject"
 $Py = Join-Path $Root ".venv\Scripts\python.exe"
 $SD = Join-Path $Root "artifacts\strategic_demand\sppo"
-$SpecRel = "artifacts/strategic_demand/sppo/SUITE_DISTILLATION_$($TeamSize)V$($TeamSize)_SPEC.json"
-$Manifest = Join-Path $SD "SUITE_DISTILLATION_$($TeamSize)V$($TeamSize)_DATASET.json"
-$Stem = "suite_distillation_$($TeamSize)v$($TeamSize)_collect"
+$T = if ($DatasetTag) { "_$($DatasetTag.ToUpper())" } else { "" }
+$SpecRel = "artifacts/strategic_demand/sppo/SUITE_DISTILLATION_$($TeamSize)V$($TeamSize)$($T)_SPEC.json"
+$Manifest = Join-Path $SD "SUITE_DISTILLATION_$($TeamSize)V$($TeamSize)$($T)_DATASET.json"
+$Stem = "suite_distillation_$($TeamSize)v$($TeamSize)$($T.ToLower())_collect"
 $Watch = Join-Path $SD "$($Stem)_watch.log"
 $env:PYTHONUNBUFFERED = "1"; $env:PYTHONPATH = $Root
 Set-Location $Root

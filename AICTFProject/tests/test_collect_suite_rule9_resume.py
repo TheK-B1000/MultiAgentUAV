@@ -59,3 +59,11 @@ def test_shard_reused_only_on_exact_fingerprint(tmp_path):
     r = tmp_path / "A_3.npz"
     r.write_bytes(b"torn")                                             # corrupt write
     assert C.shard_is_resumable(r, "fp") is None
+
+
+def test_dataset_tag_changes_names_only():
+    assert C._spec_path(4).name == "SUITE_DISTILLATION_4V4_SPEC.json"
+    assert C._spec_path(4, "V2").name == "SUITE_DISTILLATION_4V4_V2_SPEC.json"
+    assert C._manifest(4, False, "V2").name == "SUITE_DISTILLATION_4V4_V2_DATASET.json"
+    assert C._out_dir(4, False, "V2").parent.name == "suite_distillation_4v4_v2"
+    assert C._manifest(2, False).name == "SUITE_DISTILLATION_2V2_DATASET.json"   # untagged unchanged

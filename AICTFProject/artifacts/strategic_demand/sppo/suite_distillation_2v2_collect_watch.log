@@ -1,2 +1,8 @@
 2026-09-28T08:14:53.8494537-04:00 suite_distillation_2v2_collect CHECK-ONLY start (commit 0efec49a)
 2026-09-28T08:14:53.8934590-04:00 STOP: spec not tracked
+2026-09-28T08:15:10.2996242-04:00 suite_distillation_2v2_collect CHECK-ONLY start (commit 54ec8829)
+2026-09-28T08:15:10.7483102-04:00   rule9: {'collection_A': (23800001, 23800096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_A'), 'collection_B': (23900001, 23900096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_B')}
+2026-09-28T08:15:10.7498094-04:00 CHECK-ONLY PASS (pass -Launch to collect)
+2026-09-28T08:15:19.3032547-04:00 suite_distillation_2v2_collect LAUNCH start (commit 54ec8829)
+2026-09-28T08:15:19.6758986-04:00   rule9: {'collection_A': (23800001, 23800096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_A'), 'collection_B': (23900001, 23900096, 'STANDARDIZED_2V2_SUITE_DATASET_POLE_B')}
+2026-09-28T08:15:19.6888554-04:00 run: .venv/Scripts/python.exe experiments/collect_suite_distillation_states.py --team-size 2 --device cuda --resume

@@ -36,17 +36,24 @@ K_DEFEND_BY_SCALE = {2: 1, 4: 2, 6: 1}
 SUPPORTED_TEAM_SIZES = (2, 4, 6)
 
 
-def _spec_path(n: int) -> Path:
-    return SD / f"SUITE_DISTILLATION_{n}V{n}_SPEC.json"
+#: --dataset-tag names a NEW collection at a scale whose default paths are taken by an older,
+#: frozen one (e.g. the corrected 4v4 recollection, tag "V2", beside the invalidated plain-OP7
+#: SUITE_DISTILLATION_4V4 set). Naming only: it changes no knob of the collection itself.
+def _tag(tag: str) -> str:
+    return f"_{tag}" if tag else ""
 
 
-def _out_dir(n: int, smoke: bool) -> Path:
-    stem = f"suite_distillation_{n}v{n}" + ("_SMOKE" if smoke else "")
+def _spec_path(n: int, tag: str = "") -> Path:
+    return SD / f"SUITE_DISTILLATION_{n}V{n}{_tag(tag)}_SPEC.json"
+
+
+def _out_dir(n: int, smoke: bool, tag: str = "") -> Path:
+    stem = f"suite_distillation_{n}v{n}{_tag(tag).lower()}" + ("_SMOKE" if smoke else "")
     return SD / stem / "states"
 
 
-def _manifest(n: int, smoke: bool) -> Path:
-    return SD / f"SUITE_DISTILLATION_{n}V{n}_DATASET{'_SMOKE' if smoke else ''}.json"
+def _manifest(n: int, smoke: bool, tag: str = "") -> Path:
+    return SD / f"SUITE_DISTILLATION_{n}V{n}{_tag(tag)}_DATASET{'_SMOKE' if smoke else ''}.json"
 
 
 ENTITY_KEYS = ("teammates", "teammates_valid", "enemies", "enemies_valid")
@@ -145,6 +152,9 @@ def main() -> int:
     )
     ap.add_argument("--n-per-pole", type=int, default=None)
     ap.add_argument("--team-size", type=int, required=True, choices=SUPPORTED_TEAM_SIZES)
+    ap.add_argument("--dataset-tag", default="",
+                    help="name a new collection beside an older frozen one at the same scale "
+                         "(e.g. V2 -> SUITE_DISTILLATION_4V4_V2_SPEC/_DATASET); naming only")
     ap.add_argument("--resume", action="store_true",
                     help="reuse shards from an interrupted run of THIS collection whose embedded "
                          "fingerprint matches exactly; without it, existing shards refuse")
@@ -153,7 +163,10 @@ def main() -> int:
     smoke = bool(args.smoke)
     N_AGENTS = int(args.team_size)
     K_DEFEND = K_DEFEND_BY_SCALE[N_AGENTS]
-    SPEC_PATH = _spec_path(N_AGENTS)
+    TAG = str(args.dataset_tag or "").strip().upper()
+    if TAG and not TAG.isalnum():
+        raise SystemExit(f"REFUSING: --dataset-tag must be alphanumeric, got {TAG!r}")
+    SPEC_PATH = _spec_path(N_AGENTS, TAG)
 
     if not SPEC_PATH.is_file():
         raise SystemExit(
@@ -178,8 +191,8 @@ def main() -> int:
             if hi - lo + 1 != n_per_pole:
                 raise SystemExit(f"REFUSING: {blk} {lo}..{hi} holds {hi - lo + 1} seeds, "
                                  f"n_per_pole is {n_per_pole}")
-    out_dir = _out_dir(N_AGENTS, smoke)
-    manifest = _manifest(N_AGENTS, smoke)
+    out_dir = _out_dir(N_AGENTS, smoke, TAG)
+    manifest = _manifest(N_AGENTS, smoke, TAG)
 
     seeds = {
         "A": list(range(seed_a_base, seed_a_base + n_per_pole)),
@@ -470,6 +483,7 @@ def main() -> int:
         "utc": _now(),
         "implements": f"{SPEC_PATH.name}#DATASET",
         "team_size": N_AGENTS,
+        "dataset_tag": TAG or None,
         # The resolved experimental object each pole's states were collected against --
         # Layer 3 of the cross-scale identity attestation reads this.
         "poles": POLE_IDENTITY,
