@@ -1,0 +1,114 @@
+{
+  "record_id": "SUITE_DISTILLATION_2V2_SPEC",
+  "status": "FROZEN_BEFORE_COLLECTION",
+  "utc": "2026-09-28T12:40:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL dataset (collection only). Not PAPER-FAITHFUL. Not a new PPO variant.",
+  "authorized_by": "PI, 2026-09-28: finish 2v2 and 4v4 before 6v6; freeze and run the 2v2 standardized dataset collection now, then the corrected 4v4 collection with the exact same recipe (only N, k, seeds, paths differ); audit both before training anything.",
+  "parent": [
+    "CROSS_SCALE_CANONICAL_RECIPE_V1.json#COMMON_RECIPE_locked.dataset_collection",
+    "SUITE_DISTILLATION_4V4_SPEC.json (the reference collection recipe)",
+    "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC_VERIFICATION.json, STANDARDIZED_2V2_ENTITY_REPAIR_SPEC_VERIFICATION.json"
+  ],
+  "RESEARCH_ROLE": "Matched teacher-state set for the 2v2 sharing-family distillation arms (Share-Encoder, Fully Shared+z, and the Generalist once its objective is frozen). Every 2v2 distilled arm consumes this ONE frozen state set.",
+
+  "ALLOCATOR_locked": {
+    "rule": "CLOSEST_DEFENDS",
+    "k_defend": 1,
+    "fixed_for_episode": true,
+    "hold_ticks_H_r": 8,
+    "source": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC (same allocator as the Separated arm)"
+  },
+
+  "ACTING_DEPLOYMENT_locked": {
+    "why": "States are visited under the live CLOSEST_DEFENDS allocator so the distilled arms train on the same role-structured state distribution the Separated arm sees.",
+    "Pole_A": {
+      "policy": "DEFEND_ATTACK_SPLIT composite",
+      "pi_D": {
+        "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+        "sha256": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97"
+      },
+      "frozen_attack_pi_A": {
+        "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+        "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"
+      },
+      "splice": "rl.custom_ppo.split_attack_defend.splice_actions; deterministic=True"
+    },
+    "Pole_B": {
+      "policy": "entity-repair specialist pi_B (full team)",
+      "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+      "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"
+    }
+  },
+
+  "KL_TEACHERS_locked": {
+    "note": "Acting policies generate the state distribution; KL teachers are the two single-strategy entity-repair specialists queried on every stored observation (same procedure as 4v4).",
+    "pi_A": {
+      "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+      "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f",
+      "z": 0
+    },
+    "pi_B": {
+      "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+      "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d",
+      "z": 1
+    },
+    "teacher_targets_not_cached": true
+  },
+
+  "DATASET": {
+    "n_per_pole": 96,
+    "decision_rows_only": true,
+    "decision_mask_source": "rl.causal_supervision.decision_mask_from_core(core, 2, side='blue')",
+    "stored_obs_keys": ["grid", "vec", "agent_mask", "mask", "global_state", "teammates", "teammates_valid", "enemies", "enemies_valid", "roles", "decision_mask", "step"],
+    "roles_provenance": "CLOSEST_DEFENDS roles attached at the stored pre-action tick (Pole A composite requires them for acting; stored for allocator audit; KL teachers ignore roles)",
+    "entities_required": "entity-repair teachers fail closed without teammates/enemies tensors at distillation time"
+  },
+
+  "SEEDS": {
+    "collection_A": "23800001..23800096",
+    "collection_B": "23900001..23900096",
+    "registry_experiment_ids": {
+      "collection_A": "STANDARDIZED_2V2_SUITE_DATASET_POLE_A",
+      "collection_B": "STANDARDIZED_2V2_SUITE_DATASET_POLE_B"
+    },
+    "seed_class": "exploratory",
+    "chosen_by": "seed_registry next_free + allocate before this freeze; the collector refuses unless both are registered and RESERVED, and sets them SPENT when the manifest is written",
+    "student_init_and_shuffle": "allocated by the distillation spec, not here"
+  },
+
+  "POLES": {
+    "source": "the sealed 2v2 certification through pole_attestation (the collector refuses if these overlays disagree with the certified poles)",
+    "A": {"base": "OP6", "overlay": {"min_alive_for_defender": 2}},
+    "B": {"base": "OP7", "overlay": {}},
+    "size_normalized_gate": "live min_alive_for_defender must equal 2 from core._bt_resolved_profile_tensors()"
+  },
+
+  "COLLECTOR": {
+    "module": "experiments/collect_suite_distillation_states.py --team-size 2 (the one collector for every suite scale; k derived from N)",
+    "records_in_manifest": "git identity, spec sha256, run fingerprint, seed-registry blocks, pole identity, allocator, acting pins, KL teacher pins, per-shard counts",
+    "crash_recovery": "--resume reuses shards whose embedded fingerprint matches exactly"
+  },
+
+  "SMOKE_before_collection": "the same command with --smoke (disposable 999xxxxx seeds, _SMOKE paths) must complete first",
+
+  "LAUNCH": {
+    "command": ".venv/Scripts/python.exe experiments/collect_suite_distillation_states.py --team-size 2 --device cuda"
+  },
+
+  "OUTPUTS": {
+    "dataset_manifest": "SUITE_DISTILLATION_2V2_DATASET.json",
+    "state_shards": "artifacts/strategic_demand/sppo/suite_distillation_2v2/states/"
+  },
+
+  "SAME_RECIPE_AS_4V4": "identical to the corrected 4v4 collection except N (2), k (1), seeds, checkpoint paths/hashes and tensor shapes that follow from N; enforced by the cross-scale dataset audit before any student is trained",
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "training any student (collection only)",
+    "reusing these seeds for any evaluation",
+    "collecting without CLOSEST_DEFENDS(k=1) on Pole A",
+    "substituting non-pinned checkpoints",
+    "claiming PAPER-FAITHFUL for this dataset"
+  ],
+
+  "SEQUENCE": "freeze this spec -> smoke -> collect once -> SUITE_DISTILLATION_2V2_DATASET.json -> corrected 4v4 collection (same recipe) -> cross-scale dataset audit -> distillation specs"
+}

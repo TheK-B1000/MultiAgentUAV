@@ -64,6 +64,60 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def _git_identity() -> dict:
+    import subprocess
+    def run(*a):
+        return subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, text=True).stdout.strip()
+    return {"git_sha": run("rev-parse", "HEAD"), "git_dirty": bool(run("status", "--porcelain", "--", "experiments"))}
+
+
+def check_collection_seeds(spec: dict) -> dict:
+    """Rule 9 for dataset collection: every collection block must be registered and RESERVED.
+
+    The spec names each block ("lo..hi") and the registry id that owns it
+    (SEEDS.registry_experiment_ids.<block>). Returns {block: (lo, hi, id)}. Refuses on a
+    missing id, an unregistered id, a range that differs from the registered one, or a block
+    that is not RESERVED -- a dataset is collected once, from seeds nobody else spent.
+    """
+    from experiments import seed_registry as SR
+    seeds = spec["SEEDS"]
+    ids = seeds.get("registry_experiment_ids") or {}
+    out = {}
+    for blk in ("collection_A", "collection_B"):
+        lo, hi = (int(x) for x in str(seeds[blk]).split(".."))
+        rid = ids.get(blk)
+        if not rid:
+            raise SystemExit(f"REFUSING (Rule 9): spec SEEDS.registry_experiment_ids.{blk} is missing")
+        b = next((x for x in SR.load()["blocks"] if x["experiment_id"] == rid), None)
+        if b is None:
+            raise SystemExit(f"REFUSING (Rule 9): {rid} is not registered")
+        if (b["lo"], b["hi"]) != (lo, hi):
+            raise SystemExit(f"REFUSING (Rule 9): {rid} is {b['lo']}..{b['hi']}, spec says {lo}..{hi}")
+        if b["status"] != "RESERVED":
+            raise SystemExit(f"REFUSING (Rule 9): {rid} is {b['status']}")
+        out[blk] = (lo, hi, rid)
+    return out
+
+
+def shard_is_resumable(shard: Path, fingerprint: str) -> dict | None:
+    """Summary of an already-written shard from an interrupted run, or None to (re)collect it.
+
+    A shard is reused only if its embedded fingerprint equals this run's exactly (pins, poles,
+    allocator, seeds, spec); a shard without one, or from another configuration, is never
+    reused. Each episode is a fresh env from its own seed with deterministic actions.
+    """
+    if not shard.is_file():
+        return None
+    try:
+        z = np.load(shard, allow_pickle=False)
+        if "fingerprint" not in z.files or str(z["fingerprint"]) != fingerprint:
+            return None
+        return {"steps": int(z["summary_steps"]), "blue": int(z["summary_blue"]),
+                "red": int(z["summary_red"]), "decision_rows": int(z["step"].shape[0])}
+    except Exception:  # noqa: BLE001 -- a torn/corrupt shard is simply re-collected
+        return None
+
+
 def _composite_predict(trained_policy, attack_policy, obs) -> np.ndarray:
     from rl.custom_ppo.split_attack_defend import splice_actions
     import torch
@@ -91,6 +145,9 @@ def main() -> int:
     )
     ap.add_argument("--n-per-pole", type=int, default=None)
     ap.add_argument("--team-size", type=int, required=True, choices=SUPPORTED_TEAM_SIZES)
+    ap.add_argument("--resume", action="store_true",
+                    help="reuse shards from an interrupted run of THIS collection whose embedded "
+                         "fingerprint matches exactly; without it, existing shards refuse")
     args = ap.parse_args()
     device = args.device
     smoke = bool(args.smoke)
@@ -113,8 +170,14 @@ def main() -> int:
         seed_a_base, seed_b_base = 99_920_001, 99_920_101
     else:
         seeds_spec = spec["SEEDS"]
-        seed_a_base = int(str(seeds_spec["collection_A"]).split("..")[0])
-        seed_b_base = int(str(seeds_spec["collection_B"]).split("..")[0])
+        seed_blocks = check_collection_seeds(spec)
+        seed_a_base = seed_blocks["collection_A"][0]
+        seed_b_base = seed_blocks["collection_B"][0]
+        for blk, pole in (("collection_A", "A"), ("collection_B", "B")):
+            lo, hi, _rid = seed_blocks[blk]
+            if hi - lo + 1 != n_per_pole:
+                raise SystemExit(f"REFUSING: {blk} {lo}..{hi} holds {hi - lo + 1} seeds, "
+                                 f"n_per_pole is {n_per_pole}")
     out_dir = _out_dir(N_AGENTS, smoke)
     manifest = _manifest(N_AGENTS, smoke)
 
@@ -131,6 +194,9 @@ def main() -> int:
     if smoke and out_dir.is_dir():
         import shutil
         shutil.rmtree(out_dir)
+    if not smoke and out_dir.is_dir() and any(out_dir.glob("*.npz")) and not args.resume:
+        raise SystemExit(f"REFUSING: {out_dir} already holds shards from an interrupted "
+                         f"collection; pass --resume to continue it")
 
     # Propagate team size by name (same trap as collect_distillation_states_scale).
     import experiments.collect_distillation_states as C
@@ -160,7 +226,12 @@ def main() -> int:
     # agree with the certified pole, or the collection refuses to start.
     POLE_GENOMES = {p: resolve_pole_genome(p, N_AGENTS) for p in ("A", "B")}
     POLE_IDENTITY = {p: pole_identity(p, N_AGENTS, g) for p, g in POLE_GENOMES.items()}
-    for p, spec_pole in (spec.get("POLES") or {}).items():
+    spec_poles = spec.get("POLES") or {}
+    for p in ("A", "B"):
+        spec_pole = spec_poles.get(p)
+        if not isinstance(spec_pole, dict) or not isinstance(spec_pole.get("overlay"), dict):
+            raise SystemExit(f"FAIL-CLOSED: {SPEC_PATH.name} POLES.{p}.overlay is missing; the spec "
+                             f"must name each pole so it can be checked against the certification")
         want = {k: (int(v) if isinstance(v, float) and float(v).is_integer() else v)
                 for k, v in sorted((spec_pole.get("overlay") or {}).items())}
         if p in POLE_IDENTITY and POLE_IDENTITY[p]["overlay"] != want:
@@ -237,6 +308,15 @@ def main() -> int:
         out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
         return out
 
+    fingerprint = json.dumps({
+        "team_size": N_AGENTS, "k_defend": K_DEFEND, "allocator": alloc,
+        "pins": {k: v["sha256"] for k, v in pins.items()},
+        "poles": {p: POLE_IDENTITY[p]["pole_config_hash"] for p in ("A", "B")},
+        "seeds": {k: [v[0], v[-1]] for k, v in seeds.items()},
+        "spec_sha256": _sha(SPEC_PATH), "device": str(device),
+    }, sort_keys=True)
+    ident = _git_identity()
+
     shards, totals = [], {
         "A": {"episodes": 0, "steps": 0, "decision_rows": 0, "wins": 0},
         "B": {"episodes": 0, "steps": 0, "decision_rows": 0, "wins": 0},
@@ -250,6 +330,19 @@ def main() -> int:
             unit="ep",
         )
         for ep_i, seed in ep_iter:
+            shard = out_dir / f"{pole}_{seed}.npz"
+            prior = shard_is_resumable(shard, fingerprint) if args.resume else None
+            if prior is not None:
+                shards.append({"pole": pole, "episode": ep_i, "seed": seed, "steps": prior["steps"],
+                               "decision_rows": prior["decision_rows"], "blue": prior["blue"],
+                               "red": prior["red"], "file": str(shard.relative_to(ROOT)),
+                               "resumed": True})
+                tt = totals[pole]
+                tt["episodes"] += 1
+                tt["steps"] += prior["steps"]
+                tt["decision_rows"] += prior["decision_rows"]
+                tt["wins"] += int(prior["blue"] > prior["red"])
+                continue
             env = R2.build_env(device, seed)
             core = env.core
             role_hold = RoleHoldState(
@@ -333,8 +426,11 @@ def main() -> int:
                 env.close()
 
             n_rows = len(rows["step"])
-            shard = out_dir / f"{pole}_{seed}.npz"
             save = {
+                "fingerprint": np.array(fingerprint),
+                "summary_steps": np.array(steps, dtype=np.int64),
+                "summary_blue": np.array(terminal[0], dtype=np.int64),
+                "summary_red": np.array(terminal[1], dtype=np.int64),
                 "grid": np.asarray(rows["grid"], dtype=np.float32),
                 "vec": np.asarray(rows["vec"], dtype=np.float32),
                 "agent_mask": np.asarray(rows["agent_mask"], dtype=np.float32),
@@ -398,6 +494,12 @@ def main() -> int:
             "pi_B": {"path": str(pins["pi_B_kl"]["path"]), "sha256": pins["pi_B_kl"]["sha256"]},
         },
         "seeds": {k: [v[0], v[-1]] for k, v in seeds.items()},
+        "seed_registry": (None if smoke else {blk: {"block": [lo, hi], "experiment_id": rid}
+                                               for blk, (lo, hi, rid) in seed_blocks.items()}),
+        "collector": {"module": "experiments/collect_suite_distillation_states.py",
+                      "spec": SPEC_PATH.name, "spec_sha256": _sha(SPEC_PATH), **ident},
+        "fingerprint": json.loads(fingerprint),
+        "resumed_shards": sum(1 for s_ in shards if s_.get("resumed")),
         "device": device,
         "decision_rows_only": True,
         "stored_entity_tensors": True,
@@ -408,6 +510,10 @@ def main() -> int:
         },
         "shards": shards,
     }, indent=2), encoding="utf-8")
+    if not smoke:
+        from experiments import seed_registry as SR
+        for blk, (_lo, _hi, rid) in seed_blocks.items():
+            SR.set_status(rid, "SPENT", note=f"{manifest.name} written ({blk})")
     print(f"\n  A: {totals['A']}\n  B: {totals['B']}\n  -> {manifest}")
     return 0
 

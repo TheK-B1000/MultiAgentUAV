@@ -1831,9 +1831,33 @@
         }
       ],
       "spent_utc": "2026-09-28T11:47:10Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SUITE_DATASET_POLE_A",
+      "purpose": "standardized 2v2 suite distillation dataset: Pole-A collection episodes (split composite acting, CLOSEST_DEFENDS k=1)",
+      "seed_class": "exploratory",
+      "lo": 23800001,
+      "hi": 23800096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_2V2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T12:09:21Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SUITE_DATASET_POLE_B",
+      "purpose": "standardized 2v2 suite distillation dataset: Pole-B collection episodes (repaired pi_B acting)",
+      "seed_class": "exploratory",
+      "lo": 23900001,
+      "hi": 23900096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_2V2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T12:09:21Z"
     }
   ],
-  "updated_utc": "2026-09-28T11:47:10Z",
+  "updated_utc": "2026-09-28T12:09:21Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
