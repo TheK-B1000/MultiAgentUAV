@@ -45,3 +45,8 @@ artifacts/scale_*_specialists/smoke_*/
 # Crash-recovery resume files written by long confirmatory runs. Redundant with the
 # episodes CSV once a run seals; not part of the scientific record.
 *_PARTIAL.jsonl
+
+# Post-run contract attestations, regenerated with a fresh utc on every test run. They are
+# derived output, not evidence: the frozen evidence is the pre-run *_CONTRACT_RESULT.json,
+# which G0 pins. Ignored so routine test runs cannot sweep churn into a commit.
+*_CONTRACT_ATTESTATION.json

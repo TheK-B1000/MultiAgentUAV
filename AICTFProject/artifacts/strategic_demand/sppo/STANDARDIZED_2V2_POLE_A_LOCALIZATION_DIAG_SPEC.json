@@ -1,0 +1,102 @@
+{
+  "record_id": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-27T14:10:00Z",
+  "classification": "EXPLORATORY DIAGNOSTIC (localization). Read-only: no training, no checkpoint written, no model selection. Not PAPER-FAITHFUL.",
+  "authorized_by": "PI, 2026-09-27: after the sealed confirmatory FAIL on delta_A (efe4ee3c), do NOT start another confirmatory crossover; treat it as a localization problem and run a new exploratory diagnostic -- repaired pi_A (before the split) vs repaired pi_B, and split pi_A+pi_D vs repaired pi_B, on the same fresh diagnostic seed block.",
+  "parent": [
+    "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json (SEALED FAIL; stays the valid negative confirmatory result)",
+    "STANDARDIZED_2V2_SPLIT_K1_EXPLORATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json (SEALED PASS)",
+    "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC_VERIFICATION.json, STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC_VERIFICATION.json"
+  ],
+  "THE_QUESTION": "Where was 2v2 Pole-A separation lost? Is the repaired pi_A, BEFORE the ATTACK/DEFEND split, already weak on Pole A relative to pi_B, or does the split (k=1: half the 2v2 team forced to DEFEND) weaken it?",
+  "ARMS": {
+    "STANDARDIZED_2V2_DIAG_PRESPLIT": {
+      "pi_A": "the repaired pi_A final as a plain policy: no role conditioning, no allocator, no frozen-attack splice (exactly how it was trained)",
+      "pi_B": "the repaired pi_B final",
+      "command_key": "command_presplit"
+    },
+    "STANDARDIZED_2V2_DIAG_SPLIT": {
+      "pi_A": "the split composite exactly as in the confirmatory pass: pi_D on DEFEND + the repaired pi_A frozen on ATTACK, roles fixed for the episode, CLOSEST_DEFENDS k=1",
+      "pi_B": "the repaired pi_B final",
+      "command_key": "command_split"
+    }
+  },
+  "CHECKPOINTS_locked": {
+    "pi_A_repaired": {
+      "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+      "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"
+    },
+    "pi_D": {
+      "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+      "sha256": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97"
+    },
+    "pi_B_repaired": {
+      "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+      "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"
+    },
+    "post_run_check": "each sealed record's checkpoint hashes equal these pins"
+  },
+  "SEEDS": {
+    "registry_experiment_id": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG",
+    "block": "23700001..23700128",
+    "n": 128,
+    "seed_class": "exploratory",
+    "shared_by_labels": [
+      "STANDARDIZED_2V2_DIAG_PRESPLIT",
+      "STANDARDIZED_2V2_DIAG_SPLIT"
+    ],
+    "why_shared": "the comparison is PAIRED: both arms play the same 128 seeds against the same pi_B, so pi_A(repaired) vs pi_A(split) on Pole A is read seed by seed. Registered once with both labels declared up front (evaluator --registry-experiment-id); SPENT only after both seal.",
+    "chosen_by": "seed_registry next_free before this freeze; disjoint from every training, certification, exploratory and confirmatory block"
+  },
+  "INSTRUMENT": {
+    "evaluator": "experiments/eval_specialist_crossover_scaled.py --team-size 2, unchanged apart from the shared-block mode used here",
+    "device": "cuda",
+    "bootstrap": {
+      "procedure": "paired percentile bootstrap over seeds",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    },
+    "expected_cost": "about 4.4 h per arm (the n=128 confirmatory took ~4.4 h), about 9 h for both"
+  },
+  "READINGS_preregistered": {
+    "primary_quantities": {
+      "delta_A_presplit": "V(pi_A_repaired, A) - V(pi_B, A)   (from the PRESPLIT record)",
+      "delta_A_split": "V(pi_A+D, A) - V(pi_B, A)             (from the SPLIT record)",
+      "split_effect_on_A": "V(pi_A_repaired, A) - V(pi_A+D, A), paired by seed across the two records; same bootstrap"
+    },
+    "secondary_quantities": {
+      "delta_B_both_arms": "reported; not the question",
+      "pi_B_consistency": "pi_B plays identical seeds in both arms; its per-seed Pole A/B outcomes are compared across records and any disagreement is reported (it measures evaluation stochasticity, not a result)"
+    },
+    "interpretation": {
+      "SPLIT_WEAKENS_A": "split_effect_on_A mean > 0 with LCB95 > 0 -- the ATTACK/DEFEND split at k=1 costs Pole-A performance; investigate the split/defender stage, not the specialists",
+      "WEAKNESS_PREDATES_SPLIT": "split_effect_on_A LCB95 <= 0 AND delta_A_presplit is not clearly larger than delta_A_split -- Pole-A separation was already weak after foundation/entity repair; inspect the specialist trajectory, not role allocation",
+      "SPLIT_HELPS_A": "split_effect_on_A mean < 0 with UCB95 < 0 -- the split improves Pole A; the confirmatory shortfall is not the split",
+      "note": "exploratory, n=128: a point-estimate localization aid. It licenses a scientifically motivated next change; it is not a confirmatory claim and does not revise efe4ee3c."
+    }
+  },
+  "LAUNCH": {
+    "command_presplit": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23700001 --n-seeds 128 --label STANDARDIZED_2V2_DIAG_PRESPLIT --device cuda --registry-experiment-id STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG",
+    "command_split": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23700001 --n-seeds 128 --label STANDARDIZED_2V2_DIAG_SPLIT --device cuda --role-fixed-for-episode --frozen-attack-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --frozen-attack-path-sha256 858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f --role-k-defend 1 --registry-experiment-id STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG",
+    "order": "PRESPLIT, then SPLIT (sequential, one GPU); each arm is one-shot by label",
+    "preflight": "both commands with --dry-run must pass; the spec must be committed and clean"
+  },
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "another confirmatory crossover, or any re-run of the confirmatory label",
+    "retraining, fine-tuning or modifying any checkpoint",
+    "changing k, the allocator, the splice or the gate",
+    "treating either arm's own gate as a pass/fail of the 2v2 system (the evaluator prints one; here only the READINGS apply)"
+  ],
+  "AMENDMENT_INFRA_RESTART_2026_09_27": {
+    "utc": "2026-09-28T02:10:00Z",
+    "what_happened": "the PRESPLIT arm was killed by a Windows Update host restart at 23:14:20Z after ~4.5 h, with 0 rows written (the evaluator wrote rows only at the end); the SPLIT arm never started",
+    "decision": "PI, 2026-09-27 ('do it'): evaluator made crash-safe, then both arms rerun from scratch on the same reserved block",
+    "execution_change_only": "the evaluator now appends each finished episode to <label>_..._rows.PARTIAL.jsonl (fingerprinted) and the launcher passes --resume, so a future interruption resumes instead of restarting; each episode depends only on its seed (fresh env, deterministic actions), so resumed rows equal uninterrupted rows (tests/test_eval_crossover_resume.py, end to end)",
+    "unchanged": "arms, checkpoints, seeds, instrument, bootstrap and the pre-registered readings",
+    "evidence": "STANDARDIZED_2V2_DIAG_PRESPLIT_ABORTED_INFRA_RESTART.json"
+  }
+}

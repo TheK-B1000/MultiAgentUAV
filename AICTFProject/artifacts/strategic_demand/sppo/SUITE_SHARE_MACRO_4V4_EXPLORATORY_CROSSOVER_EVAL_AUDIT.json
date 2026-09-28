@@ -1,0 +1,172 @@
+{
+  "record": "audit of SUITE_SHARE_MACRO_4V4_EXPLORATORY_CROSSOVER_EVAL_RESULT.json",
+  "audit_utc": "2026-09-26T11:31:06Z",
+  "git_sha": "ce27befb5d2067dbff0b293a74374e88aa084754",
+  "passed": true,
+  "n_checks": 15,
+  "n_gating": 13,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 256,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_EVAL'",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "sha256": "006cb7f6c7146e0e052cc67182e5968c2be3d98fc3f80bd75439bcec306a6a60",
+      "status": "FROZEN_BEFORE_EVAL"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "suite_share_macro_4v4_exploratory_crossover_eval_rows.csv (5672 bytes)",
+      "sha256": "b589b2c58208aa824fe4c90b3a05a6a9b329e5be9bdcef2456af93f2985ca74a"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "256 rows, expected 256",
+      "found": 256,
+      "expected": 256
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "4 cells; 0 with a seed set != frozen block 22514001..22514064 (n=64)",
+      "n_cells": 4,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win takes values [0, 1]",
+      "field": "win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "derived::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win == int(blue > red): 0 disagreement(s) in 256 rows",
+      "field": "win",
+      "definition": "int(blue > red)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "derived::margin",
+      "gating": true,
+      "result": "PASS",
+      "detail": "margin == blue - red: 0 disagreement(s) in 256 rows",
+      "field": "margin",
+      "definition": "blue - red",
+      "n_disagreements": 0
+    },
+    {
+      "name": "checkpoint::share_macro",
+      "gating": true,
+      "result": "PASS",
+      "detail": "share_macro sha 12e66d98fd37... vs frozen 12e66d98fd37...",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing\\4v4\\share_macro\\ckpts\\final_share_macro_4v4.pt",
+      "sha256": "12e66d98fd3710466c70ef04b6c27fb1e4ab7fe1e8109384e84eb2f1e48b4ccb",
+      "frozen_sha256": "12e66d98fd3710466c70ef04b6c27fb1e4ab7fe1e8109384e84eb2f1e48b4ccb"
+    },
+    {
+      "name": "claim::delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.28125,
+        "lcb95": 0.125,
+        "ucb95": 0.4375
+      },
+      "rederived": {
+        "mean": 0.28125,
+        "lcb95": 0.125,
+        "ucb95": 0.4375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.15625,
+        "lcb95": -0.265625,
+        "ucb95": -0.0625
+      },
+      "rederived": {
+        "mean": -0.15625,
+        "lcb95": -0.265625,
+        "ucb95": -0.0625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "split_half::delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.3750 | second half +0.1875",
+      "first_half": 0.375,
+      "second_half": 0.1875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.1562 | second half -0.1562",
+      "first_half": -0.15625,
+      "second_half": -0.15625,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to SUITE_SHARE_MACRO_4V4_EXPLORATORY (status SPENT) -- same block, no conflict",
+      "seed_class": "exploratory",
+      "experiment_id": "SUITE_SHARE_MACRO_4V4_EXPLORATORY"
+    }
+  ]
+}

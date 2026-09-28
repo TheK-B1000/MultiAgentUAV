@@ -16,6 +16,279 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
+> **Last updated:** 2026-09-26 (evening) — **2v2 foundation pair VERIFIED 82/82 and SPENT (`af6dab79`);
+> entity repair: premature launch contained, relaunch pending.** Finals pinned: π_A `5b01de6b…`, π_B
+> `dc3e9ba4…` (1,001,472 steps each, both recorded trainer git `ca52a24b`). Starting the entity-repair
+> stage, a launcher guard test ran the real launcher; its uncommitted-spec check (`git diff HEAD`) is silent
+> for an untracked file, so π_A repair seed 23200001 started from a never-committed spec and was killed at
+> 12,016 steps with no checkpoint. Kept as `…ABORTED_PREMATURE_LAUNCH_seed23200001` (INVALID_FOR_SCIENTIFIC_USE);
+> block 23200001–23200002 RETIRED whole; fresh V2 block `23300001–23300002`. Launch decisions now go through
+> `experiments/frozen_launch_guard.py` (spec tracked/unstaged/staged/FROZEN, seeds vs registry, never-trained,
+> warm-start sha); the launcher is check-only unless `-Launch`. The foundation is unaffected.
+>
+> ---
+>
+> Prior — 2026-09-26 — **2v2 poles CERTIFIED (sealed); standardized 2v2 foundation training;
+> Rule 9 now enforced by the specialist trainer.** The fresh 2v2 certification (block `23000001–23000192`,
+> spent) SEALED with 0/14 gating checks failed and VERDICT CERTIFIED: Δ_A +0.276 [+0.182, +0.370],
+> Δ_B +0.427 [+0.354, +0.500] (`5f7c6892`). Standardized foundation (`STANDARDIZED_2V2_FOUNDATION_SPEC.json`,
+> `ca52a24b`): π_A seed 23100001 finished 15:15 (exit 0), π_B seed 23100002 running; both loaded
+> byte-identical trainer code (π_B launched only after π_A, and the trainer change below landed only after
+> π_B's manifest showed a passing live-pole attestation against `a6bd288a…` and its first PPO update).
+> `train_specialist_scale.py` previously never consulted the seed registry; every non-smoke launch now needs
+> `--experiment-id`, the seed must lie in that id's registered **RESERVED** block, and no other trainer run
+> manifest may already hold the seed (the 19100001 three-directory incident would have been refused). The
+> manifest records the block. **Consequence:** frozen launch commands without `--experiment-id` (e.g. the
+> 6v6 school-PC pipeline) now refuse; they need a launcher amendment, not an edit to the frozen record.
+> Next: verify both foundation finals, mark `STANDARDIZED_2V2_FOUNDATION_PAIR_TRAINING` SPENT, freeze
+> `STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json` (draft; 2v2 warm-start smoke passed) with their hashes and fresh seeds.
+>
+> ---
+>
+> Prior — 2026-09-26 — **Pole certification is now a SEALED downstream handoff; fresh 2v2
+> certification ready to launch.** The certification record is written through `run_state.seal`
+> (Rule 7); `status` (SEALED/AUDIT_FAILED) is separate from the scientific `VERDICT`
+> (CERTIFIED/NOT_CERTIFIED), and downstream pole resolution requires **both** CERTIFIED and a SEALED
+> record with a passing audit. Legacy 4v4/6v6 governing records (hand-written, pre-seal) are trusted only
+> byte-for-byte against pinned hashes. The seal verifies seed block/count, the registered Rule-9 block,
+> episode completeness, per-episode pole identity, the frozen spec, re-derived statistics, the verdict, and
+> that the handoff hashes equal what downstream consumption rebuilds. `run_state.AuditPlan` gained a narrow
+> additive `invariants` hook for the last two (whole-row-set properties); negative controls — faked stats,
+> tampered row pole hash, missing seed, tampered handoff, tampered overlay, flipped verdict — each land in
+> AUDIT_FAILED, and a mutation check shows three of them seal cleanly without the hook. A bug found on the
+> way: `PoleAttestationError` subclasses `SystemExit`, so an invariant raising it escaped and would have
+> aborted the seal after all episodes with nothing recorded; the hook now catches it. Spec:
+> `STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json` (amended before any seed; launch command pinned); block
+> `23000001–23000192` reserved, **not yet spent**.
+>
+> ---
+>
+> Prior — 2026-09-26 — **4v4 SUITE DISTILLED ARMS INVALIDATED (wrong Pole B); pole identity
+> repaired and made a first-class invariant (Layer 3).** Found while preparing the 2v2 certification:
+> the 4v4 suite distillation dataset and all four student crossovers ran on **plain OP7**
+> (`pole_B_genome(4)`, hash `60324f4a…`) — the pole that failed 4v4 certification — while every frozen
+> suite record names **certified B3-3** (`lock_defender=10, enable_2v1`, hash `ee1cab77…`). Cause: a silent
+> fallback in `pole_attestation.resolve_pole_genome` plus two suite stages that called `pole_B_genome()`
+> directly. **Scope** (`SUITE_4V4_POLE_B_IDENTITY_AUDIT.json`, every run classified from its own evidence,
+> 0 unknown): on B3-3 = π_B3 training + teacher-pair crossover (live-attested) and both Separated crossovers
+> (recorded); on plain OP7 = the dataset + the four student crossovers. Invalidation:
+> `SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION.json` — sealed records kept as provenance, excluded from
+> paper claims; the "students reproduce the teacher asymmetry" reading is **withdrawn**; repair needs
+> recollect-on-B3-3 → redistill → rerun (not yet authorized). **Code repair:** `certified_pole_genome` is
+> the single source of a pole (governing certification; fails closed); no silent fallback; trainer,
+> Separated evaluator, collector and sharing evaluator all resolve through it and record pole identity.
+> 6v6 verified unchanged (both poles identical); 2v2 fails closed until certified. **Layer 3** added to
+> the identity attestation; negative control feeds plain OP7 into a stage and proves it goes red; the
+> regression tests fail against a re-introduced fallback. Three `test_pole_certification_guard.py` tests
+> had used the fallback to *construct* the bad genome — now built explicitly, every protective assertion
+> kept (and verified to still fail against an accept-anything mutant). Code repair committed as
+> `f7177454`; this invalidation is committed separately.
+>
+> ---
+>
+> Prior — 2026-09-26 — **4v4 Share-Macro exploratory crossover DONE (FLAGGED); all four
+> 4v4 distilled arms now in.** Share-Macro (n=64, seeds 22514001–064, finished 02:14):
+> Δ_A=+0.281 [+0.125,+0.438], Δ_B=−0.156 [−0.266,−0.063] — FLAG on Δ_B, same pattern as Encoder,
+> Backbone and Fully Shared+\(z\). Cells z0@A 0.8125, z1@A 0.5312, z0@B 0.9688, z1@B 0.8125.
+> Row-level audit PASS on all 8 mechanical checks (`SUITE_4V4_SHARING_FLAGGED_ARMS_ROW_AUDIT.json`,
+> now covering all four arms). No `FROZEN_RESULT` seal. Afterwards: obsolete runners
+> `eval_suite_sharing_crossover_4v4.py` and `eval_suite_fully_shared_z_2v2.py` deleted (git keeps
+> them at `ae89f636` / `0b0fb6e7`); the partially-spent 2v2 block 22900001–128 moved RESERVED →
+> **RETIRED** (82 seeds had been run before the stop). Cursor's `21d8b6da` routed both canonical
+> crossover evaluators through `run_state.seal` and reconciled the four 4v4 blocks into the seed
+> registry; Layer 2 re-verified 10/10 after it. Archived in `ce27befb`.
+>
+> **All four 4v4 distilled arms SEALED together, post-hoc** (`experiments/seal_suite_sharing_4v4_flagged_arms.py`,
+> all-or-nothing: dry-run audit of every arm first, seal none unless all pass). Each: `status=SEALED`, audit
+> 13/13 gating, every statistic re-derived from the rows on disk. **Two distinctions preserved in each record:**
+> sealed integrity ≠ pass (`scientific_verdict=FLAG`, `gate.passes=false`), and sealed integrity ≠ historical
+> Rule-9 compliance (`seed_registration_origin=RETROACTIVE_RECONCILIATION`, `historically_pre_registered=false`,
+> read from the registry, not asserted). No RunState created, so no fabricated run timeline; real eval-finished
+> times taken from each flag file. The reading is unchanged: the students reproduce the teacher pair's 4v4
+> Pole-B asymmetry, which is not by itself evidence that sharing destroyed specialization.
+> Next: full-suite sweep, then fresh 2v2 pole certification.
+>
+> ---
+>
+> Prior — 2026-09-26 — **METHODOLOGY IDENTITY LOCKED across 2v2/4v4/6v6.**
+> PI: the contribution is **one methodology** — the same thing tested on different
+> agent counts with **no other code/recipe changes**. Only scale knobs (`N`, `k`)
+> may differ. Recorded in
+> [`CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json`](../artifacts/strategic_demand/sppo/CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json)
+> `#METHODOLOGY_IDENTITY_2026_09_26` (supersedes the old 2v2 “natural expert”
+> allocator exception). Suite claims that mix legacy 2v2 Share-0 / Rung-1 rows with
+> 4v4/6v6 split methodology are invalid until 2v2 is rebuilt under this identity.
+> A paper sentence that needs a 2v2-only caveat is a methodology failure.
+>
+> **Conformance measured 2026-09-26 — the identity does NOT hold yet, and 6v6 fails it too.**
+> `CROSS_SCALE_METHODOLOGY_IDENTITY_AUDIT.json`
+> (`experiments/audit_cross_scale_methodology_identity.py`; settings read from the **loaded
+> checkpoints**, since the 6v6 specialists carry no `run_config.json` and
+> `sappo_anchor_lambda` is 0.10 by default everywhere — the real SA-PPO gate is a non-empty
+> `sappo_anchor_dataset`). Seven axes disagree:
+>
+> | axis | 2v2 | 4v4 | 6v6 |
+> |---|---|---|---|
+> | SA-PPO anchor | **ON** | off | off |
+> | entity repair | off | **ON** | off |
+> | foundation steps | **1.5 M** | 1 M | 1 M |
+> | dataset allocator | absent | **CD k=2** | absent |
+> | dataset acting policy recorded | no | **yes** | no |
+> | dataset entity tensors | absent | **yes** | absent |
+> | dataset roles | absent | **yes** | absent |
+>
+> Matching across all three: 96 episodes/pole, 192 shards, decision-rows-only.
+> Target (4v4 is the reference): anchor **OFF**, entity repair **ON**, 1 M foundation,
+> dataset collected under CLOSEST_DEFENDS with entity+roles stored.
+> **Open PI decision:** adopting it retrains the 2v2 suite teachers without the anchor,
+> retiring the SAPPO-continuation 1.5 M lineage as suite teachers (the SAPPO V1 result itself
+> is untouched). 6v6 needs entity repair (already in the school-PC pipeline) **and** a fresh
+> dataset under CD k=1 (already directed by the suite spec).
+> Plan + blockers + PI's certification decision: `SAME_METHODOLOGY_2V2_PORT_PLAN.json`.
+>
+> **PI ruling 2026-09-26 — 4v4 is the canonical reference; the old 2v2 SAPPO lineage is retired
+> from the cross-scale suite (kept, not deleted).** Common recipe frozen in
+> [`CROSS_SCALE_CANONICAL_RECIPE_V1.json`](../artifacts/strategic_demand/sppo/CROSS_SCALE_CANONICAL_RECIPE_V1.json):
+> anchor OFF · 1 M base · entity repair ON · 200 k split with the N′ schedule reused · one shared
+> collector under CLOSEST_DEFENDS storing entities+roles · 96 ep/pole · 192 shards ·
+> decision-eligible only · same distillation path, evaluator and gates. Only \(N\) and \(k\) differ.
+> **Key distinction:** the FINAL repaired artifacts enter the suite, never the historical ones that
+> merely share a scale. SAPPO V1 stays a valid finding in its own right; the historical 6v6
+> specialists remain legitimate warm-start bases (anchor OFF, 1 M), so **no 6v6 base restart**.
+> **Runners generalized 2026-09-26 — layer 2 now passes: all 10 stages resolve to one
+> cross-scale implementation (was 7/10 forked).** One code path, `--team-size 2|4|6`, only \(N\)
+> and \(k\) changing. Removed: the `n == 2` legacy dataset route and legacy loader, the 2v2
+> Share-Encoder reuse shortcut, the 2v2-only Pole-B overlay fork in the trainer, the `N != 2`
+> branch in the separated crossover, and the 4v4-only collector/evaluator module constants.
+> `collect_suite_distillation_states_4v4.py` → `collect_suite_distillation_states.py` (git mv);
+> new `eval_suite_sharing_crossover.py`. Arm/scale authorization is now the `ARM_SCALES` table,
+> not a team-size branch. **The certification gate was NOT weakened:** a 2v2 dry-run is now an
+> accepted team size and then refuses with `FAIL-CLOSED: governing certification record not
+> found: STRATEGIC_DEMAND_2v2_CERTIFICATION.json` (exit 1). 4v4 verified unchanged — all 36
+> resolved profile fields identical with the non-live overlay added, and the pre/post dry-run
+> differs only in `installed_overlay_keys`. Details and the remaining per-scale specs/seeds:
+> `SAME_METHODOLOGY_2V2_PORT_PLAN.json#GENERALIZATION_DONE_2026_09_26`.
+>
+> **Snapshot staleness FIXED 2026-09-26 (housekeeping, separate from the methodology work).**
+> `tests/preset_snapshots.json` had been stale since 2026-09-23: five `PPOConfig` fields landed in
+> `af8f76c2` while the snapshot was last regenerated 2026-09-22 (`9ce9c840`), so
+> `test_resolved_configs_match_snapshot` was red for every preset on missing keys alone.
+> Changelog entry added to `Paper_experiment_alignment.md` §7 (required by AGENTS.md §8.9), then
+> regenerated with `tools/snapshot_presets.py` and the diff verified field-by-field against the
+> previous file: **549 entries before and after, none added or removed; exactly the five keys added
+> to all 549; no keys removed; ZERO value changes.** All five resolve to inert defaults
+> (`false/false/false/0/""`) in every preset, so no resolved configuration changed.
+> `tests/test_preset_resolution.py` 28 passed; the AGENTS.md §7 pinning set 146 passed.
+>
+> Attestation preflight: `experiments/attest_cross_scale_identity.py` →
+> `CROSS_SCALE_IDENTITY_ATTESTATION.json`. It reads settings off the loaded checkpoints, treats a
+> missing config as **UNKNOWN, never “same”**, and distinguishes PENDING (not built) from a
+> mismatch. Current state: 4v4 matches on every invariant row; 2v2 and 6v6 are NOT YET ATTESTABLE
+> (nothing built). Verified against a negative control (retired 2v2 + historical 6v6 artifacts →
+> 10 mismatches caught, including every absent dataset field).
+>
+> ---
+>
+> Prior — 2026-09-25 — **4v4 Share-Backbone exploratory crossover DONE (FLAGGED); Share-Macro eval IN FLIGHT.**
+> Share-Backbone (n=64, 3,532,656 params, holdout agree 0.901/0.862): Δ_A=+0.438 [+0.297,+0.578],
+> Δ_B=−0.281 [−0.422,−0.125] — FLAG on Δ_B (z0 beats z1 on Pole B; z0 wins 0.875/0.891, z1 0.438/0.609).
+> Record: `SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json`.
+> Row-level integrity audit run for the three flagged 4v4 arms (Encoder, Backbone, Fully Shared+\(z\)):
+> all mechanical checks pass (`SUITE_4V4_SHARING_FLAGGED_ARMS_ROW_AUDIT.json`,
+> `experiments/audit_suite_sharing_4v4_flagged_arms.py`). Their KL teachers (π_A3→z0, corrected π_B3→z1)
+> already fail Δ_B at 4v4 (Δ_B −0.156 [−0.266,−0.047], n=128), so the Pole-B reversal is consistent with
+> imitating that pair and is not evidence that sharing removes specialization. No `FROZEN_RESULT` seal.
+>
+> **2v2 port under the locked identity** (owner: suite spec `#METHODOLOGY_IDENTITY_2026_09_26`; code state and
+> blockers: `SAME_METHODOLOGY_2V2_PORT_PLAN.json`). The natural-setup 2v2 Fully Shared+\(z\) crossover launched
+> 2026-09-25 21:02 was **stopped at 82/512** (partial retained; block 22900001–128 stays RESERVED, unspent; not a
+> paper row). Existing 2v2 results stay as provenance. Blockers before any 2v2 training:
+> `train_specialist_scale.py` supports only N∈{4,6}; no 2v2 pole-certification record for its gate; an
+> `n == 2` branch in `_verify_live_pole`; 4v4-only collector and crossover runner to be generalized (after
+> the running 4v4 Share-Macro eval finishes, so disk code equals run code). No training authorized yet.
+> Share-Macro crossover eval: the chain launched it at 17:47 and a reboot at 18:29 killed it at 60/256
+> (no partial results; killed logs kept as `crossover_eval.INTERRUPTED_reboot_1829.log*`).
+> Relaunched from scratch 20:43 (pid 11464, seeds 22514001–064; 92/256 at 00:19). It ran 113–262 s/ep while
+> a second eval shared the box and 26–53 s/ep alone; do not run another single-env eval beside it.
+> Log: `suite_sharing/4v4/share_macro/crossover_eval.log.err`; watch: `depth_crossover_watch.log`.
+> Its params (3,531,371) and imitation (0.899/0.859) are in the professor table; Δ cells pending.
+> Table: [`paper/data/SHARING_TRADEOFF_2V2_4V4_FOR_PROFESSOR.md`](../paper/data/SHARING_TRADEOFF_2V2_4V4_FOR_PROFESSOR.md),
+> [`paper/data/sharing_params_tradeoff_2v2_4v4.json`](../paper/data/sharing_params_tradeoff_2v2_4v4.json).
+>
+> ---
+>
+> Prior — 2026-09-25 — **4v4 Share-Backbone / Share-Macro depth extension IN FLIGHT.**
+> PI-authorized diagnostic (same `SUITE_DISTILLATION_4V4` under CD \(k=2\)).
+> Construction amendments frozen; suite distill runner extended. Both students froze
+> at 11:10 / 11:23; sha pins written 11:24.
+>
+> ---
+>
+> Prior — 2026-09-25 — **4v4 suite exploratory crossovers DONE (both FLAGGED).**
+> Fully Shared+\(z\): Δ_A=+0.281 [+0.125,+0.438], Δ_B=−0.109 [−0.219,0.000] — FLAG on Δ_B.
+> Share-Encoder: Δ_A=+0.359 [+0.188,+0.516], Δ_B=−0.219 [−0.344,−0.109] — FLAG on Δ_B.
+> n=64 exploratory; records:
+> `SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json`,
+> `SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json`.
+> Professor table filled:
+> [`paper/data/SHARING_TRADEOFF_2V2_4V4_FOR_PROFESSOR.md`](../paper/data/SHARING_TRADEOFF_2V2_4V4_FOR_PROFESSOR.md),
+> [`paper/data/sharing_params_tradeoff_2v2_4v4.json`](../paper/data/sharing_params_tradeoff_2v2_4v4.json).
+> Next suite blockers: 6v6 Separated seal; confirmatory n=128 not authorized.
+>
+> ---
+>
+> Prior — 2026-09-24 — **4v4 suite crossover evals IN FLIGHT**
+> (exploratory n=64) for Fully Shared+\(z\) then Share-Encoder to fill Δ cells.
+> Spec: [`SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json`](../artifacts/strategic_demand/sppo/SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json).
+>
+> ---
+>
+> Prior — 2026-09-24 — **4v4 Share-Encoder distilled student FROZEN.**
+> Holdout agree \(0.914/0.876\), unique actor params \(3{,}636{,}592\), sha256
+> `43e1a003…`. Record:
+> `artifacts/strategic_demand/sppo/suite_sharing/4v4/share_encoder/STUDENT_FROZEN.json`.
+> Same dataset as Fully Shared+\(z\) (`SUITE_DISTILLATION_4V4` under CD \(k=2\)).
+> 4v4 sharing-family distill arms both frozen. Next suite blockers: 6v6 Separated
+> seal, then Generalists / matched evals.
+>
+> ---
+>
+> Prior — 2026-09-24 — **4v4 Share-Encoder distillation IN FLIGHT**
+> on the same `SUITE_DISTILLATION_4V4_DATASET` (CD \(k=2\)). Construction:
+> [`SUITE_SHARE_ENCODER_4V4_CONSTRUCTION_AMENDMENT.json`](../artifacts/strategic_demand/sppo/SUITE_SHARE_ENCODER_4V4_CONSTRUCTION_AMENDMENT.json).
+> Preflight PASS; unique params \(\approx 3.64\)M (shared CNN). Watch terminal `5534`.
+>
+> ---
+>
+> Prior — 2026-09-24 — **4v4 Fully Shared+\(z\) distilled student FROZEN.**
+> Holdout agree \(0.895/0.856\), unique actor params \(3{,}468{,}503\), sha256
+> `dfa82051…`. Record:
+> `artifacts/strategic_demand/sppo/suite_sharing/4v4/fully_shared_z/STUDENT_FROZEN.json`.
+> Dataset: `SUITE_DISTILLATION_4V4_DATASET` under CD \(k=2\). Next suite step:
+> Share-Encoder at 4v4 on the same frozen set (after construction amendment).
+>
+> ---
+>
+> Prior — 2026-09-24 — **SUITE_DISTILLATION_4V4_DATASET FROZEN** under
+> `CLOSEST_DEFENDS(k=2)`. Manifest:
+> [`SUITE_DISTILLATION_4V4_DATASET.json`](../artifacts/strategic_demand/sppo/SUITE_DISTILLATION_4V4_DATASET.json)
+> (192 shards; A 19904 / B 19949 decision rows; seeds `22520001..096` /
+> `22520101..196`). Next: distill Fully Shared+\(z\) then Share-Encoder on that
+> same set via `experiments/run_suite_sharing_distillation.py --team-size 4`.
+>
+> ---
+>
+> Prior — 2026-09-24 — **SUITE_DISTILLATION_4V4 collection IN FLIGHT**
+> under `CLOSEST_DEFENDS(k=2)`. Spec frozen:
+> [`SUITE_DISTILLATION_4V4_SPEC.json`](../artifacts/strategic_demand/sppo/SUITE_DISTILLATION_4V4_SPEC.json).
+> Collector: `experiments/collect_suite_distillation_states_4v4.py` (Pole A =
+> sealed DEFEND_ATTACK_SPLIT composite; Pole B = entity-repair `pi_B`; entities +
+> roles stored). Seeds `22520001..096` / `22520101..196`. Smoke plumbing PASS.
+> When the manifest freezes, distill Fully Shared+\(z\) then Share-Encoder on that
+> same set.
+>
+> ---
+>
 > Prior — 2026-09-24 — **2v2 Fully Shared+\(z\) distilled student FROZEN.**
 > Holdout agree \(0.965/0.988\), unique actor params \(3{,}456{,}599\), sha256
 > `4aebecd8…`. Record:

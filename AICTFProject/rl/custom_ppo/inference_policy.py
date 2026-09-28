@@ -614,11 +614,40 @@ class CustomPPOInferencePolicy:
                 self._last_strategy_resampled = bool(needs_strategy.any().item())
                 self._last_strategy_logits = z_logits.detach().cpu()
                 self._last_context_gs = context_gs.detach().cpu()
+                entity_kwargs: dict[str, torch.Tensor] = {}
+                if getattr(self.model, "entity_encoder", None) is not None:
+                    entity_keys = ("teammates", "teammates_valid", "enemies", "enemies_valid")
+                    missing = [k for k in entity_keys if k not in obs_t]
+                    if missing:
+                        raise ValueError(
+                            f"CustomPPOInferencePolicy.predict(): the loaded model has "
+                            f"entity_repair_enabled=True and requires entity tensors on every "
+                            f"call, but obs is missing {missing}. The caller must augment obs "
+                            f"via gpu_env._core._entity_obs.augment_obs_with_entities(obs, core) "
+                            f"before calling predict()."
+                        )
+                    entity_kwargs = {k: obs_t[k] for k in entity_keys}
+                if bool(getattr(self.model, "role_conditioning_enabled", False)):
+                    if "roles" not in obs_t:
+                        raise ValueError(
+                            "CustomPPOInferencePolicy.predict(): the loaded model has "
+                            "role_conditioning_enabled=True and requires obs['roles'] (B, N)."
+                        )
+                    entity_kwargs["roles"] = obs_t["roles"]
+                if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+                    if "assignment" not in obs_t:
+                        raise ValueError(
+                            "CustomPPOInferencePolicy.predict(): the loaded model has "
+                            "assignment_conditioning_enabled=True and requires "
+                            "obs['assignment'] (B, N, 4)."
+                        )
+                    entity_kwargs["assignment"] = obs_t["assignment"]
                 action_tensor, _, _, _ = self.model.act(
                     obs_t,
                     context_gs,
                     deterministic=deterministic,
                     z_idx=z_idx,
+                    **entity_kwargs,
                 )
                 self._strategy_age += 1
             else:

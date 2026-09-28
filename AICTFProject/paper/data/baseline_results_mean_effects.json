@@ -1,0 +1,205 @@
+{
+  "record_id": "BASELINE_RESULTS_MEAN_EFFECTS",
+  "utc": "2026-09-28T11:48:18Z",
+  "reporting_rule": "headline = mean delta_A / delta_B at every scale (PI 2026-09-27); 95% intervals for figures; frozen gate verdicts carried as provenance only",
+  "delta_convention": "delta_A = V(pi_A,A) - V(pi_B,A); delta_B = V(pi_B,B) - V(pi_A,B)",
+  "bootstrap": "eval_hog_psp_v3._mean_ci -- paired percentile over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
+  "rows": [
+    {
+      "scale": "2v2",
+      "row": "Specialists (repaired pi_A vs repaired pi_B, no roles)",
+      "status": "FILLED",
+      "n_seeds": 128,
+      "seed_block": [
+        23700001,
+        23700128
+      ],
+      "win_rates": {
+        "pi_A@A": 0.5234375,
+        "pi_A@B": 0.6484375,
+        "pi_B@A": 0.46875,
+        "pi_B@B": 0.59375
+      },
+      "delta_A": {
+        "mean": 0.0546875,
+        "lcb95": -0.0546875,
+        "ucb95": 0.1640625
+      },
+      "delta_B": {
+        "mean": -0.0546875,
+        "lcb95": -0.171875,
+        "ucb95": 0.0625
+      },
+      "provenance": {
+        "record": "STANDARDIZED_2V2_DIAG_PRESPLIT_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+        "record_status": "SEALED",
+        "arm": "EXPLORATORY",
+        "seed_class": "exploratory",
+        "checkpoints_sha256": {
+          "pi_A": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f",
+          "pi_B": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"
+        },
+        "split_frozen_attack_sha256": null,
+        "pole_config_hash": {
+          "A": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+          "B": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+        },
+        "frozen_gate_verdict_provenance_only": "FAIL",
+        "rows_csv": "standardized_2v2_diag_presplit_specialist_crossover_eval_rows.csv",
+        "rows_csv_sha256": "fe7a515319e16d4011a17a9734674827c954cf9442a7debb37de89b34e298d23"
+      }
+    },
+    {
+      "scale": "2v2",
+      "row": "Separated (frozen pi_A ATTACK + pi_D DEFEND, CLOSEST_DEFENDS k=1)",
+      "status": "FILLED",
+      "n_seeds": 128,
+      "seed_block": [
+        23600001,
+        23600128
+      ],
+      "win_rates": {
+        "pi_A@A": 0.640625,
+        "pi_A@B": 0.046875,
+        "pi_B@A": 0.5234375,
+        "pi_B@B": 0.5859375
+      },
+      "delta_A": {
+        "mean": 0.1171875,
+        "lcb95": -0.015625,
+        "ucb95": 0.25
+      },
+      "delta_B": {
+        "mean": 0.5390625,
+        "lcb95": 0.4453125,
+        "ucb95": 0.6328125
+      },
+      "provenance": {
+        "record": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+        "record_status": "SEALED",
+        "arm": "CONFIRMATORY",
+        "seed_class": "sealed_confirmatory",
+        "checkpoints_sha256": {
+          "pi_A": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97",
+          "pi_B": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"
+        },
+        "split_frozen_attack_sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f",
+        "pole_config_hash": {
+          "A": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+          "B": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+        },
+        "frozen_gate_verdict_provenance_only": "FAIL",
+        "rows_csv": "standardized_2v2_split_k1_confirmatory_specialist_crossover_eval_rows.csv",
+        "rows_csv_sha256": "b8adbb059c32a0f6c9786cbc297c04eeff59860181e08ff2cc4f426ff39d2ee0"
+      },
+      "note": "fresh-seed confirmatory values are the 2v2 numbers; the earlier n=64 exploratory draw (+0.281/+0.500) is not reported as the 2v2 value"
+    },
+    {
+      "scale": "4v4",
+      "row": "Specialists (repaired pi_A3 vs repaired pi_B3-corrected, no roles)",
+      "status": "FILLED",
+      "n_seeds": 128,
+      "seed_block": [
+        18300001,
+        18300128
+      ],
+      "win_rates": {
+        "pi_A@A": 0.8125,
+        "pi_A@B": 0.7421875,
+        "pi_B@A": 0.5390625,
+        "pi_B@B": 0.5859375
+      },
+      "delta_A": {
+        "mean": 0.2734375,
+        "lcb95": 0.171875,
+        "ucb95": 0.375
+      },
+      "delta_B": {
+        "mean": -0.15625,
+        "lcb95": -0.265625,
+        "ucb95": -0.046875
+      },
+      "provenance": {
+        "record": "4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json",
+        "record_status": "READING_FROZEN_POST_AUDIT",
+        "rests_on": [
+          "CONFIRMATORY_B3_ENTITY_REPAIR_CORRECTED_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+          "TIE_REVERSAL_AUDIT_CONFIRMATORY_B3_ENTITY_REPAIR_CORRECTED.json (rows clean, bootstrap independently reproduced)",
+          "run_manifest.json for pi_B_specialist_4v4_b3_entity_repair_corrected (certified_config_hash == live_config_hash, live_pole_attestation_passed=True)"
+        ],
+        "frozen_gate_verdict_provenance_only": "FAIL",
+        "rows_csv": "confirmatory_b3_entity_repair_corrected_specialist_crossover_eval_rows.csv",
+        "rows_csv_sha256": "3f9b862448c27aff6cf804c9bbb686d07f2e5173d88be91593fd893febf46025"
+      },
+      "note": "no RESULT json (the eval wrote INTEGRITY_REQUIRED on the delta_B reversal); the reading rests on the row-level TIE_REVERSAL audit and pi_B3's live pole attestation against certified B3-3"
+    },
+    {
+      "scale": "4v4",
+      "row": "Separated (frozen pi_A ATTACK + pi_D DEFEND, CLOSEST_DEFENDS k=2)",
+      "status": "FILLED",
+      "n_seeds": 128,
+      "seed_block": [
+        21800001,
+        21800128
+      ],
+      "win_rates": {
+        "pi_A@A": 0.6484375,
+        "pi_A@B": 0.1015625,
+        "pi_B@A": 0.4921875,
+        "pi_B@B": 0.5078125
+      },
+      "delta_A": {
+        "mean": 0.15625,
+        "lcb95": 0.0390625,
+        "ucb95": 0.2734375
+      },
+      "delta_B": {
+        "mean": 0.40625,
+        "lcb95": 0.296875,
+        "ucb95": 0.5078125
+      },
+      "provenance": {
+        "record": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+        "record_status": "FROZEN_RESULT",
+        "arm": "CONFIRMATORY",
+        "seed_class": "sealed_confirmatory",
+        "checkpoints_sha256": {
+          "pi_A": "b538cdf4ba5d2c5d2834c2307285b7bef6f8ab7232e5471798bd52e42d734f2c",
+          "pi_B": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+        },
+        "split_frozen_attack_sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+        "pole_config_hash": {
+          "A": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+          "B": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e"
+        },
+        "frozen_gate_verdict_provenance_only": "PASS",
+        "rows_csv": "defend_attack_split_policy_a_v1_confirmatory_v1_specialist_crossover_eval_rows.csv",
+        "rows_csv_sha256": "b14599fd5d19b7aa8891881d489f17525f16aa14c575328cf4e04937ffad995d"
+      }
+    },
+    {
+      "scale": "6v6",
+      "row": "Specialists (repaired c2 pair, no roles)",
+      "status": "PENDING",
+      "reason": "suite checkpoints are produced by SCHOOL_PC_6V6_LOCKED_PIPELINE.json and are not on this machine (c2 dirs hold only stale run locks); the historical 6v6 specialists are explicitly not suite teachers"
+    },
+    {
+      "scale": "6v6",
+      "row": "Separated (CLOSEST_DEFENDS k=1)",
+      "status": "PENDING",
+      "reason": "the 6v6 split pi_D (split_defend_k1_v1) is produced on the school PC; not on this machine"
+    },
+    {
+      "scale": "all",
+      "row": "Generalist",
+      "status": "PENDING",
+      "reason": "no standardized generalist checkpoint exists at any scale; needs a design decision"
+    },
+    {
+      "scale": "all",
+      "row": "Distilled / sharing arms",
+      "status": "PENDING",
+      "reason": "need the standardized CLOSEST_DEFENDS datasets per scale (4v4 must be recollected on certified B3-3; the old 4v4 student rows are invalidated)"
+    }
+  ]
+}

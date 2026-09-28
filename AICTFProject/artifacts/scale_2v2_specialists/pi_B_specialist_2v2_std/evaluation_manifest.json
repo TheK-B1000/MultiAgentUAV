@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-09-26T22:03:47.299166Z",
+  "evaluation_run_id": "pi_B_specialist_2v2_std",
+  "source_training_run_id": "pi_B_specialist_2v2_std",
+  "source_checkpoint_fingerprint": "dc3e9ba420e0c25a5e179c19a1d521391a727e9cf825d1cadbf76946513b1cb1",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "pi_B_specialist_2v2_std",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

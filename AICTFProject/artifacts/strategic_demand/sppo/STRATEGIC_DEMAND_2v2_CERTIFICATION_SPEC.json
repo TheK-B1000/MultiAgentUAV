@@ -1,0 +1,106 @@
+{
+  "record_id": "STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC",
+  "status": "FROZEN_BEFORE_ANY_SEED",
+  "utc": "2026-09-26T14:10:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL (pole certification). Not PAPER-FAITHFUL.",
+  "authorized_by": "PI, 2026-09-26: fresh 2v2 pole certification through the same certification logic as the other scales, no bypass; its output must be the handoff artifact every downstream 2v2 stage consumes. Do NOT count the original freeze-record poles, and do NOT auto-reuse the prior 2v2 strategic-demand certification.",
+  "parent": [
+    "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#METHODOLOGY_IDENTITY_2026_09_26",
+    "CROSS_SCALE_CANONICAL_RECIPE_V1.json",
+    "SAME_METHODOLOGY_2V2_PORT_PLAN.json#POLE_CERTIFICATION_DECISION_2026_09_26"
+  ],
+  "implements": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json#CERTIFICATION_PROTOCOL",
+  "THE_QUESTION": "At 2v2, do the frozen poles demand OPPOSITE strategic responses from the scripted probes -- GUARD wins on Pole A and BREACH wins on Pole B?",
+  "SAME_LOGIC_AS_OTHER_SCALES": {
+    "runner": "experiments/certify_strategic_demand_scaled.py --team-size 2 (the one certification script; verified to contain no team-size branch)",
+    "probes": "scripted GUARD and BREACH from experiments/strategic_demand_searcher.py; GUARD defenders = ceil(N/2) = 1 at N=2 (equals the suite's k=1)",
+    "pairing": "GUARD and BREACH share each seed",
+    "gate": "CERTIFIED iff LCB95(delta_A) > 0 AND LCB95(delta_B) > 0; delta_A = WR(GUARD,A) - WR(BREACH,A), delta_B = WR(BREACH,B) - WR(GUARD,B)",
+    "bootstrap": {
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "unit": "seed"
+    },
+    "tie_or_reversal": "writes a TIE_REVERSAL_AUDIT record before interpretation (built into the runner)",
+    "device": "cpu"
+  },
+  "POLES_UNDER_TEST": {
+    "source": "the common size-normalized machinery, experiments/opponent_spec.py pole_A_genome(2) / pole_B_genome(2); no candidate genome override",
+    "A": {
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      }
+    },
+    "B": {
+      "genome_id": "SDS_PARENT_OP7",
+      "base": "OP7",
+      "overlay": {}
+    },
+    "note_on_4v4": "4v4's certified Pole B is the B3-3 redesign (lock_defender=10, enable_2v1), adopted because canonical OP7 FAILED 4v4 certification. 6v6's certified Pole B is canonical OP7. 2v2 certifies canonical OP7 through the common machinery; if it fails, a pole redesign at 2v2 is a separate, explicitly authorized step -- never a silent substitution."
+  },
+  "SEEDS": {
+    "block": "23000001..23000192",
+    "n": 192,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STRATEGIC_DEMAND_2V2_CERTIFICATION",
+    "why_192": "matches the 4v4 production certification (POLE_B3_3_N192) and the 3v3 N192 certification",
+    "allocated_via": "experiments/seed_registry.py before any seed is spent"
+  },
+  "HANDOFF_ARTIFACT": {
+    "output": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json (last entry of the trainer's governing precedence for 2v2, so it becomes the governing record)",
+    "pins_per_pole": [
+      "genome_id",
+      "derived_from",
+      "base_opponent",
+      "overlay",
+      "opening_hold_steps",
+      "pole_config_hash"
+    ],
+    "pins_top_level": [
+      "team_size",
+      "VERDICT",
+      "POLE_HANDOFF.pole_config_hash",
+      "seeds",
+      "rows"
+    ],
+    "own_identity": "the record's sha256 cannot live inside it; every consuming stage records it as pole_identity(...).certification_sha256",
+    "consumption": "downstream stages obtain poles only via pole_attestation.resolve_pole_genome -> certified_pole_genome, which refuses unless VERDICT is CERTIFIED and the rebuilt overlay equals the certified one",
+    "round_trip_on_write": "if CERTIFIED, the runner resolves both poles the way downstream stages will and requires the consumer pole_config_hash to equal the pinned one; it exits nonzero otherwise",
+    "verified_before_freeze": "tests/test_certification_pole_handoff.py drives the real writer at 2v2 in a temp directory with a deterministic episode runner (statistics genuinely implied by the rows): a genuine certification seals and hands off both poles; a genuine no-demand run seals NOT_CERTIFIED and is not consumable; faked statistics, a tampered row pole hash, a missing seed, a tampered handoff hash, a tampered pole overlay and a flipped verdict each land in AUDIT_FAILED; the pre-flight refuses before any episode on a missing or unfrozen spec, a missing experiment id, an unreserved block, or an existing output. Mutation check: removing the invariants lets the tampered handoff, tampered overlay and flipped verdict seal cleanly."
+  },
+  "COST": "about 26.5 s per seed on CPU (4 episodes), measured on the smoke; 192 seeds is about 85 minutes",
+  "AUTHORIZES_IF_CERTIFIED": "the standardized 2v2 build per CROSS_SCALE_CANONICAL_RECIPE_V1.json: 1M anchor-off specialists -> entity repair -> split pi_D (k=1, N' teacher unchanged) -> Separated crossover -> standardized dataset -> distilled suite arms. Each of those still needs its own frozen spec and registered seed block.",
+  "IF_NOT_CERTIFIED": "no canonical 2v2 experiment proceeds (the resolver refuses a NOT_CERTIFIED record). Next step is a PI decision, not an automatic redesign.",
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "reusing the prior 2v2 strategic-demand certification or treating the freeze-record poles as certified",
+    "any Pole B candidate override at 2v2",
+    "any training or evaluation seed spend beyond this block",
+    "re-running into the same output (the runner refuses; certification is one-shot)"
+  ],
+  "AMENDMENT_BEFORE_ANY_SEED": {
+    "utc": "2026-09-26T15:30:00Z",
+    "by": "PI, 2026-09-26: seal the certification path before launching (Rule 7); this run is the root of trust for the standardized 2v2 pipeline. No seed of 23000001..23000192 had been spent when this section was added.",
+    "change": "the certification record is written through experiments/run_state.seal, not with a hand-written status"
+  },
+  "SEALING_required": {
+    "status_vs_verdict": "'status' (SEALED / AUDIT_FAILED) is owned by run_state.seal and says whether the result re-derives from the evidence on disk; 'VERDICT' (CERTIFIED / NOT_CERTIFIED) is the scientific result. Downstream consumption requires BOTH VERDICT=CERTIFIED and a SEALED record whose audit passed (pole_attestation.assert_certification_trustworthy).",
+    "evidence": "one CSV row per (seed, pole, style) episode, each carrying the genome_id and pole_config_hash of the pole it was run against",
+    "audit_verifies": {
+      "expected_seed_block_and_count": "expected_seeds + cell_seed_block_exact + no_duplicate_seeds + row_count (4 x 192 = 768)",
+      "registered_block_identity": "seed_class sealed_confirmatory + experiment_id STRATEGIC_DEMAND_2V2_CERTIFICATION via seed_registry.check_block",
+      "all_episodes_complete": "row_count + pairing_valid",
+      "pole_identity_per_episode": "derived::pole_config_hash and derived::genome_id against the pinned certified pole",
+      "governing_frozen_spec": "spec_frozen (this file)",
+      "certification_statistics": "claim::delta_A, claim::delta_B re-derived from the rows",
+      "verdict": "invariant::verdict_matches_evidence -- recomputed from the rows with the audit's bootstrap and compared with the VERDICT in the record being sealed",
+      "handoff": "invariant::handoff_matches_consumer_rebuild -- each pole rebuilt with the SAME function downstream consumption uses (pole_attestation.rebuild_certified_genome); its hash must equal the pinned row identity, the pole block and POLE_HANDOFF"
+    },
+    "fail_closed": "missing/malformed evidence, a raising invariant (including SystemExit-derived guards), or any failed gating check -> AUDIT_FAILED, recorded, and not consumable. Pre-flight (one-shot, frozen spec, experiment id, Rule-9 block) refuses BEFORE the first episode.",
+    "lifecycle": "RunState RUNNING -> COMPLETE -> AUDITED -> SEALED (or AUDIT_FAILED), begun before the first episode",
+    "sealer_extension": "run_state.AuditPlan.invariants -- a narrow, additive hook (empty by default; every existing sealer unchanged) for whole-row-set gating checks that no per-row derived rule can express"
+  },
+  "LAUNCH_COMMAND": ".venv/Scripts/python.exe experiments/certify_strategic_demand_scaled.py --team-size 2 --n-seeds 192 --seed-base 23000001 --device cpu --spec STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json --experiment-id STRATEGIC_DEMAND_2V2_CERTIFICATION --seed-class sealed_confirmatory"
+}

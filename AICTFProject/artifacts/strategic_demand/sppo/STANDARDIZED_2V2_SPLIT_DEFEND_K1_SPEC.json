@@ -1,0 +1,79 @@
+{
+  "record_id": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING_STEP",
+  "utc": "2026-09-27T10:30:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL (split ATTACK/DEFEND defender training). Not PAPER-FAITHFUL.",
+  "authorized_by": "PI, 2026-09-26/27: after the repair pair passes the full verifier, freeze the ATTACK/DEFEND split spec -- frozen repaired pi_A on ATTACK, pi_D warm-started from the repaired pi_A, 200k steps, the same N' teacher schedule, CLOSEST_DEFENDS(k=1) -- keeping 2v2 on the 4v4/6v6 role-allocated architecture.",
+  "parent": [
+    "CROSS_SCALE_CANONICAL_RECIPE_V1.json#COMMON_RECIPE_locked.split_defender_stage",
+    "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC_VERIFICATION.json (90/90 PASS; commit f5f9cb72)",
+    "4v4 reference run: scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1",
+    "SCHOOL_PC_6V6_LOCKED_PIPELINE.json steps[4] (same command at 6v6, k=1)"
+  ],
+
+  "STAGE": "canonical lineage step 3 of: 1M base specialist -> entity-repair continuation -> split pi_D (200k, N' teacher) -> Separated crossover -> CD dataset -> distilled suite arms. This spec authorizes step 3 ONLY.",
+
+  "RECIPE_identical_to_4v4_split": {
+    "trainer": "experiments/train_specialist_scale.py (one module, --team-size 2, --split-attack-defend-enabled is a flag)",
+    "policy": "A (pi_D is trained from pi_A, as at 4v4 and 6v6)",
+    "total_timesteps": 200000,
+    "frozen_attack_policy": "the repaired pi_A final, pinned by sha256 (--split-attack-defend-frozen-ckpt + --split-attack-defend-frozen-ckpt-sha256); ATTACK slots act with it, no gradient",
+    "defender_warm_start": "--load-path = the SAME repaired pi_A final (weight init only, fresh 200k counter)",
+    "entity_repair_enabled": true,
+    "entity_hidden_dim": 32,
+    "role_conditioning": {"enabled": true, "role_hold_ticks": 8, "fixed_for_episode": true, "k_defend": 1},
+    "n_prime_teacher": {"lambda_peak": 0.1, "lambda_end": 0.0, "decay_start_step": 50000, "decay_end_step": 150000, "cadence": 4,
+                        "loss": "CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND-role, alive, decision-eligible agent-ticks",
+                        "do_not_retune": true},
+    "sappo_anchor": "OFF",
+    "differences_from_4v4": "N=2 and k=1 (canonical recipe ALLOWED_TO_DIFFER: 2v2 k=1, 4v4 k=2, 6v6 k=1); seeds and paths. The 4v4 run left --role-k-defend unset (k = N/2 = 2); here k=1 is passed explicitly, as at 6v6 -- at N=2 the default N/2 is also 1, so the resolved value is the same either way.",
+    "teacher_flags_explicit": "4v4 passed only --defend-teacher-lambda 0.1 and took lambda_end/decay/cadence from defaults; 6v6 and this spec pass all five explicitly. The resolved values are identical to the 4v4 run's (0.1, 0.0, 50000, 150000, 4)."
+  },
+
+  "POLES": {
+    "source": "the sealed 2v2 certification, through pole_attestation.resolve_pole_genome -> certified_pole_genome",
+    "A": {"genome_id": "SDS2_A_payoff_INIT_3", "pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"}
+  },
+
+  "SOURCE_CHECKPOINTS": {
+    "A": {
+      "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+      "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f",
+      "global_step": 1001472,
+      "role": "BOTH the frozen ATTACK policy and the pi_D warm start (same file, same hash)"
+    }
+  },
+
+  "SMOKE_DONE_2026_09_27": "seed 99900204, CPU, 5,000 steps, the exact recipe below with the smoke seed: exit 0; role_conditioning k_defend=1, H_r=8, fixed_for_episode; N' teacher attached with the locked schedule and ACTIVE (4.1 teacher updates over 18 actor minibatches, 0 empty-gate skips, loss 11.37); defend_teacher_frac_defend_role = 0.5 (exactly 1 of 2 agents on DEFEND); frozen pi_A on ATTACK; live pole attestation PASS. Output: artifacts/scale_2v2_specialists/smoke_pi_A_specialist_2v2_std_split_defend_k1_launch_smoke/ (non-scientific).",
+
+  "SEEDS": {
+    "registry_experiment_id": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_TRAINING",
+    "block": "23400001..23400001",
+    "seed_class": "exploratory",
+    "A": 23400001,
+    "allocated_via": "seed_registry.py next_free + allocate, before this freeze",
+    "class_rationale": "same class as the 4v4 split (DEFEND_ATTACK_SPLIT_POLICY_A_V1_TRAINING) and 6v6 split (SCALE_6V6_SPLIT_DEFEND_K1_V1_TRAINING)"
+  },
+
+  "LAUNCH": {
+    "A": ".venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy A --seed 23400001 --experiment-id STANDARDIZED_2V2_SPLIT_DEFEND_K1_TRAINING --device cuda --total-timesteps 200000 --entity-repair-enabled --entity-hidden-dim 32 --role-conditioning-enabled --role-hold-ticks 8 --role-fixed-for-episode --role-k-defend 1 --split-attack-defend-enabled --split-attack-defend-frozen-ckpt artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --split-attack-defend-frozen-ckpt-sha256 858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --defend-teacher-lambda 0.1 --defend-teacher-lambda-end 0.0 --defend-teacher-decay-start-step 50000 --defend-teacher-decay-end-step 150000 --defend-teacher-cadence 4 --run-label-suffix _std_split_defend_k1",
+    "expected_final": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+    "launcher": "artifacts/scale_2v2_specialists/run_std_entity_repair_detached.ps1 -SpecRel <this spec> -Stem std_split -Policies A -- check-only by default, -Launch to train; every decision via experiments/frozen_launch_guard.py; runs LAUNCH verbatim",
+    "crash_recovery": "periodic checkpoints every 100,000 steps; resume with --resume <ckpt.zip> (same --experiment-id)"
+  },
+
+  "DONE_WHEN": [
+    "the final checkpoint exists at ~200k steps; run_manifest records live_pole_attestation_passed=True with the certified Pole A hash, entity_repair_enabled, warm_start_from = the pinned repaired pi_A final, and seed_registry = this block",
+    "the saved checkpoint's last_stats show the N' teacher ran (n_teacher_updates > 0, no empty-gate skips) and reached lambda 0.0 by the end (decay end 150k < 200k)",
+    "the resolved config differs from the 4v4 split run only in N, k, seeds, paths and the frozen-checkpoint identity",
+    "the registry block is set SPENT after the run is verified"
+  ],
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "the Separated crossover, dataset collection, distillation or any evaluation (each needs its own frozen spec and registered seeds)",
+    "retuning the N' teacher schedule, cadence or formula",
+    "k other than 1, or a k mixture",
+    "a teacher-free split as the system (the 6v6 teacher-free runs were diagnostics)",
+    "training pi_B in the split stage"
+  ]
+}

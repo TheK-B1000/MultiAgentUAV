@@ -1,0 +1,122 @@
+{
+  "record_id": "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING_STEP",
+  "utc": "2026-09-26T18:00:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL (specialist entity-repair continuation). Not PAPER-FAITHFUL.",
+  "authorized_by": "PI, 2026-09-26: after the standardized 2v2 foundation, the next stage is the entity-repair continuation for pi_A and pi_B with a fresh spec and fresh registered seeds, using the same repair methodology as the canonical 4v4/6v6 pipeline.",
+  "parent": [
+    "CROSS_SCALE_CANONICAL_RECIPE_V1.json#COMMON_RECIPE_locked",
+    "STANDARDIZED_2V2_FOUNDATION_SPEC.json (step 1 of the same lineage)",
+    "4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json (the canonical reference launch)",
+    "SCHOOL_PC_6V6_LOCKED_PIPELINE.json (same continuation at 6v6)",
+    "STANDARDIZED_2V2_FOUNDATION_SPEC_VERIFICATION.json (82/82 PASS; commit af6dab79)"
+  ],
+  "FREEZE_PRECONDITIONS": [
+    "both standardized foundation finals exist, pass the foundation verification checklist and are committed; their sha256 are written into SOURCE_CHECKPOINTS below",
+    "train_specialist_scale.py enforces Rule 9 at training time (--experiment-id, registered RESERVED block, no prior run of the seed) -- landed only after the pi_B foundation process had loaded its code",
+    "the block below is reserved through experiments/seed_registry.py allocate, and SEEDS is filled from that reservation",
+    "a 2v2 entity-repair warm-start smoke (smoke seed family, --load-path + --entity-repair-enabled) completed, proving the path builds, warm-starts, trains, saves and reloads at N=2"
+  ],
+  "SMOKE_DONE_2026_09_26": "seed 99900203, CPU, 5,000 steps, --load-path final_smoke_pi_A_specialist_2v2.zip: exit 0; run_manifest entity_repair_enabled=True, live_pole_attestation_passed=True, live hash da87ea17... (certified A); final checkpoint reloads with 5 entity_encoder.* tensors in model_state_dict. Output: artifacts/scale_2v2_specialists/smoke_pi_A_specialist_2v2_entity_repair_launch_smoke/ (non-scientific).",
+  "STAGE": "canonical lineage step 2 of: 1M base specialist (anchor OFF) -> entity-repair continuation -> split pi_D (k=1, N' teacher) -> Separated crossover -> CD dataset -> distilled suite arms. This spec authorizes step 2 ONLY.",
+  "RECIPE_identical_to_4v4_entity_repair": {
+    "reference_runs": [
+      "scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair",
+      "scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair"
+    ],
+    "trainer": "experiments/train_specialist_scale.py (one module, --team-size 2)",
+    "warm_start": "--load-path <the standardized 2v2 foundation final> (weight initialization only: warm_start_reset_progress=True, global_step from 0, fresh optimizer)",
+    "total_timesteps": 1000000,
+    "entity_repair_enabled": true,
+    "entity_hidden_dim": 32,
+    "sappo_anchor": "OFF (empty sappo_anchor_dataset)",
+    "everything_else": "unchanged from the foundation run of the same policy (same R.POLICIES defaults, opponent pool A=[OP6] / B=[OP7], certified pole handoff); only N differs from the 4v4 reference",
+    "resolved_config_check": "the launch's own run_config is diffed against the 4v4 entity-repair run of the same policy; permitted differences: scale, run identity (seed, run_tag, paths, load_path), progress bar, per-team-size effective_lr, and PPOConfig fields added after the 4v4 run at inert defaults"
+  },
+  "POLES": {
+    "source": "the sealed 2v2 certification, through pole_attestation.resolve_pole_genome -> certified_pole_genome",
+    "A": {
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "pole_config_hash": "da87ea17be2fb2e8..."
+    },
+    "B": {
+      "genome_id": "SDS_PARENT_OP7",
+      "pole_config_hash": "a6bd288a6bc176ea..."
+    }
+  },
+  "SOURCE_CHECKPOINTS": {
+    "A": {
+      "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip",
+      "sha256": "5b01de6bd391ffb97269a0184c8b95e737450f3b740ced4c9bdd3b8d69357318"
+    },
+    "B": {
+      "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip",
+      "sha256": "dc3e9ba420e0c25a5e179c19a1d521391a727e9cf825d1cadbf76946513b1cb1"
+    },
+    "global_step": 1001472,
+    "pre_launch_check": "the launcher re-hashes each --load-path file and refuses on mismatch"
+  },
+  "SEEDS": {
+    "registry_experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2",
+    "block": "23300001..23300002",
+    "seed_class": "exploratory",
+    "class_rationale": "same class as the foundation pair and the 6v6 entity-repair pair (SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V2_TRAINING)",
+    "A": 23300001,
+    "B": 23300002
+  },
+  "LAUNCH": {
+    "order": "sequential on one GPU: A then B",
+    "A": ".venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy A --seed 23300001 --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip --run-label-suffix _std_entity_repair",
+    "B": ".venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy B --seed 23300002 --experiment-id STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip --run-label-suffix _std_entity_repair",
+    "expected_finals": {
+      "A": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+      "B": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip"
+    },
+    "crash_recovery": "periodic checkpoints every 100,000 steps; resume with --resume <ckpt.zip> (same --experiment-id)",
+    "launcher": "artifacts/scale_2v2_specialists/run_std_entity_repair_detached.ps1 -- check-only by default, -Launch to train; every decision via experiments/frozen_launch_guard.py; runs LAUNCH verbatim",
+    "preflight": "powershell -File artifacts/scale_2v2_specialists/run_std_entity_repair_detached.ps1  (no -Launch) must log CHECK-ONLY PASS first"
+  },
+  "DONE_WHEN": [
+    "both final checkpoints exist; each run_manifest records live_pole_attestation_passed=True with the certified hash, entity_repair_enabled=True, warm_start_from = the pinned foundation final, and seed_registry = this block",
+    "each checkpoint carries entity_* parameters (the repair is present in the saved object, not only in the config)",
+    "the registry block is set SPENT after both runs are verified"
+  ],
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "the split pi_D, any crossover, dataset collection or distillation (each needs its own frozen spec and registered seeds)",
+    "any change to the entity-repair architecture or hidden size relative to 4v4",
+    "turning the SA-PPO anchor on",
+    "warm-starting from anything other than the pinned standardized foundation finals"
+  ],
+  "frozen_utc": "2026-09-26T22:20:00Z",
+  "FREEZE_PRECONDITIONS_MET": {
+    "foundation_finals": "verified 82/82 and committed in af6dab79; STANDARDIZED_2V2_FOUNDATION_PAIR_TRAINING SPENT",
+    "trainer_rule9": "6fe975e5 (landed after pi_B's startup gate)",
+    "seeds": "V2 block reserved via seed_registry.py allocate before relaunch (see amendment)",
+    "smoke": "SMOKE_DONE_2026_09_26 below"
+  },
+  "AMENDMENT_AFTER_ABORTED_LAUNCH_2026_09_26": {
+    "utc": "2026-09-26T22:15:00Z",
+    "what_happened": "While testing the detached launcher's uncommitted-spec guard, the real launcher was run. Its guard used `git diff --quiet HEAD -- <spec>`, which reports no change for an UNTRACKED file, so it passed and pi_A (seed 23200001) started training at 22:06:12Z from this spec before the spec was committed. Killed at ~12,016 of 1,000,000 steps; no checkpoint was written.",
+    "rule_broken": "no seed is spent before the governing spec is committed",
+    "remediation": [
+      "aborted run preserved as artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair_ABORTED_PREMATURE_LAUNCH_seed23200001 with ABORTED_PREMATURE_LAUNCH.json (INVALID_FOR_SCIENTIFIC_USE; 12,016 steps, manually killed, no checkpoint); its run_manifest stays on disk, so prior_training_uses keeps refusing 23200001",
+      "registry block STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING 23200001..23200002 RETIRED whole: retirement_reason=partial_block_contamination_from_premature_entity_repair_launch, used_seed=23200001, unused_but_retired_seed=23200002",
+      "fresh block STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2 23300001..23300002 chosen by seed_registry next_free; SEEDS and LAUNCH below name it",
+      "launch decisions moved into experiments/frozen_launch_guard.py (tested in a temporary git repo: untracked / modified / staged / unfrozen spec, wrong or unregistered / SPENT / RETIRED / outside-block seed, wrong experiment id, already-trained seed, missing or mismatched warm start each REFUSE; committed clean frozen spec PASSES; reverting to the old `git diff HEAD` check turns the untracked case red)",
+      "launcher is check-only by default; training needs -Launch; preflight covers both policies before anything starts"
+    ],
+    "scientific_content_unchanged": "recipe, warm-start checkpoints and their sha256, architecture, budget and poles are exactly as frozen; only the seed block changed",
+    "superseded_seeds": {
+      "block": "23200001..23200002",
+      "experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING"
+    }
+  },
+  "AMENDMENT_INFRA_RESTART_2026_09_26": {
+    "utc": "2026-09-27T03:45:00Z",
+    "what_happened": "pi_A (seed 23300001, launched 22:13:38Z from 990f5d65) died at ~93k of 1,000,000 steps when Windows Update restarted the host (System event 1074, MoUsoCoreWorker.exe, 22:29:23Z). No checkpoint had been written (periodic interval 100,000), so --resume was impossible. pi_B never started.",
+    "decision": "PI, 2026-09-26: 'rerun' -- restart seed 23300001 from step 0 as a crash restart of the same run; the V2 block stays RESERVED (not retired)",
+    "evidence": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair_ABORTED_INFRA_REBOOT_seed23300001/ (manifest, config, metrics, episode rows, ABORTED_INFRA_RESTART.json) + its logs; INVALID_FOR_SCIENTIFIC_USE",
+    "mechanism": "seed_registry.infra_restart_exempt: prior_training_uses skips a dead attempt only if it carries ABORTED_INFRA_RESTART.json naming the same seed with rerun_authorized and authorized_by, and no checkpoint *.zip exists under it (checked on disk). The premature-launch attempt (23200001) has no such marker and stays refused.",
+    "unchanged": "recipe, seeds (23300001, 23300002), LAUNCH commands, pinned warm-start checkpoints and hashes, poles"
+  }
+}

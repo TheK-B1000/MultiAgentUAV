@@ -1,0 +1,59 @@
+{
+  "label": "STRATEGIC_DEMAND_2v2_CERTIFICATION",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-26T13:27:31Z",
+      "pid": 40936,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "1e0486be81dfa4b99271871808d1123a74a0cfc7",
+      "seed_base": 23000001,
+      "n_seeds": 192,
+      "team_size": 2,
+      "variant": "v1",
+      "seed_class": "sealed_confirmatory",
+      "spec": "STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json",
+      "pole_config_hash": {
+        "A": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+        "B": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+      }
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-26T14:53:04Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-26T14:53:04Z",
+      "audit": "STRATEGIC_DEMAND_2v2_CERTIFICATION_AUDIT.json",
+      "n_checks": 16
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-26T14:53:04Z",
+      "result": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json"
+    }
+  ],
+  "updated_utc": "2026-09-26T14:53:04Z",
+  "pid": 40936,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "1e0486be81dfa4b99271871808d1123a74a0cfc7",
+  "seed_base": 23000001,
+  "n_seeds": 192,
+  "team_size": 2,
+  "variant": "v1",
+  "seed_class": "sealed_confirmatory",
+  "spec": "STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json",
+  "pole_config_hash": {
+    "A": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+    "B": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+  },
+  "reason": "all episodes written",
+  "audit": "STRATEGIC_DEMAND_2v2_CERTIFICATION_AUDIT.json",
+  "n_checks": 16,
+  "result": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json"
+}

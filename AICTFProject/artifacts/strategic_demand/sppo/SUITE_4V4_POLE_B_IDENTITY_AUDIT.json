@@ -1,0 +1,212 @@
+{
+  "record": "4v4 Pole B identity audit",
+  "utc": "2026-09-26T12:51:04Z",
+  "scope": "READ-ONLY",
+  "question": "Which Pole B did each 4v4 run actually instantiate?",
+  "certified_pole_B": {
+    "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+    "overlay": {
+      "enable_2v1": true,
+      "lock_defender": 10,
+      "min_alive_for_defender": 4
+    },
+    "pole_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+    "certification": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json"
+  },
+  "plain_op7_pole_B": {
+    "genome_id": "SDS_PARENT_OP7",
+    "overlay": {
+      "min_alive_for_defender": 4
+    },
+    "pole_config_hash": "60324f4af93a1dde18455919da8d63093ebf0549854b28a9263e8ce150c560d9",
+    "resolved_by": "opponent_spec.pole_B_genome(4)",
+    "note": "the pole that failed 4v4 certification; B3-3 was designed to replace it"
+  },
+  "opponent_spec_last_changed": "81d0d6fe 2026-09-05",
+  "evidence_classes": {
+    "LIVE_ATTESTATION": "live resolved profile + config-hash match recorded at run time",
+    "RECORDED_IN_RESULT": "poles.B block in the run's own result record",
+    "CODE_PATH_NO_OVERRIDE": "no run-time record; producing code resolves Pole B through a fixed function with no override argument; weakest class"
+  },
+  "runs": [
+    {
+      "run": "pi_B3 corrected specialist TRAINING (KL teacher z1)",
+      "role": "teacher",
+      "evidence_class": "LIVE_ATTESTATION",
+      "evidence": "scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/run_manifest.json",
+      "live_opponent": "SDS2_B3_LOCKDEF10_2V1",
+      "overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "hash_match_recorded": true,
+      "pole_B": "B3_3_CERTIFIED"
+    },
+    {
+      "run": "teacher-pair CONFIRMATORY crossover (Delta_B -0.156, seeds 18300001..128)",
+      "role": "teacher_reference",
+      "evidence_class": "LIVE_ATTESTATION",
+      "evidence": "corrected_crossover.log (POLE B ATTESTATION banner, written at launch)",
+      "live_opponent": "SDS2_B3_LOCKDEF10_2V1",
+      "overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "live_config_hash_prefix": "ee1cab774896886b",
+      "hash_match_recorded": true,
+      "live_hash_equals_b33": true,
+      "pole_B": "B3_3_CERTIFIED"
+    },
+    {
+      "run": "SEPARATED exploratory crossover",
+      "role": "separated_arm",
+      "evidence_class": "RECORDED_IN_RESULT",
+      "evidence": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json#poles.B",
+      "candidate_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "pole_B": "B3_3_CERTIFIED"
+    },
+    {
+      "run": "SEPARATED confirmatory crossover (the 4v4 reference PASS)",
+      "role": "separated_arm",
+      "evidence_class": "RECORDED_IN_RESULT",
+      "evidence": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json#poles.B",
+      "candidate_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "pole_B": "B3_3_CERTIFIED"
+    },
+    {
+      "run": "SUITE_DISTILLATION_4V4 dataset collection (Pole-B states the students trained on)",
+      "role": "suite_student_training_data",
+      "evidence_class": "CODE_PATH_NO_OVERRIDE",
+      "evidence": "collect_suite_distillation_states_4v4.py @ ae89f636 (first commit; the file was untracked when it ran on 2026-09-24, so the run-time bytes are not in git)",
+      "manifest_records_pole": false,
+      "cli_args": [
+        "ap.add_argument(\"--device\", default=\"cuda\")",
+        "ap.add_argument(\"--n-per-pole\", type=int, default=None)"
+      ],
+      "pole_B_override_argument_existed": false,
+      "installs": "pole_B_genome(N_AGENTS)",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "pole_B": "PLAIN_OP7_UNCERTIFIED"
+    },
+    {
+      "run": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY student crossover",
+      "role": "suite_student_eval",
+      "evidence_class": "CODE_PATH_NO_OVERRIDE",
+      "evidence": "eval_suite_sharing_crossover_4v4.py @ ae89f636 (the runner that produced the rows)",
+      "result_records_pole": false,
+      "cli_args": [
+        "ap.add_argument(",
+        "ap.add_argument(\"--device\", default=\"cuda\")",
+        "ap.add_argument(\"--dry-run\", action=\"store_true\")",
+        "ap.add_argument(\"--n-seeds\", type=int, default=None, help=\"override SPEC n (smoke only)\")",
+        "ap.add_argument(\"--seed-base\", type=int, default=None, help=\"override SPEC seed base\")"
+      ],
+      "pole_B_override_argument_existed": false,
+      "installs": "pole_B_genome(N_AGENTS)",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "pole_B": "PLAIN_OP7_UNCERTIFIED",
+      "sealed_status": "SEALED",
+      "sealed_verdict": "FLAG"
+    },
+    {
+      "run": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY student crossover",
+      "role": "suite_student_eval",
+      "evidence_class": "CODE_PATH_NO_OVERRIDE",
+      "evidence": "eval_suite_sharing_crossover_4v4.py @ ae89f636 (the runner that produced the rows)",
+      "result_records_pole": false,
+      "cli_args": [
+        "ap.add_argument(",
+        "ap.add_argument(\"--device\", default=\"cuda\")",
+        "ap.add_argument(\"--dry-run\", action=\"store_true\")",
+        "ap.add_argument(\"--n-seeds\", type=int, default=None, help=\"override SPEC n (smoke only)\")",
+        "ap.add_argument(\"--seed-base\", type=int, default=None, help=\"override SPEC seed base\")"
+      ],
+      "pole_B_override_argument_existed": false,
+      "installs": "pole_B_genome(N_AGENTS)",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "pole_B": "PLAIN_OP7_UNCERTIFIED",
+      "sealed_status": "SEALED",
+      "sealed_verdict": "FLAG"
+    },
+    {
+      "run": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY student crossover",
+      "role": "suite_student_eval",
+      "evidence_class": "CODE_PATH_NO_OVERRIDE",
+      "evidence": "eval_suite_sharing_crossover_4v4.py @ ae89f636 (the runner that produced the rows)",
+      "result_records_pole": false,
+      "cli_args": [
+        "ap.add_argument(",
+        "ap.add_argument(\"--device\", default=\"cuda\")",
+        "ap.add_argument(\"--dry-run\", action=\"store_true\")",
+        "ap.add_argument(\"--n-seeds\", type=int, default=None, help=\"override SPEC n (smoke only)\")",
+        "ap.add_argument(\"--seed-base\", type=int, default=None, help=\"override SPEC seed base\")"
+      ],
+      "pole_B_override_argument_existed": false,
+      "installs": "pole_B_genome(N_AGENTS)",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "pole_B": "PLAIN_OP7_UNCERTIFIED",
+      "sealed_status": "SEALED",
+      "sealed_verdict": "FLAG"
+    },
+    {
+      "run": "SUITE_SHARE_MACRO_4V4_EXPLORATORY student crossover",
+      "role": "suite_student_eval",
+      "evidence_class": "CODE_PATH_NO_OVERRIDE",
+      "evidence": "eval_suite_sharing_crossover_4v4.py @ ae89f636 (the runner that produced the rows)",
+      "result_records_pole": false,
+      "cli_args": [
+        "ap.add_argument(",
+        "ap.add_argument(\"--device\", default=\"cuda\")",
+        "ap.add_argument(\"--dry-run\", action=\"store_true\")",
+        "ap.add_argument(\"--n-seeds\", type=int, default=None, help=\"override SPEC n (smoke only)\")",
+        "ap.add_argument(\"--seed-base\", type=int, default=None, help=\"override SPEC seed base\")"
+      ],
+      "pole_B_override_argument_existed": false,
+      "installs": "pole_B_genome(N_AGENTS)",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "pole_B": "PLAIN_OP7_UNCERTIFIED",
+      "sealed_status": "SEALED",
+      "sealed_verdict": "FLAG"
+    }
+  ],
+  "SUMMARY": {
+    "on_certified_B3_3": [
+      "pi_B3 corrected specialist TRAINING (KL teacher z1)",
+      "teacher-pair CONFIRMATORY crossover (Delta_B -0.156, seeds 18300001..128)",
+      "SEPARATED exploratory crossover",
+      "SEPARATED confirmatory crossover (the 4v4 reference PASS)"
+    ],
+    "on_plain_OP7": [
+      "SUITE_DISTILLATION_4V4 dataset collection (Pole-B states the students trained on)",
+      "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY student crossover",
+      "SUITE_SHARE_ENCODER_4V4_EXPLORATORY student crossover",
+      "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY student crossover",
+      "SUITE_SHARE_MACRO_4V4_EXPLORATORY student crossover"
+    ],
+    "unknown": []
+  },
+  "DAMAGE_SCOPE": "Bounded to the two SUITE stages: the 4v4 distillation dataset's Pole-B states and the four student crossovers. Every teacher and Separated run is on certified B3-3 (two by live attestation, two by recorded result). Because the dataset itself was collected on plain OP7, the students were TRAINED on the wrong Pole-B state distribution, so re-evaluating them on B3-3 would not repair the suite result: the dataset must be recollected and the students redistilled."
+}

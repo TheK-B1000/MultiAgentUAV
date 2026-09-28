@@ -52,7 +52,11 @@ from experiments.train_scale import (  # noqa: E402
     _propagate_team_size,
 )
 
-SUPPORTED_TEAM_SIZES = (4, 6)
+#: One trainer for every suite scale. Team size is an argument, never a separate module
+#: (CROSS_SCALE_CANONICAL_RECIPE_V1.json#STAGE_IMPLEMENTATIONS_required). 2v2 still has to
+#: clear the same pole-certification gate as 4v4/6v6 before it can train -- being an
+#: accepted --team-size is not permission, and _certification_verdict is unchanged.
+SUPPORTED_TEAM_SIZES = (2, 4, 6)
 SMOKE_TIMESTEPS = 5_000
 SD = PROJECT_ROOT / "artifacts" / "strategic_demand" / "sppo"
 BASE_KEY = {"A": "OP6", "B": "OP7"}
@@ -101,13 +105,21 @@ def _certification_verdict(n: int) -> tuple[str, Path]:
 
 
 def assert_live_pole_matches_team_size(env, policy: str, n: int) -> dict:
-    """FAIL CLOSED on the LIVE resolved behaviour-tree profile, not on a config field."""
-    from experiments.opponent_spec import pole_A_genome, pole_B_genome
+    """FAIL CLOSED unless the LIVE resolved profile is size-normalized to ``n``.
 
+    This is a SIZE check only (min_alive_for_defender == team size), read from the live
+    behaviour-tree profile, not a config field. It is deliberately NOT a pole-identity
+    check: min_alive is ``n`` on every pole at a given size -- at 4v4 both plain OP7 and
+    certified B3-3 have 4 -- so it cannot tell the poles apart. Pole identity is verified
+    separately (pole_attestation.assert_resolved_matches_certification / attest_live_pole /
+    assert_live_matches_identity). Hence this function needs no genome and no certification,
+    and it reports only what it actually checks. (It used to report the canonical overlay as
+    "expected_overlay" even while training the certified B3-3 pole, which was misleading.)
+    """
     core = env.core
-    want = pole_A_genome(n) if policy == "A" else pole_B_genome(n)
     detail = {"policy": policy, "base_key": BASE_KEY[policy],
-              "expected_overlay": dict(want.overlay or {})}
+              "checks": "size normalization only; pole identity is attested separately",
+              "expected_min_alive_for_defender": int(n)}
 
     resolved = None
     for attr in ("_bt_resolved_profile_tensors",):
@@ -146,8 +158,8 @@ def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
     Pole-B candidate override could pass a "LIVE POLE CHECK: PASS" banner while
     training against canonical OP7 (PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json).
     """
-    from experiments.opponent_spec import (install_keyed_opponent_overlays, pole_A_genome,
-                                           pole_B_genome)
+    from experiments.opponent_spec import install_keyed_opponent_overlays
+    from experiments.pole_attestation import resolve_pole_genome
     from rl.training.env_factory import build_training_env
 
     env = None
@@ -159,13 +171,20 @@ def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
         core._sds_opening_hold_steps = 0
         # The pole under test uses the RESOLVED genome; the other pole keeps its
         # canonical definition (it is not what this specialist trains against).
-        if policy == "A":
-            genomes = {"OP6": resolved_genome if resolved_genome is not None else pole_A_genome(n)}
-            if n != 2:
-                genomes["OP7"] = pole_B_genome(n)
-        else:
-            genomes = {"OP6": pole_A_genome(n)} if n == 2 else {}
-            genomes["OP7"] = resolved_genome if resolved_genome is not None else pole_B_genome(n)
+        #
+        # Both poles are installed at every team size. This replaces a former `n == 2`
+        # fork that installed a different overlay SET at 2v2 than at 4v4/6v6 -- a
+        # methodology difference in the attested environment, which the cross-scale
+        # identity forbids. Installing a keyed overlay for the pole that is NOT live is
+        # inert: verified empirically at both 2v2 and 4v4 by comparing all 36 fields of
+        # core._bt_resolved_profile_tensors() with and without the non-live overlay
+        # (identical in both cases), so this generalization does not change 4v4.
+        # Both poles from the certification (single mechanism). The non-live pole is inert
+        # for results, but resolving it through a second path is exactly how a stage ends
+        # up holding a pole the certification never named.
+        genomes = {"OP6": resolve_pole_genome("A", n), "OP7": resolve_pole_genome("B", n)}
+        if resolved_genome is not None:
+            genomes[BASE_KEY[policy]] = resolved_genome
         install_keyed_opponent_overlays(core, genomes)
         detail = assert_live_pole_matches_team_size(env, policy, n)
         if pole_attestation is not None:
@@ -193,6 +212,11 @@ def main() -> int:
     ap.add_argument("--team-size", type=int, required=True, choices=SUPPORTED_TEAM_SIZES)
     ap.add_argument("--policy", required=True, choices=("A", "B"))
     ap.add_argument("--seed", type=int, required=True)
+    ap.add_argument("--experiment-id", default="",
+                    help="the seed registry (Rule 9) experiment id this run spends its seed "
+                         "against. Required for every non-smoke run: the seed must lie in "
+                         "that experiment's registered, RESERVED block, and no other run "
+                         "may already have trained it. See experiments/seed_registry.py.")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--total-timesteps", type=int, default=None)
     ap.add_argument("--smoke", action="store_true",
@@ -416,6 +440,18 @@ def main() -> int:
                          f"[{SMOKE_SEED_MIN}, {SMOKE_SEED_MAX}], got {seed}")
     if not is_smoke and SMOKE_SEED_MIN <= seed <= SMOKE_SEED_MAX:
         raise SystemExit(f"FAIL-CLOSED: seed {seed} is reserved for non-scientific smokes")
+
+    # ---- Rule 9 at training time. Every launcher that spends seeds consults the registry
+    # before the first episode; this one did not, so a training run could spend an
+    # unregistered, finished, retired or already-trained seed and nothing would refuse.
+    # Checked here, before certification, before any environment or GPU work.
+    from experiments import seed_registry as SR
+    seed_block = None
+    if not is_smoke:
+        ok, msg, seed_block = SR.check_training_seed(seed, args.experiment_id)
+        if not ok:
+            raise SystemExit(f"FAIL-CLOSED (Rule 9 seed registry): {msg}")
+        print(f"  RULE 9: {msg}", flush=True)
 
     verdict, cert_path = _certification_verdict(n)
     if not is_smoke and verdict != "CERTIFIED" and exploratory is None and redesign is None:
@@ -855,6 +891,15 @@ def main() -> int:
                 f"pass --resume <ckpt.zip> for crash recovery."
             )
 
+    if not is_smoke:
+        prior = SR.prior_training_uses(seed, "train_specialist_scale run manifest",
+                                       exclude_dir=art)
+        if prior:
+            raise SystemExit(
+                f"FAIL-CLOSED (Rule 9 seed registry): seed {seed} was already trained by "
+                f"{len(prior)} other run(s): {prior}. A seed is spent once; a registered "
+                f"block does not make a second launch of the same seed legal.")
+
     sha, dirty = _git_sha(), _git_dirty()
     print("=" * 78)
     print(f"SPECIALIST_SCALE  pi_{policy}  {n}v{n}   "
@@ -943,6 +988,12 @@ def main() -> int:
         "record": "train_specialist_scale run manifest", "utc": _now(),
         "smoke_non_scientific": is_smoke, "team_size": n, "policy": policy,
         "pole_base": BASE_KEY[policy], "seed": seed, "device": cfg.device,
+        "seed_registry": (None if seed_block is None else {
+            "experiment_id": seed_block["experiment_id"],
+            "block": [int(seed_block["lo"]), int(seed_block["hi"])],
+            "seed_class": seed_block["seed_class"],
+            "status_at_launch": seed_block["status"],
+        }),
         "git_sha": sha, "git_dirty": dirty,
         "total_timesteps": int(cfg.total_timesteps),
         "certification_verdict": verdict,

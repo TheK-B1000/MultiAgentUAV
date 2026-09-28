@@ -358,3 +358,87 @@ def test_seed_class_check_is_gating_and_records_the_owner(owned_bed):
     check = _seed_class_check(plan)
     assert check["gating"] is True
     assert check["experiment_id"] == "MINE"
+
+
+# ---- invariants: gating checks over the whole row set (added 2026-09-26) -----------
+# Added for the pole certification, whose verdict is a function of every seed and whose
+# pole handoff must match what downstream resolution rebuilds -- properties no per-row
+# `derived` rule can express. These tests prove the hook blocks, and never silently skips.
+
+def _plan_with(tmp_path, csv_path, spec, invariants):
+    p = _plan(tmp_path, csv_path, spec=spec)
+    p.invariants = invariants
+    return p
+
+
+def test_passing_invariant_seals(bed):
+    tmp, _rows_, csv_path, spec = bed
+    a = run_audit(_plan_with(tmp, csv_path, spec, {"always": lambda rows: (True, "fine")}))
+    assert a["passed"] is True
+    assert [c for c in a["checks"] if c["name"] == "invariant::always"][0]["result"] == "PASS"
+
+
+def test_failing_invariant_blocks_the_seal(bed):
+    tmp, _rows_, csv_path, spec = bed
+    a = run_audit(_plan_with(tmp, csv_path, spec, {"verdict": lambda rows: (False, "mismatch")}))
+    assert a["passed"] is False and "invariant::verdict" in a["failed_checks"]
+
+
+def test_raising_invariant_fails_closed_not_skipped(bed):
+    tmp, _rows_, csv_path, spec = bed
+    def boom(rows):
+        raise KeyError("pole_config_hash")
+    a = run_audit(_plan_with(tmp, csv_path, spec, {"handoff": boom}))
+    assert a["passed"] is False and "invariant::handoff" in a["failed_checks"]
+    detail = [c for c in a["checks"] if c["name"] == "invariant::handoff"][0]["detail"]
+    assert "raised KeyError" in detail
+
+
+@pytest.mark.parametrize("bad", [None, True, ("yes", "x"), (1, "x"), (True,)])
+def test_malformed_invariant_return_fails_closed(bed, bad):
+    """A truthy non-bool must not read as a pass."""
+    tmp, _rows_, csv_path, spec = bed
+    a = run_audit(_plan_with(tmp, csv_path, spec, {"x": lambda rows, b=bad: b}))
+    assert a["passed"] is False and "invariant::x" in a["failed_checks"]
+
+
+def test_invariant_sees_the_rows_on_disk(bed):
+    """The invariant must audit the persisted evidence, not an in-memory copy."""
+    tmp, rows, csv_path, spec = bed
+    n_on_disk = len(rows)
+    seen = {}
+    def count(rs):
+        seen["n"] = len(rs)
+        return (len(rs) == n_on_disk, f"{len(rs)} rows")
+    assert run_audit(_plan_with(tmp, csv_path, spec, {"count": count}))["passed"] is True
+    assert seen["n"] == n_on_disk
+
+
+def test_no_invariants_is_unchanged_behaviour(bed):
+    tmp, _rows_, csv_path, spec = bed
+    a = run_audit(_plan(tmp, csv_path, spec=spec))
+    assert a["passed"] is True
+    assert not [c for c in a["checks"] if c["name"].startswith("invariant::")]
+
+
+def test_invariant_raising_a_systemexit_guard_is_recorded_not_escaped(bed):
+    """Project guards (e.g. PoleAttestationError) subclass SystemExit. Inside an invariant
+    such a guard is a FAILED CHECK -- it must not escape and abort the seal with nothing
+    recorded. Found 2026-09-26 by the certification negative controls."""
+    tmp, _rows_, csv_path, spec = bed
+
+    class GuardError(SystemExit):
+        pass
+
+    def guard(rows):
+        raise GuardError("FAIL-CLOSED: pole resolves to an uncertified overlay")
+    a = run_audit(_plan_with(tmp, csv_path, spec, {"handoff": guard}))
+    assert a["passed"] is False and "invariant::handoff" in a["failed_checks"]
+
+
+def test_keyboard_interrupt_still_propagates_from_an_invariant(bed):
+    tmp, _rows_, csv_path, spec = bed
+    def stop(rows):
+        raise KeyboardInterrupt
+    with pytest.raises(KeyboardInterrupt):
+        run_audit(_plan_with(tmp, csv_path, spec, {"x": stop}))

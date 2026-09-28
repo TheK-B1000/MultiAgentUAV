@@ -177,3 +177,134 @@ def test_decision_table_own_id_disjoint_from_own_prior_block_is_a_fresh_check(re
     normal (here: free) request, not auto-approved and not auto-rejected."""
     ok, msg = SR.check_block(20900001, 20900032, "exploratory", experiment_id="CONF_A")
     assert ok and "free" in msg
+
+
+# ---- per-seed training launch (trainer-side Rule 9) ----------------------------------
+
+@pytest.fixture
+def pair(reg):
+    SR.allocate("PAIR_TRAIN", 20500001, 20500002, "exploratory", "pi_A, pi_B training")
+    SR.allocate("OLD_PAIR", 20600001, 20600002, "exploratory", "finished pair")
+    SR.set_status("OLD_PAIR", "SPENT")
+    SR.allocate("GONE_PAIR", 20700001, 20700002, "exploratory", "superseded pair")
+    SR.set_status("GONE_PAIR", "RETIRED")
+    return reg
+
+
+def test_each_seed_of_a_reserved_pair_block_may_be_spent(pair):
+    """The reason check_block is not enough: one seed of a pair block self-collides."""
+    assert not SR.check_block(20500001, 20500001, "exploratory", "PAIR_TRAIN")[0]
+    for s in (20500001, 20500002):
+        ok, msg, b = SR.check_training_seed(s, "PAIR_TRAIN")
+        assert ok, msg
+        assert b["experiment_id"] == "PAIR_TRAIN"
+
+
+@pytest.mark.parametrize("seed,exp,needle", [
+    (20500001, None, "no experiment id"),
+    (20500001, "", "no experiment id"),
+    (20500001, "NOT_REGISTERED", "not registered"),
+    (20500003, "PAIR_TRAIN", "outside"),
+    (20100001, "PAIR_TRAIN", "outside"),        # a real seed, but another experiment's
+    (20600001, "OLD_PAIR", "SPENT"),
+    (20700001, "GONE_PAIR", "RETIRED"),
+])
+def test_training_seed_refusals(pair, seed, exp, needle):
+    ok, msg, _ = SR.check_training_seed(seed, exp)
+    assert not ok and needle in msg
+
+
+def test_smoke_block_cannot_be_spent_as_training(pair):
+    SR.allocate("SMOKE_BLOCK", SR.SMOKE_LO + 1, SR.SMOKE_LO + 2, "smoke", "smoke")
+    ok, msg, _ = SR.check_training_seed(SR.SMOKE_LO + 1, "SMOKE_BLOCK")
+    assert not ok and "smoke" in msg
+
+
+def _manifest(d, seed, record="train_specialist_scale run manifest"):
+    d.mkdir(parents=True)
+    (d / "run_manifest.json").write_text(json.dumps({"record": record, "seed": seed}),
+                                         encoding="utf-8")
+
+
+def test_prior_training_uses_finds_a_second_launch_of_the_same_seed(tmp_path):
+    """The 19100001 incident: one seed trained into three run directories."""
+    rec = "train_specialist_scale run manifest"
+    a = tmp_path / "artifacts"
+    _manifest(a / "scale" / "pi_B_run", 19100001)
+    _manifest(a / "scale" / "INVALID_moved_aside", 19100001)
+    _manifest(a / "scale" / "other_seed", 19100002)
+    _manifest(a / "scale" / "other_record", 19100001, record="some eval manifest")
+    uses = SR.prior_training_uses(19100001, rec, root=tmp_path)
+    assert uses == ["scale/INVALID_moved_aside", "scale/pi_B_run"]
+    # A restart or --resume of the SAME run is not a reuse.
+    assert SR.prior_training_uses(19100001, rec, root=tmp_path,
+                                  exclude_dir=a / "scale" / "pi_B_run") == \
+        ["scale/INVALID_moved_aside"]
+    assert SR.prior_training_uses(19100003, rec, root=tmp_path) == []
+
+
+def test_unreadable_manifest_naming_the_seed_counts_as_a_use(tmp_path):
+    d = tmp_path / "artifacts" / "broken"
+    d.mkdir(parents=True)
+    (d / "run_manifest.json").write_text(
+        '{"record": "train_specialist_scale run manifest", "seed": 19100001, ',
+        encoding="utf-8")
+    uses = SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
+                                  root=tmp_path)
+    assert uses == ["broken (UNREADABLE manifest)"]
+
+
+# ---- authorized re-run after an infrastructure abort ---------------------------------
+
+def _infra_marker(d, seed=19100001, **over):
+    rec = {"classification": "ABORTED_INFRA_RESTART", "seed": seed, "rerun_authorized": True,
+           "authorized_by": "PI", "valid_for_scientific_use": False}
+    rec.update(over)
+    (d / SR.INFRA_RESTART_MARKER).write_text(json.dumps(rec), encoding="utf-8")
+
+
+def test_infra_restart_marker_exempts_exactly_that_dead_attempt(tmp_path):
+    """Host died before any checkpoint; the PI authorized re-running the same seed."""
+    rec = "train_specialist_scale run manifest"
+    dead = tmp_path / "artifacts" / "run_ABORTED_INFRA_REBOOT"
+    _manifest(dead, 19100001)
+    (dead / "ckpts").mkdir()
+    _infra_marker(dead)
+    assert SR.prior_training_uses(19100001, rec, root=tmp_path) == []
+    # a second, unmarked run of the same seed is still a use
+    _manifest(tmp_path / "artifacts" / "another_run", 19100001)
+    assert SR.prior_training_uses(19100001, rec, root=tmp_path) == ["another_run"]
+
+
+@pytest.mark.parametrize("over", [
+    {"seed": 19100002},                       # marker names a different seed
+    {"classification": "ABORTED_PREMATURE_LAUNCH"},
+    {"rerun_authorized": False},
+    {"authorized_by": ""},
+    {"valid_for_scientific_use": True},
+])
+def test_infra_restart_marker_with_any_field_wrong_is_not_exempt(tmp_path, over):
+    dead = tmp_path / "artifacts" / "dead"
+    _manifest(dead, 19100001)
+    _infra_marker(dead, **over)
+    assert SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
+                                  root=tmp_path) == ["dead"]
+
+
+def test_infra_restart_marker_is_void_if_the_attempt_wrote_a_checkpoint(tmp_path):
+    """Checked on disk, not taken from the marker: produced weights are never exempt."""
+    dead = tmp_path / "artifacts" / "dead"
+    _manifest(dead, 19100001)
+    (dead / "ckpts").mkdir()
+    (dead / "ckpts" / "ckpt_100000.zip").write_bytes(b"w")
+    _infra_marker(dead)
+    assert SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
+                                  root=tmp_path) == ["dead"]
+
+
+def test_malformed_infra_restart_marker_is_not_exempt(tmp_path):
+    dead = tmp_path / "artifacts" / "dead"
+    _manifest(dead, 19100001)
+    (dead / SR.INFRA_RESTART_MARKER).write_text("{not json", encoding="utf-8")
+    assert SR.prior_training_uses(19100001, "train_specialist_scale run manifest",
+                                  root=tmp_path) == ["dead"]

@@ -562,8 +562,15 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertIsNotNone(model.latent_actor.z_adapter)
         self.assertEqual(
             set(inspect.signature(model.policy_logits).parameters),
-            {"obs", "z_idx", "detach_local_features", "teammates", "teammates_valid", "enemies", "enemies_valid"},
+            {"obs", "z_idx", "detach_local_features", "teammates", "teammates_valid", "enemies", "enemies_valid",
+             "roles", "assignment"},
         )
+        # roles / assignment are per-agent (B, N[, 4]) inputs added by the rule-based role
+        # and Assignment-v1 conditioning; both are fail-closed (refused unless the model is
+        # built with the flag). The signature grows, but for this preset both stay OFF, so
+        # the actor contract pinned here is unchanged.
+        self.assertFalse(model.role_conditioning_enabled)
+        self.assertFalse(model.assignment_conditioning_enabled)
 
     def test_v3i15_sparse_refresh_keeps_v3i14_actor_contract(self) -> None:
         cfg = apply_preset(PPOConfig(), "latent_v3i15_sparse_tactical_refresh")
@@ -592,8 +599,15 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertIsNotNone(model.latent_actor.z_adapter)
         self.assertEqual(
             set(inspect.signature(model.policy_logits).parameters),
-            {"obs", "z_idx", "detach_local_features", "teammates", "teammates_valid", "enemies", "enemies_valid"},
+            {"obs", "z_idx", "detach_local_features", "teammates", "teammates_valid", "enemies", "enemies_valid",
+             "roles", "assignment"},
         )
+        # roles / assignment are per-agent (B, N[, 4]) inputs added by the rule-based role
+        # and Assignment-v1 conditioning; both are fail-closed (refused unless the model is
+        # built with the flag). The signature grows, but for this preset both stay OFF, so
+        # the actor contract pinned here is unchanged.
+        self.assertFalse(model.role_conditioning_enabled)
+        self.assertFalse(model.assignment_conditioning_enabled)
 
     def test_v3i16_direct_z_embedding_expands_local_actor_only(self) -> None:
         cfg = apply_preset(PPOConfig(), "latent_v3i16_policy_z_embedding")
@@ -629,8 +643,15 @@ class LatentConditionedActorContractTests(unittest.TestCase):
         self.assertEqual(model.latent_actor.z_film_layers, 0)
         self.assertEqual(
             set(inspect.signature(model.policy_logits).parameters),
-            {"obs", "z_idx", "detach_local_features", "teammates", "teammates_valid", "enemies", "enemies_valid"},
+            {"obs", "z_idx", "detach_local_features", "teammates", "teammates_valid", "enemies", "enemies_valid",
+             "roles", "assignment"},
         )
+        # roles / assignment are per-agent (B, N[, 4]) inputs added by the rule-based role
+        # and Assignment-v1 conditioning; both are fail-closed (refused unless the model is
+        # built with the flag). The signature grows, but for this preset both stay OFF, so
+        # the actor contract pinned here is unchanged.
+        self.assertFalse(model.role_conditioning_enabled)
+        self.assertFalse(model.assignment_conditioning_enabled)
         actions = torch.zeros((4, len(model.action_dims)), dtype=torch.long)
         z_idx = torch.arange(4, dtype=torch.long)
         critic_extra = model._critic_extra(z_idx)

@@ -1,0 +1,68 @@
+{
+  "record_id": "STANDARDIZED_2V2_SEPARATED_CROSSOVER_CONFIRMATORY_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-27T13:15:00Z",
+  "classification": "CONFIRMATORY read of the already-frozen, already-verified 2v2 Separated system. No training, no gradient step, no architecture change occurs under this record. Not PAPER-FAITHFUL.",
+  "authorized_by": "Written under STANDARDIZED_2V2_SEPARATED_CROSSOVER_EXPLORATORY_SPEC.json#READING_RULE_exploratory (a PASS licenses a confirmatory spec on a fresh, disjoint n=128 sealed_confirmatory block), mirroring DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC.json at 4v4 and SCHOOL_PC_6V6_LOCKED_PIPELINE.json seeds.crossover_confirmatory at 6v6. SEED SPEND AWAITS THE PI's GO.",
+
+  "EXPLORATORY_RESULT_BEING_CONFIRMED": {
+    "record": "STANDARDIZED_2V2_SPLIT_K1_EXPLORATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json (SEALED, 0/12 gating checks failed; commit 4c8920bc)",
+    "seeds": "23500001-23500064 (n=64, exploratory, SPENT)",
+    "win_rates": {"pi_A_on_A": 0.7656, "pi_A_on_B": 0.0625, "pi_B_on_A": 0.4844, "pi_B_on_B": 0.5625},
+    "delta_A": "+0.2812 [+0.1406, +0.4219]",
+    "delta_B": "+0.5000 [+0.3594, +0.6406]",
+    "gate": "PASS"
+  },
+
+  "CANONICAL_DELTA_CONVENTION_locked": "delta_A = V(pi_A, Pole A) - V(pi_B, Pole A); delta_B = V(pi_B, Pole B) - V(pi_A, Pole B); exactly as computed by eval_specialist_crossover_scaled.py and used by the exploratory pass",
+
+  "FROZEN_ASSETS_locked": {
+    "pi_D_trained_defend": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+                            "sha256": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97"},
+    "pi_A_frozen_attack": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+                           "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"},
+    "pi_B_comparator": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+                        "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"}
+  },
+
+  "EVALUATION": {
+    "instrument": "experiments/eval_specialist_crossover_scaled.py --team-size 2, the same module, flags and splice as the exploratory pass",
+    "n": 128,
+    "seed_class": "sealed_confirmatory",
+    "seed_block": {"lo": 23600001, "hi": 23600128},
+    "seed_block_chosen_by": "seed_registry.py next 128 --class sealed_confirmatory before this freeze; the evaluator allocates it as STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER on the real run",
+    "fresh_seeds_required": "disjoint from the exploratory block 23500001-23500064, training seeds 23100001-2 / 23300001-2 / 23400001 and the certification block 23000001-192",
+    "roles": "fixed for the episode, CLOSEST_DEFENDS k=1; no teacher at evaluation",
+    "gate": "PASS iff mean(delta_A)>0 AND LCB95(delta_A)>0 AND mean(delta_B)>0 AND LCB95(delta_B)>0",
+    "bootstrap": {"procedure": "paired percentile bootstrap over evaluation seeds", "samples": 20000, "alpha": 0.05, "rng_seed": 7},
+    "device": "cuda",
+    "expected_cost": "the n=64 exploratory pass took 2 h 11 min, so about 4.5 h"
+  },
+
+  "LAUNCH": {
+    "command": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_SEPARATED_CROSSOVER_CONFIRMATORY_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23600001 --n-seeds 128 --label STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY --device cuda --role-fixed-for-episode --frozen-attack-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --frozen-attack-path-sha256 858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f --role-k-defend 1",
+    "differs_from_exploratory_command_only_in": ["--spec", "--seed-base", "--n-seeds", "--label"],
+    "preflight": "the same command with --dry-run must pass first; the spec must be committed and clean"
+  },
+
+  "CONTRACTS_before_seed_spend": [
+    "C0 spec frozen and committed (tracked, no staged/unstaged changes)",
+    "C1 the three checkpoints equal their pins exactly",
+    "C2 the seed block is disjoint from every block listed under fresh_seeds_required",
+    "C3 read-only: no checkpoint is written, no model is selected; the three pinned finals are the only objects evaluated",
+    "C4 the dry-run passes: Rule 9 block free, both poles attest against the sealed 2v2 certification, frozen-attack sha matches",
+    "C5 the PI has given the go to spend this sealed_confirmatory block"
+  ],
+
+  "EXPLICITLY_FORBIDDEN": [
+    "retraining or modifying pi_D, the frozen pi_A or pi_B in this pass or in reaction to it",
+    "changing the splice, the role allocator, k, or any evaluation parameter from the exploratory pass",
+    "reusing the exploratory, training or certification seeds",
+    "re-running this label (one-shot; the evaluator refuses an existing output)",
+    "reporting this as the paper-faithful latent method"
+  ],
+
+  "claim_boundary": "A confirmatory replication, on fresh seeds at n=128, of the sealed n=64 exploratory crossover for the exact same frozen 2v2 Separated system. A PASS supports: under the one cross-scale methodology (same code; only N and k differ), the 2v2 Separated system shows the crossover. It says nothing about the distilled suite arms, which need their own dataset, distillation and evaluation stages."
+}

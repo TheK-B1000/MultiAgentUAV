@@ -438,6 +438,26 @@
       "backfilled": true
     },
     {
+      "experiment_id": "STRATEGIC_DEMAND_4V4_POLE_B3_3_N192_CERTIFICATION",
+      "purpose": "4v4 Pole B3-3 N192 strategic-demand certification (the pinned legacy certification consumed by pole_attestation)",
+      "seed_class": "sealed_confirmatory",
+      "lo": 12460001,
+      "hi": 12460192,
+      "n": 192,
+      "status": "SPENT",
+      "spec": "4V4_POLE_B3_N192_CERTIFICATION_AMENDMENT.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T17:17:17Z",
+      "spent_utc": "2026-09-26T17:17:17Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [
+        "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "pole_attestation.LEGACY_UNSEALED_CERTIFICATIONS"
+      ],
+      "note": "Spent 2026-09-08 (record utc 2026-09-08T19:36:41Z, VERDICT CERTIFIED) without a registry entry; found during the 2026-09-26 Rule-9 audit. Registered retroactively for collision protection only: historically_pre_registered=false."
+    },
+    {
       "lo": 12800001,
       "hi": 12800064,
       "seed_class": "UNCLASSIFIED",
@@ -923,11 +943,18 @@
       "lo": 19100001,
       "hi": 19100064,
       "n": 64,
-      "status": "RETIRED_CONTAMINATED_BY_ROLE_TRAINING_SEED",
+      "status": "RETIRED",
       "spec": "B_GETFLAG_PRESERVE_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-17T15:00:22Z",
-      "retired_utc": "2026-09-17T20:40:00Z"
+      "retired_utc": "2026-09-17T20:40:00Z",
+      "retirement_reason": "CONTAMINATED_BY_ROLE_TRAINING_SEED",
+      "notes": [
+        {
+          "utc": "2026-09-26T17:19:54Z",
+          "note": "status normalized from the non-schema value RETIRED_CONTAMINATED_BY_ROLE_TRAINING_SEED to RETIRED (registry audit, 2026-09-26); the reason is kept verbatim in retirement_reason, retired_utc unchanged."
+        }
+      ]
     },
     {
       "experiment_id": "RULE_ROLE_4V4_CROSSOVER",
@@ -1497,6 +1524,87 @@
       "allocated_utc": "2026-09-23T21:43:06Z"
     },
     {
+      "experiment_id": "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY",
+      "purpose": "Suite 4v4 Fully Shared+z forced-z crossover (exploratory); spent without prior registry reservation",
+      "seed_class": "exploratory",
+      "lo": 22510001,
+      "hi": 22510064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T05:34:47Z",
+      "spent_utc": "2026-09-26T05:34:47Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [
+        "SUITE_FULLY_SHARED_Z_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "suite_fully_shared_z_4v4_exploratory_crossover_eval_rows.csv"
+      ],
+      "arm": "fully_shared",
+      "note": "FLAGGED on delta_B (mean<=0). Rows on disk; RESULT used the pre-Rule-7 hand-written path. Retroactive reconciliation only."
+    },
+    {
+      "experiment_id": "SUITE_SHARE_ENCODER_4V4_EXPLORATORY",
+      "purpose": "Suite 4v4 Share-Encoder forced-z crossover (exploratory); spent without prior registry reservation",
+      "seed_class": "exploratory",
+      "lo": 22511001,
+      "hi": 22511064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T05:34:47Z",
+      "spent_utc": "2026-09-26T05:34:47Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [
+        "SUITE_SHARE_ENCODER_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "suite_share_encoder_4v4_exploratory_crossover_eval_rows.csv"
+      ],
+      "arm": "share_encoder",
+      "note": "FLAGGED on delta_B (mean<=0). Rows on disk; pre-Rule-7 seal path. Retroactive reconciliation only."
+    },
+    {
+      "experiment_id": "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY",
+      "purpose": "Suite 4v4 Share-Backbone forced-z crossover (exploratory); spent without prior registry reservation",
+      "seed_class": "exploratory",
+      "lo": 22513001,
+      "hi": 22513064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T05:34:47Z",
+      "spent_utc": "2026-09-26T05:34:47Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [
+        "SUITE_SHARE_BACKBONE_4V4_EXPLORATORY_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+        "suite_share_backbone_4v4_exploratory_crossover_eval_rows.csv"
+      ],
+      "arm": "share_backbone",
+      "note": "FLAGGED on delta_B (mean<=0). Rows on disk; pre-Rule-7 seal path. Retroactive reconciliation only."
+    },
+    {
+      "experiment_id": "SUITE_SHARE_MACRO_4V4_EXPLORATORY",
+      "purpose": "Suite 4v4 Share-Macro forced-z crossover (exploratory); spent without prior registry reservation",
+      "seed_class": "exploratory",
+      "lo": 22514001,
+      "hi": 22514064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "SUITE_SHARING_4V4_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T05:34:47Z",
+      "spent_utc": "2026-09-26T05:34:47Z",
+      "registration_origin": "RETROACTIVE_RECONCILIATION",
+      "historically_pre_registered": false,
+      "cited_by": [],
+      "arm": "share_macro",
+      "note": "Block committed to in-flight eval_suite_sharing_crossover_4v4.py --arm share_macro at reconciliation time. Rows/RESULT pending; will seal via run_state.seal after finish. Retroactive reconciliation only."
+    },
+    {
       "experiment_id": "SCALE_6V6_SPLIT_DEFEND_K1_V1_TRAINING",
       "purpose": "6v6 200k CLOSEST_DEFENDS(k=1) split after entity-repair foundation (school PC locked pipeline)",
       "seed_class": "exploratory",
@@ -1531,9 +1639,249 @@
       "spec": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
       "subdivides": null,
       "allocated_utc": "2026-09-23T22:08:24Z"
+    },
+    {
+      "experiment_id": "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER",
+      "purpose": "Suite 2v2 Fully Shared+z forced-z crossover, one-shot sealed eval (suite task 1)",
+      "seed_class": "sealed_confirmatory",
+      "lo": 22900001,
+      "hi": 22900128,
+      "n": 128,
+      "status": "RETIRED",
+      "spec": "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T01:00:42Z",
+      "retired_utc": "2026-09-26T11:25:17Z",
+      "notes": [
+        {
+          "utc": "2026-09-26T11:25:17Z",
+          "note": "Superseded natural-setup 2v2 Fully Shared+z crossover, stopped 2026-09-26 by PI directive (one methodology across scales). 82 episodes were run on seeds 22900001..22900082 before the stop, so the block is partially spent: RETIRED, never RESERVED/free. No result sealed; never a paper row. Partial rows kept in suite_sharing/2v2/fully_shared_z/crossover_eval_PARTIAL.jsonl."
+        }
+      ]
+    },
+    {
+      "experiment_id": "STRATEGIC_DEMAND_2V2_CERTIFICATION",
+      "purpose": "Fresh standardized 2v2 pole certification (scripted GUARD/BREACH, n=192), one-shot; its record is the 2v2 pole handoff artifact",
+      "seed_class": "sealed_confirmatory",
+      "lo": 23000001,
+      "hi": 23000192,
+      "n": 192,
+      "status": "SPENT",
+      "spec": "STRATEGIC_DEMAND_2v2_CERTIFICATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T12:58:48Z",
+      "spent_utc": "2026-09-26T14:53:04Z",
+      "notes": [
+        {
+          "utc": "2026-09-26T14:53:04Z",
+          "note": "2v2 certification sealed SEALED; VERDICT=CERTIFIED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_FOUNDATION_PAIR_TRAINING",
+      "purpose": "Standardized 2v2 foundation pi_A (23100001) and pi_B (23100002): 1M steps, SA-PPO anchor off, trained fresh; canonical lineage step 1",
+      "seed_class": "exploratory",
+      "lo": 23100001,
+      "hi": 23100002,
+      "n": 2,
+      "status": "SPENT",
+      "spec": "STANDARDIZED_2V2_FOUNDATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T16:33:06Z",
+      "spent_utc": "2026-09-26T22:04:46Z",
+      "notes": [
+        {
+          "utc": "2026-09-26T22:04:46Z",
+          "note": "pi_A 23100001 and pi_B 23100002 each trained 1,001,472 steps from ca52a24b; exit 0; pair verified 82/82 (STANDARDIZED_2V2_FOUNDATION_SPEC_VERIFICATION.json); finals sha256 A 5b01de6b..., B dc3e9ba4..."
+        }
+      ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING",
+      "purpose": "standardized 2v2 entity-repair continuation: pi_A (23200001) then pi_B (23200002), 1M each, warm-started from the verified foundation finals",
+      "seed_class": "exploratory",
+      "lo": 23200001,
+      "hi": 23200002,
+      "n": 2,
+      "status": "RETIRED",
+      "spec": "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T22:05:19Z",
+      "retired_utc": "2026-09-26T22:09:10Z",
+      "notes": [
+        {
+          "utc": "2026-09-26T22:09:10Z",
+          "note": "RETIRED 2026-09-26 22:10Z: pi_A seed 23200001 was launched at 22:06Z from an UNCOMMITTED spec (launcher guard used 'git diff HEAD', which ignores untracked files) and killed at ~12,016 steps, no checkpoint. Seed 23200001 is spent; 23200002 unused but retired with its block. Aborted run kept at scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair_ABORTED_seed23200001. Superseded by STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2."
+        }
+      ],
+      "retirement_reason": "partial_block_contamination_from_premature_entity_repair_launch",
+      "used_seed": 23200001,
+      "unused_but_retired_seed": 23200002,
+      "superseded_by": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2",
+      "evidence": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair_ABORTED_PREMATURE_LAUNCH_seed23200001/ABORTED_PREMATURE_LAUNCH.json"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING_V2",
+      "purpose": "standardized 2v2 entity-repair continuation (V2 block after the aborted 23200001 launch): pi_A then pi_B, 1M each, warm-started from the verified foundation finals",
+      "seed_class": "exploratory",
+      "lo": 23300001,
+      "hi": 23300002,
+      "n": 2,
+      "status": "SPENT",
+      "spec": "STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-26T22:09:11Z",
+      "notes": [
+        {
+          "utc": "2026-09-27T03:40:04Z",
+          "note": "pi_A seed 23300001 attempt 1 died at ~93k steps in a Windows Update host restart (22:29:23Z), no checkpoint; PI authorized a rerun of the same seed from step 0 (ABORTED_INFRA_RESTART.json on the dead attempt). Block stays RESERVED."
+        },
+        {
+          "utc": "2026-09-27T10:00:46Z",
+          "note": "pi_A 23300001 (rerun after infra restart) and pi_B 23300002 each trained 1,001,472 entity-repair steps from 7fbfdafc; exit 0; pair verified 90/90 (STANDARDIZED_2V2_ENTITY_REPAIR_SPEC_VERIFICATION.json); finals sha256 A 858805dd..., B 9ee024ad..."
+        }
+      ],
+      "spent_utc": "2026-09-27T10:00:46Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_TRAINING",
+      "purpose": "standardized 2v2 split pi_D: frozen repaired pi_A on ATTACK, pi_D warm-started from the same repaired pi_A on DEFEND, CLOSEST_DEFENDS k=1, 200k, N' teacher unchanged",
+      "seed_class": "exploratory",
+      "lo": 23400001,
+      "hi": 23400001,
+      "n": 1,
+      "status": "SPENT",
+      "spec": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-27T10:03:22Z",
+      "spent_utc": "2026-09-27T10:47:40Z",
+      "notes": [
+        {
+          "utc": "2026-09-27T10:47:40Z",
+          "note": "pi_D split (k=1) seed 23400001 trained 200,704 steps from c190c5ae; exit 0; verified 21/21 (STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC_VERIFICATION.json); final sha256 e75b2775..."
+        }
+      ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SPLIT_K1_EXPLORATORY_SPECIALIST_CROSSOVER",
+      "purpose": "STANDARDIZED_2V2_SPLIT_K1_EXPLORATORY specialist crossover eval (2v2)",
+      "seed_class": "exploratory",
+      "lo": 23500001,
+      "hi": 23500064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "STANDARDIZED_2V2_SEPARATED_CROSSOVER_EXPLORATORY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-27T10:49:37Z",
+      "spent_utc": "2026-09-27T13:00:46Z",
+      "notes": [
+        {
+          "utc": "2026-09-27T13:00:46Z",
+          "note": "sealed SEALED; gate_passes=True"
+        }
+      ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER",
+      "purpose": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY specialist crossover eval (2v2)",
+      "seed_class": "sealed_confirmatory",
+      "lo": 23600001,
+      "hi": 23600128,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "STANDARDIZED_2V2_SEPARATED_CROSSOVER_CONFIRMATORY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-27T13:04:33Z",
+      "spent_utc": "2026-09-27T17:25:30Z",
+      "notes": [
+        {
+          "utc": "2026-09-27T17:25:30Z",
+          "note": "sealed SEALED; gate_passes=False"
+        }
+      ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG",
+      "purpose": "paired diagnostic: where was 2v2 Pole-A separation lost? repaired pi_A (pre-split) vs repaired pi_B, and split pi_A+pi_D (k=1) vs repaired pi_B, on the same seeds",
+      "seed_class": "exploratory",
+      "lo": 23700001,
+      "hi": 23700128,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-27T18:41:28Z",
+      "shared_by_labels": [
+        "STANDARDIZED_2V2_DIAG_PRESPLIT",
+        "STANDARDIZED_2V2_DIAG_SPLIT"
+      ],
+      "notes": [
+        {
+          "utc": "2026-09-28T02:00:03Z",
+          "note": "PRESPLIT attempt 1 killed by a Windows Update host restart (23:14:20Z) with 0 rows written; block stays RESERVED; both arms rerun from scratch with the crash-safe evaluator (STANDARDIZED_2V2_DIAG_PRESPLIT_ABORTED_INFRA_RESTART.json)."
+        },
+        {
+          "utc": "2026-09-28T07:31:23Z",
+          "note": "label STANDARDIZED_2V2_DIAG_PRESPLIT sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-09-28T11:47:10Z",
+          "note": "all shared labels sealed (last: STANDARDIZED_2V2_DIAG_SPLIT)"
+        }
+      ],
+      "spent_utc": "2026-09-28T11:47:10Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SUITE_DATASET_POLE_A",
+      "purpose": "standardized 2v2 suite distillation dataset: Pole-A collection episodes (split composite acting, CLOSEST_DEFENDS k=1)",
+      "seed_class": "exploratory",
+      "lo": 23800001,
+      "hi": 23800096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_2V2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T12:09:21Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_SUITE_DATASET_POLE_B",
+      "purpose": "standardized 2v2 suite distillation dataset: Pole-B collection episodes (repaired pi_B acting)",
+      "seed_class": "exploratory",
+      "lo": 23900001,
+      "hi": 23900096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_2V2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T12:09:21Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_4V4_SUITE_DATASET_V2_POLE_A",
+      "purpose": "corrected 4v4 suite distillation dataset (V2, certified B3-3 Pole B): Pole-A collection episodes (split composite acting, CLOSEST_DEFENDS k=2)",
+      "seed_class": "exploratory",
+      "lo": 24000001,
+      "hi": 24000096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_4V4_V2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T12:17:58Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_4V4_SUITE_DATASET_V2_POLE_B",
+      "purpose": "corrected 4v4 suite distillation dataset (V2, certified B3-3 Pole B): Pole-B collection episodes (pi_B3-corrected acting)",
+      "seed_class": "exploratory",
+      "lo": 24100001,
+      "hi": 24100096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_4V4_V2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-28T12:17:58Z"
     }
   ],
-  "updated_utc": "2026-09-23T22:08:24Z",
+  "updated_utc": "2026-09-28T12:17:58Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

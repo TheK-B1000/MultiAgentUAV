@@ -1,0 +1,70 @@
+{
+  "record_id": "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_EVAL",
+  "utc": "2026-09-26T01:00:42Z",
+  "classification": "DIAGNOSTIC / EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL.",
+  "authorized_by": "User instruction 2026-09-25: finish the 2v2 Fully Shared+z crossover (suite task 1 of the four-arm cross-scale board).",
+  "parent": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#EVALUATION_locked",
+  "THE_QUESTION": "Under forced z, does the distilled 2v2 Fully Shared+z student (one actor parameter set, concat-conditioned on z) still express complementary specialization: delta_A > 0 and LCB95 > 0, and delta_B > 0 and LCB95 > 0?",
+  "ARM": {
+    "label": "SUITE_FULLY_SHARED_Z_2V2",
+    "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing/2v2/fully_shared_z/ckpts/final_fully_shared_z_2v2.pt",
+    "sha256": "4aebecd81f7ddcfdb9e9dcf22d04edfd03ae7dbcc0aefff1c91e50eadb1270a9",
+    "format": "suite_fully_shared_z_v1",
+    "unique_actor_params": 3456599,
+    "frozen_record": "suite_sharing/2v2/fully_shared_z/STUDENT_FROZEN.json",
+    "training_dataset": "TEACHER_DISTILLATION_DATASET.json (collection seeds 11921001..11921096 and 11921101..11921196)",
+    "no_model_selection": "fixed 20-epoch terminal weights; no checkpoint chosen against any evaluation seed"
+  },
+  "EVALUATION": {
+    "cells": ["z0@PoleA", "z1@PoleA", "z0@PoleB", "z1@PoleB"],
+    "delta_A": "V(z0,A) - V(z1,A)",
+    "delta_B": "V(z1,B) - V(z0,B)",
+    "gate": "mean(Delta)>0 AND LCB95(Delta)>0 on BOTH poles",
+    "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7, "procedure": "paired percentile bootstrap over seeds (experiments.eval_hog_psp_v3._mean_ci)"},
+    "matched_seeds_across_z_and_poles": true,
+    "forced_z": true,
+    "no_router": true,
+    "deterministic": true,
+    "device": "cuda",
+    "max_steps": 240,
+    "team_size": 2,
+    "allocator": "natural two-agent setup; CLOSEST_DEFENDS role structure is NOT invented at 2v2 (CROSS_SCALE_BASELINE_SUITE_V1_SPEC#ALLOCATOR_FAIRNESS_locked)",
+    "observation": "plain 2v2 observation; no entity augmentation (the runner refuses a student that carries an entity encoder)"
+  },
+  "POLES": {
+    "A": {"base": "OP6", "overlay": "experiments.opponent_spec.pole_A_genome() at n_agents=2 (freeze-record default)"},
+    "B": {"base": "OP7", "overlay": "none (canonical OP7 parent, as in the 2v2 ladder evaluations)"}
+  },
+  "SEEDS": {
+    "block": "22900001..22900128",
+    "n": 128,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER",
+    "why_not_the_ladder_matched_seeds": "The other 2v2 rows (Share-0, Share-Encoder, Share-Backbone, Share-Macro) were scored on 11960001..11960064 + 11970001..11970064 under LADDER_MATCHED_EVALUATION_AMENDMENT. Those blocks are registered SPENT/sealed_confirmatory and experiments/seed_registry.py check_block refuses them (Rule 9: seeds are not reusable across experiments). The amendment predates the registry; extending it to a new arm is a governance exception this spec does not take.",
+    "consequence": "This arm's deltas are on a different 128-seed block than the ladder rows. The table compares raw delta means with CIs only. The within-seed statistic D vs Rung 0 (a seed-for-seed difference) cannot be computed for this arm and is not claimed."
+  },
+  "READING_RULE": {
+    "gate_result_recorded_whatever_it_is": true,
+    "tie_or_reversal": "if either delta mean <= 0 the runner also writes SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json; a row-level audit precedes any interpretation",
+    "context_only_not_a_gate": {
+      "Share-0_n128": {"delta_A": 0.2891, "delta_B": 0.2578},
+      "Share-Encoder_n128": {"delta_A": 0.2656, "delta_B": 0.1641}
+    },
+    "one_shot": "terminal state is terminal: a failed audit or a failed gate is not re-run into the same label"
+  },
+  "RUNNER": "experiments/eval_suite_fully_shared_z_2v2.py",
+  "OUTPUTS": [
+    "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_RESULT.json (status owned by run_state.seal)",
+    "suite_fully_shared_z_2v2_crossover_eval_rows.csv",
+    "SUITE_FULLY_SHARED_Z_2V2_CROSSOVER_EVAL_AUDIT.json",
+    "SUITE_FULLY_SHARED_Z_2V2_RUN_STATE.json",
+    "suite_sharing/2v2/fully_shared_z/crossover_eval_PARTIAL.jsonl (append-only, resumable)"
+  ],
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "reuse of seeds 11960001..11970064 or any other registered block",
+    "editing artifacts/SEED_REGISTRY.json other than through experiments/seed_registry.py",
+    "claiming PAPER-FAITHFUL",
+    "any 2v2 Share-Backbone / Share-Macro / Share-Encoder re-evaluation"
+  ]
+}

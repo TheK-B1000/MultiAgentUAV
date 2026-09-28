@@ -37,14 +37,34 @@ class Rung1Model(nn.Module):
     def shared_cnn(self) -> nn.Module:
         return self.branch["z0"].actor_cnn
 
+    @property
+    def entity_repair_enabled(self) -> bool:
+        return bool(getattr(self.branch["z0"], "entity_repair_enabled", False))
+
+    @property
+    def entity_encoder(self):
+        # Advertise branch entity encoder so strategy_anchor._entity_role_kwargs
+        # extracts teammates/enemies for suite 4v4/6v6 teachers.
+        return getattr(self.branch["z0"], "entity_encoder", None)
+
+    @property
+    def role_conditioning_enabled(self) -> bool:
+        return bool(getattr(self.branch["z0"], "role_conditioning_enabled", False))
+
+    @property
+    def assignment_conditioning_enabled(self) -> bool:
+        return bool(getattr(self.branch["z0"], "assignment_conditioning_enabled", False))
+
     def encoder_is_shared(self) -> bool:
         return self.branch["z0"].actor_cnn is self.branch["z1"].actor_cnn
 
-    def policy_logits(self, obs, z_idx=None, **_):
+    def policy_logits(self, obs, z_idx=None, **kwargs):
         if z_idx is None:
             raise ValueError("Rung1Model.policy_logits requires z_idx (per-row dispatch)")
-        la = self.branch["z0"].policy_logits(obs, z_idx=None)
-        lb = self.branch["z1"].policy_logits(obs, z_idx=None)
+        # Forward entity/role/assignment kwargs so entity-repair specialist
+        # branches (suite 4v4/6v6) receive the same tensors _masked_heads extracts.
+        la = self.branch["z0"].policy_logits(obs, z_idx=None, **kwargs)
+        lb = self.branch["z1"].policy_logits(obs, z_idx=None, **kwargs)
         sel = (z_idx.reshape(-1, 1) == 0)
         return torch.where(sel, la, lb)
 

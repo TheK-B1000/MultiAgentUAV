@@ -307,6 +307,13 @@ def _base_cfg(scale: int, seed: int) -> GPUFieldConfig:
 def _resolved_pole_b(scale: int):
     from experiments.pole_attestation import resolve_pole_genome
 
+    if int(scale) == 2:
+        # Sealed pre-suite diagnostic: its frozen spec used the natural canonical 2v2 Pole
+        # B, formerly obtained via resolve_pole_genome's silent fallback (removed
+        # 2026-09-26; the certified resolver now fails closed at 2v2). Stated explicitly;
+        # object-identical to what the resolver returned before. Not a suite stage.
+        from experiments.opponent_spec import pole_B_genome
+        return pole_B_genome(2)
     candidate = str(POLE_B_CANDIDATE) if int(scale) == 4 else None
     return resolve_pole_genome("B", int(scale), candidate)
 

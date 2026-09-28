@@ -135,6 +135,104 @@ def check_block(lo: int, hi: int, seed_class: str,
     return True, f"block {lo}..{hi} ({seed_class}, n={hi - lo + 1}) is free"
 
 
+def check_training_seed(seed: int, experiment_id: str | None) -> tuple[bool, str, dict | None]:
+    """May a training run spend ONE seed out of a registered block? ``(ok, reason, block)``.
+
+    ``check_block`` answers "is this whole range free to reserve"; it cannot answer this,
+    because a training pair registers one block (e.g. 23100001..23100002) and each run
+    spends a single seed of it -- asking about the one-seed sub-range reports an overlap
+    with the run's own block. A launch is legal only if:
+
+    * it names the experiment it spends for (absence is an error, never a default);
+    * that experiment id is registered, and the seed lies inside its block;
+    * the block is RESERVED -- SPENT means its runs are finished and RETIRED means it was
+      superseded; neither may be spent again;
+    * the class is not ``smoke`` (smoke launches use the reserved family, not a block).
+
+    Reuse of a seed INSIDE a still-RESERVED block (a second launch of the same seed) is
+    not visible here; ``prior_training_uses`` is the companion check for that.
+    """
+    if not experiment_id:
+        return False, ("no experiment id given: a non-smoke training seed must be spent "
+                       "against a registered block (Rule 9)"), None
+    b = next((x for x in load()["blocks"] if x["experiment_id"] == experiment_id), None)
+    if b is None:
+        return False, (f"experiment id {experiment_id!r} is not registered; reserve its "
+                       f"block with `seed_registry.py allocate` before launching"), None
+    if not (b["lo"] <= int(seed) <= b["hi"]):
+        return False, (f"seed {seed} is outside {experiment_id}'s registered block "
+                       f"{b['lo']}..{b['hi']}"), b
+    if b["seed_class"] == "smoke":
+        return False, (f"{experiment_id} is a smoke block; smoke launches do not spend "
+                       f"registered seeds"), b
+    if b["status"] != "RESERVED":
+        return False, (f"{experiment_id} {b['lo']}..{b['hi']} is {b['status']}; only a "
+                       f"RESERVED block may be spent. Seeds are never reused."), b
+    return True, (f"seed {seed} in {experiment_id} {b['lo']}..{b['hi']} "
+                  f"[{b['seed_class']}/RESERVED]"), b
+
+
+INFRA_RESTART_MARKER = "ABORTED_INFRA_RESTART.json"
+
+
+def infra_restart_exempt(run_dir: Path, seed: int) -> bool:
+    """Is ``run_dir`` a dead attempt whose seed the PI authorized re-running from step 0?
+
+    The one legitimate way to launch a seed a manifest already holds: the host died (e.g. a
+    forced OS restart) before the run wrote ANY checkpoint, so nothing from the attempt can
+    enter a result and there is nothing to --resume from. Exempt only if ALL hold:
+      * the directory carries ABORTED_INFRA_RESTART.json with classification
+        ABORTED_INFRA_RESTART, the SAME seed, rerun_authorized true, a non-empty
+        authorized_by, and valid_for_scientific_use false;
+      * no checkpoint *.zip exists anywhere under the directory (checked on disk, not taken
+        from the marker) -- an attempt that produced weights is never exempt.
+    Anything missing or malformed means NOT exempt: the seed stays refused.
+    """
+    mk = run_dir / INFRA_RESTART_MARKER
+    if not mk.is_file():
+        return False
+    try:
+        d = json.loads(mk.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return False
+    if not (isinstance(d, dict) and d.get("classification") == "ABORTED_INFRA_RESTART"
+            and d.get("seed") == int(seed) and d.get("rerun_authorized") is True
+            and str(d.get("authorized_by") or "").strip()
+            and d.get("valid_for_scientific_use") is False):
+        return False
+    return not any(run_dir.rglob("*.zip"))
+
+
+def prior_training_uses(seed: int, record: str, *, exclude_dir: Path | None = None,
+                        root: Path | None = None) -> list[str]:
+    """Run directories under ``artifacts/`` whose manifest (``record``) already spent ``seed``.
+
+    The registry records blocks, not individual launches, so a second launch of the same
+    seed inside a RESERVED block passes ``check_training_seed``. The manifests on disk are
+    the record of what actually ran; this reads them. ``exclude_dir`` is the launching run's
+    own directory (a crash restart or ``--resume`` of the same run is not a reuse). A
+    manifest that cannot be parsed is reported as a use: it cannot be ruled out.
+    """
+    base = (root or ROOT) / "artifacts"
+    skip = exclude_dir.resolve() if exclude_dir is not None else None
+    uses = []
+    for f in sorted(base.rglob("run_manifest.json")):
+        if skip is not None and f.parent.resolve() == skip:
+            continue
+        if infra_restart_exempt(f.parent, seed):
+            continue
+        try:
+            d = json.loads(f.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError):
+            text = f.read_text(encoding="utf-8", errors="replace")
+            if record in text and str(int(seed)) in text:
+                uses.append(f"{f.parent.relative_to(base).as_posix()} (UNREADABLE manifest)")
+            continue
+        if isinstance(d, dict) and d.get("record") == record and d.get("seed") == int(seed):
+            uses.append(f.parent.relative_to(base).as_posix())
+    return uses
+
+
 def next_free(n: int, seed_class: str = "exploratory", stride: int = 100_000) -> int:
     """Lowest unused block start on the project's 100k-stride convention."""
     doc = load()
@@ -148,7 +246,7 @@ def next_free(n: int, seed_class: str = "exploratory", stride: int = 100_000) ->
 
 def allocate(experiment_id: str, lo: int, hi: int, seed_class: str, purpose: str,
              spec: str | None = None, subdivides: str | None = None,
-             status: str = "RESERVED") -> dict:
+             status: str = "RESERVED", shared_by_labels: list[str] | None = None) -> dict:
     ok, msg = check_block(lo, hi, seed_class, experiment_id, subdivides)
     if not ok:
         raise SystemExit(f"REFUSING to allocate: {msg}")
@@ -160,6 +258,65 @@ def allocate(experiment_id: str, lo: int, hi: int, seed_class: str, purpose: str
              "seed_class": seed_class, "lo": lo, "hi": hi, "n": hi - lo + 1,
              "status": status, "spec": spec, "subdivides": subdivides,
              "allocated_utc": _now()}
+    if shared_by_labels:
+        # A paired multi-label diagnostic: exactly these evaluation labels may spend this
+        # one block (declared up front, never extended). See eval_specialist_crossover_scaled.
+        entry["shared_by_labels"] = list(shared_by_labels)
+    doc["blocks"].append(entry)
+    doc["blocks"].sort(key=lambda b: (b["lo"], b["hi"]))
+    save(doc)
+    return entry
+
+
+def reconcile_spent(
+    experiment_id: str,
+    lo: int,
+    hi: int,
+    seed_class: str,
+    purpose: str,
+    *,
+    spec: str | None = None,
+    cited_by: list[str] | None = None,
+    note: str | None = None,
+    arm: str | None = None,
+    registration_origin: str = "RETROACTIVE_RECONCILIATION",
+    historically_pre_registered: bool = False,
+) -> dict:
+    """Record a block already spent without prior reservation.
+
+    Collision protection going forward only. Does **not** pretend Rule 9 was
+    followed originally (``historically_pre_registered=false`` by default).
+    """
+    if seed_class not in CLASSES:
+        raise SystemExit(f"unknown seed class {seed_class!r}; expected one of {CLASSES}")
+    if lo > hi:
+        raise SystemExit(f"malformed block {lo}..{hi}")
+    doc = load()
+    if any(b["experiment_id"] == experiment_id for b in doc["blocks"]):
+        raise SystemExit(f"REFUSING: experiment_id {experiment_id!r} already registered")
+    ok, msg = check_block(lo, hi, seed_class, experiment_id=experiment_id)
+    if not ok:
+        raise SystemExit(f"REFUSING to reconcile: {msg}")
+    entry: dict[str, Any] = {
+        "experiment_id": experiment_id,
+        "purpose": purpose,
+        "seed_class": seed_class,
+        "lo": lo,
+        "hi": hi,
+        "n": hi - lo + 1,
+        "status": "SPENT",
+        "spec": spec,
+        "subdivides": None,
+        "allocated_utc": _now(),
+        "spent_utc": _now(),
+        "registration_origin": registration_origin,
+        "historically_pre_registered": historically_pre_registered,
+        "cited_by": list(cited_by or []),
+    }
+    if arm is not None:
+        entry["arm"] = arm
+    if note:
+        entry["note"] = note
     doc["blocks"].append(entry)
     doc["blocks"].sort(key=lambda b: (b["lo"], b["hi"]))
     save(doc)

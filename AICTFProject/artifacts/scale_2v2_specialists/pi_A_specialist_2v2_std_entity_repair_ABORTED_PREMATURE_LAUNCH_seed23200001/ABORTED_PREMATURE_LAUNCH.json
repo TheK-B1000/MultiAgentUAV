@@ -1,0 +1,42 @@
+{
+  "record_id": "ABORTED_PREMATURE_LAUNCH_pi_A_2v2_std_entity_repair_seed23200001",
+  "classification": "ABORTED_PREMATURE_LAUNCH / INVALID_FOR_SCIENTIFIC_USE",
+  "utc_written": "2026-09-26T22:30:00Z",
+  "seed": 23200001,
+  "policy": "A",
+  "team_size": 2,
+  "stage": "standardized 2v2 entity-repair continuation (STANDARDIZED_2V2_ENTITY_REPAIR_SPEC.json)",
+  "launched_utc": "2026-09-26T22:06:16Z",
+  "git_sha_at_launch": "af6dab79dbc2bbf5c28383a2c228fe15c72e74f6",
+  "git_dirty": true,
+  "entity_repair_enabled": true,
+  "warm_start_from": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip",
+  "seed_registry_at_launch": {
+    "experiment_id": "STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING",
+    "block": [
+      23200001,
+      23200002
+    ],
+    "seed_class": "exploratory",
+    "status_at_launch": "RESERVED"
+  },
+  "steps_executed": {
+    "last_progress_bar": 12016,
+    "last_logged_ppo_update_step": 10240,
+    "metrics_csv_rows": 5,
+    "approx": "~12k of 1,000,000"
+  },
+  "termination": "manually killed by the operator (taskkill /T /F on the launcher tree) at ~22:08Z",
+  "checkpoint_produced": null,
+  "cause": "the detached launcher's uncommitted-spec guard used `git diff --quiet HEAD -- <spec>`, which is silent for an UNTRACKED file, so an uncommitted spec passed. The launcher was being run as a guard test, which is itself the process error: a negative control must never be able to reach a real launch.",
+  "consequence": "seed 23200001 spent; its block STANDARDIZED_2V2_ENTITY_REPAIR_PAIR_TRAINING (23200001..23200002) RETIRED whole; nothing from this directory may be used as a result, warm start or comparison",
+  "evidence_kept": [
+    "run_manifest.json",
+    "*_run_config.json",
+    "training_manifest.json",
+    "metrics.csv",
+    "episode_rows.csv",
+    "../std_entity_repair_A_ABORTED_PREMATURE_LAUNCH_seed23200001.log(.err)",
+    "../std_entity_repair_watch.log"
+  ]
+}

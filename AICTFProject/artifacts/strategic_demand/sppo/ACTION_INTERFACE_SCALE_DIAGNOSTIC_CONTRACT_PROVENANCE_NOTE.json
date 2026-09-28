@@ -1,0 +1,58 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_PROVENANCE_NOTE",
+  "status": "PROVENANCE_NOTE",
+  "utc": "2026-09-26T05:40:00Z",
+  "classification": "Provenance / audit note. Changes no scientific result and authorizes nothing. The diagnostic's result, reading, trace manifest and row CSVs are untouched.",
+  "authorized_by": "PI, 2026-09-26: make G0 actually verify frozen hashes; if the scale-diagnostic record's difference from its pin is only a later test overwrite or timestamp, restore the exact historical pinned blob and add a provenance note; if it were a real semantic change, preserve it and amend the spec instead.",
+
+  "WHAT_HAPPENED": {
+    "summary": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json is this diagnostic's pre-run authorization record, and it is also one of the five artifacts that the downstream ACTION_INTERFACE_COMMITMENT_MECHANISM probe's G0_PRIOR_ARTIFACT_PROTECTION gate protects. That probe's authorization record (a856469d) pinned it at sha256 04ec5c95e1b9... . This diagnostic's standing contract test rewrote the record on every run, and on 2026-09-22 it re-stamped the utc field, moving the file to 6a1e3d9a42a8... . G0 did not notice because it recorded hashes without ever comparing them.",
+    "same_event_as": "ACTION_INTERFACE_COMMITMENT_MECHANISM_CONTRACT_PROVENANCE_NOTE.json -- a single test invocation on 2026-09-22 clobbered both records one second apart (15:33:35Z commitment, 15:33:36Z scale diagnostic). Both were committed incidentally in af8f76c2.",
+    "timeline": [
+      {"commit": "a856469d", "date": "2026-09-18", "utc_in_record": "2026-09-18T15:00:01Z", "note": "the pinned version: the authorization record as it stood when the commitment probe was authorized"},
+      {"commit": "af8f76c2", "date": "2026-09-23", "utc_in_record": "2026-09-22T15:33:36Z", "note": "re-stamped by the standing test"}
+    ]
+  },
+
+  "SEMANTIC_CHANGE_CHECK_decides_restore_vs_amend": {
+    "question": "Is the drift a real semantic change (preserve it and amend the spec) or a test overwrite (restore the pinned bytes)?",
+    "method": "git diff -U0 a856469d HEAD on the file, every changed line listed",
+    "result": "EXACTLY ONE changed line: \"utc\": \"2026-09-18T15:00:01Z\" -> \"utc\": \"2026-09-22T15:33:36Z\". Every gate, every pass/fail value, every hash, and overall_pass are byte-identical.",
+    "verdict": "TEST OVERWRITE, NOT A SEMANTIC CHANGE -> restore. Re-checked immediately before restoring, with the same result."
+  },
+
+  "RESTORATION": {
+    "action": "git checkout a856469d -- AICTFProject/artifacts/strategic_demand/sppo/ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json",
+    "nothing_recomputed": "No field was regenerated or hand-edited. The exact historical git object was restored.",
+    "verification": {
+      "restored_index_blob_sha": "0c43d6912a9d",
+      "a856469d_blob_sha": "0c43d6912a9d",
+      "git_diff_vs_a856469d": "EMPTY",
+      "raw_on_disk_sha256": "04ec5c95e1b9df88...",
+      "equals_commitment_probe_G0_pin": true,
+      "note": "Unlike the commitment record, the raw on-disk bytes here equal the pin directly, because the pin itself was recorded as the raw CRLF-form hash on this same clone."
+    }
+  },
+
+  "ROOT_CAUSE_FIXED_so_it_cannot_recur": {
+    "test": "tests/test_action_interface_scale_diagnostic_contracts.py now writes ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_ATTESTATION.json and never the authorization record.",
+    "launcher": "experiments/eval_action_interface_scale_diagnostic.py main() writes the authorization record only before the diagnostic's result exists; afterwards --contracts writes the attestation file. Refusal logic unchanged.",
+    "gitignore": "*_CONTRACT_ATTESTATION.json added to AICTFProject/.gitignore: attestations are regenerated with a fresh utc on every test run, and this repository has had untracked files swept into commits (0b0fb6e7). The evidence records remain tracked (verified with git check-ignore).",
+    "verified_in_practice": "Ran the scale-diagnostic test after the fix: the restored record's raw sha256 stayed 04ec5c95e1b9df88, and the tracked-artifact working-tree fingerprint was identical before and after the test run."
+  },
+
+  "G0_NOW_ENFORCES_THE_PIN": {
+    "file": "experiments/eval_action_interface_commitment_mechanism.py :: check_prior_artifact_protection",
+    "before": "pass = every protected file present AND spec frozen. Hashes recorded, never compared. Stayed GREEN on the drifted file.",
+    "after_on_the_drifted_state": "G0 FAILED with FAIL_CONTENT_CHANGED on exactly this file (expected 04ec5c95e1b9, actual 6a1e3d9a42a8) and MATCH on the other four -- verified before the restoration.",
+    "after_restoration": "G0 PASS; all five protected artifacts MATCH their pins.",
+    "pin_source": "The frozen spec carries no hash values, so pins are read from the commitment probe's pre-run authorization record (restored to a856469d; write-protected by the launcher fix in f402acd8)."
+  },
+
+  "WHAT_THIS_DOES_NOT_CHANGE": [
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json, READING, TRACE_MANIFEST and the row CSVs -- all four other protected artifacts already matched their pins and were not touched",
+    "the diagnostic's frozen spec or integrity amendment",
+    "any conclusion drawn from the scale diagnostic or the commitment probe",
+    "the launcher's refusal semantics"
+  ]
+}

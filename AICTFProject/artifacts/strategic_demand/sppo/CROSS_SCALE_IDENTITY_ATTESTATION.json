@@ -1,0 +1,550 @@
+{
+  "record": "cross-scale identity attestation",
+  "utc": "2026-09-26T12:50:27Z",
+  "scope": "READ-ONLY preflight. Changes nothing, authorizes nothing.",
+  "required_from": {
+    "file": "CROSS_SCALE_CANONICAL_RECIPE_V1.json",
+    "sha256": "ee7dd7aef0333deb0e578581c11f7d546113bdbabae028ab199c9b811ee81f60",
+    "status": "FROZEN_RECIPE"
+  },
+  "identity_from": {
+    "file": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json",
+    "section": "METHODOLOGY_IDENTITY_2026_09_26"
+  },
+  "required_values": {
+    "anchor_enabled": false,
+    "foundation_steps": 1000000,
+    "entity_repair": true,
+    "split_steps": 200000,
+    "Nprime_teacher": true,
+    "dataset_allocator": "CLOSEST_DEFENDS",
+    "dataset_entities": true,
+    "dataset_roles": true,
+    "episodes_per_pole": 96,
+    "decision_only": true
+  },
+  "free_rows": [
+    "N",
+    "k"
+  ],
+  "table": {
+    "2v2": {
+      "N": 2,
+      "k": 1,
+      "anchor_enabled": "PENDING",
+      "foundation_steps": "PENDING",
+      "entity_repair": "PENDING",
+      "split_steps": "PENDING",
+      "Nprime_teacher": "PENDING",
+      "dataset_allocator": "PENDING",
+      "dataset_entities": "PENDING",
+      "dataset_roles": "PENDING",
+      "episodes_per_pole": "PENDING",
+      "decision_only": "PENDING"
+    },
+    "4v4": {
+      "N": 4,
+      "k": 2,
+      "anchor_enabled": false,
+      "foundation_steps": 1000000,
+      "entity_repair": true,
+      "split_steps": 200000,
+      "Nprime_teacher": true,
+      "dataset_allocator": "CLOSEST_DEFENDS",
+      "dataset_entities": true,
+      "dataset_roles": true,
+      "episodes_per_pole": 96,
+      "decision_only": true
+    },
+    "6v6": {
+      "N": 6,
+      "k": 1,
+      "anchor_enabled": "PENDING",
+      "foundation_steps": "PENDING",
+      "entity_repair": "PENDING",
+      "split_steps": "PENDING",
+      "Nprime_teacher": "PENDING",
+      "dataset_allocator": "PENDING",
+      "dataset_entities": "PENDING",
+      "dataset_roles": "PENDING",
+      "episodes_per_pole": "PENDING",
+      "decision_only": "PENDING"
+    }
+  },
+  "evidence": {
+    "2v2": {
+      "pipeline": "SAME_METHODOLOGY_2V2_PORT_PLAN.json (nothing built yet; fresh certification first)",
+      "base": {},
+      "split": {},
+      "dataset": {
+        "state": "PENDING",
+        "manifest": null
+      }
+    },
+    "4v4": {
+      "pipeline": "REFERENCE (built)",
+      "base": {
+        "pi_A": {
+          "state": "OK",
+          "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+          "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+          "anchor_enabled": false,
+          "anchor_dataset": "",
+          "total_timesteps": 1000000,
+          "entity_repair": true,
+          "entity_hidden_dim": 32,
+          "split_attack_defend_enabled": false,
+          "defend_teacher_lambda": null,
+          "role_k_defend": null
+        },
+        "pi_B": {
+          "state": "OK",
+          "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+          "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12",
+          "anchor_enabled": false,
+          "anchor_dataset": "",
+          "total_timesteps": 1000000,
+          "entity_repair": true,
+          "entity_hidden_dim": 32,
+          "split_attack_defend_enabled": false,
+          "defend_teacher_lambda": null,
+          "role_k_defend": null
+        }
+      },
+      "split": {
+        "pi_D": {
+          "state": "OK",
+          "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1/ckpts/final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+          "sha256": "b538cdf4ba5d2c5d2834c2307285b7bef6f8ab7232e5471798bd52e42d734f2c",
+          "anchor_enabled": false,
+          "anchor_dataset": "",
+          "total_timesteps": 200000,
+          "entity_repair": true,
+          "entity_hidden_dim": 32,
+          "split_attack_defend_enabled": true,
+          "defend_teacher_lambda": 0.1,
+          "role_k_defend": null
+        }
+      },
+      "dataset": {
+        "state": "OK",
+        "manifest": "SUITE_DISTILLATION_4V4_DATASET.json",
+        "sha256": "996d1e6b8e02471e5ceaf0f6c5362c9fcc14036b98e003e75f7631a44279fb70",
+        "allocator": {
+          "rule": "CLOSEST_DEFENDS",
+          "k_defend": 2,
+          "fixed_for_episode": true,
+          "hold_ticks_H_r": 8
+        },
+        "n_shards": 192,
+        "device": "cuda"
+      }
+    },
+    "6v6": {
+      "pipeline": "SCHOOL_PC_6V6_LOCKED_PIPELINE.json (final repaired artifacts, not the historical 6v6 specialists)",
+      "base": {
+        "pi_A": {
+          "state": "PENDING",
+          "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip"
+        },
+        "pi_B": {
+          "state": "PENDING",
+          "path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip"
+        }
+      },
+      "split": {
+        "pi_D": {
+          "state": "PENDING",
+          "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/final_pi_A_specialist_6v6_split_defend_k1_v1.zip"
+        }
+      },
+      "dataset": {
+        "state": "PENDING",
+        "manifest": null
+      }
+    }
+  },
+  "mismatches": [],
+  "not_yet_attestable": [
+    "2v2",
+    "6v6"
+  ],
+  "layer_2_implementations": {
+    "specialist_trainer_impl": {
+      "module": "experiments/train_specialist_scale.py",
+      "declared_state": "declared compliant",
+      "sha256": "fa45b620ddb99bba0fc56119ad73c460e71c997256d8a8179d3733772cc94855",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "entity_repair_impl": {
+      "module": "experiments/train_specialist_scale.py",
+      "declared_state": "declared compliant",
+      "sha256": "fa45b620ddb99bba0fc56119ad73c460e71c997256d8a8179d3733772cc94855",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "split_trainer_impl": {
+      "module": "experiments/train_specialist_scale.py",
+      "declared_state": "declared compliant",
+      "sha256": "fa45b620ddb99bba0fc56119ad73c460e71c997256d8a8179d3733772cc94855",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "n_prime_teacher_impl": {
+      "module": "rl/custom_ppo/defend_teacher.py",
+      "declared_state": "declared compliant",
+      "sha256": "d7d22f9b8b1ada6b8fae0cba2a67137a25dfee385639a3ec1942ca2daa166e62",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": null,
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "allocator_impl": {
+      "module": "rl/custom_ppo/rule_role_assignment.py",
+      "declared_state": "declared compliant",
+      "sha256": "68b923585d1383b4a3f851b22503df479862fda26d342fdae1c087c423b3ae64",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": null,
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "dataset_collector_impl": {
+      "module": "experiments/collect_suite_distillation_states.py",
+      "declared_state": "declared compliant",
+      "sha256": "c5865e3a4999155ea12dc3fb687085692b08cde37c07d1de3ff9135b22316807",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "distillation_impl": {
+      "module": "experiments/run_suite_sharing_distillation.py",
+      "declared_state": "declared compliant",
+      "sha256": "d50bd1289dab78854fd6c08698482a66236ce97ca2b73adc0d2f90bf9ad26076",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "crossover_evaluator_impl": {
+      "module": "experiments/eval_suite_sharing_crossover.py",
+      "declared_state": "declared compliant",
+      "sha256": "39afceb2a9b714776d2e5bdf73ad7045e12b712ca8cc806c151096c2549320e8",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "separated_crossover_impl": {
+      "module": "experiments/eval_specialist_crossover_scaled.py",
+      "declared_state": "declared compliant",
+      "sha256": "325f0ecff4c792f7fa004f57f871f1df909b0bb6a364836b9f5b2975a7c27c2c",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": [
+        2,
+        4,
+        6
+      ],
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    },
+    "bootstrap_impl": {
+      "module": "experiments/eval_hog_psp_v3.py",
+      "declared_state": "declared compliant",
+      "sha256": "b4647d97c58cc9114e0c9fe8e6365161649680a6f49e9a1820f034fd99c5d70c",
+      "hardcoded_team_size": null,
+      "declared_team_sizes": null,
+      "team_size_branches": [],
+      "parse_error": null,
+      "verdict": "COMPLIANT",
+      "reasons": [],
+      "same_module_all_scales": true
+    }
+  },
+  "layer_2_forked_stages": [],
+  "layer_3_resolved_objects": {
+    "stages": {
+      "specialist_trainer": {
+        "module": "experiments/train_specialist_scale.py",
+        "pass": true,
+        "direct_pole_calls": [],
+        "uses_certified_resolver": true
+      },
+      "separated_evaluator": {
+        "module": "experiments/eval_specialist_crossover_scaled.py",
+        "pass": true,
+        "direct_pole_calls": [],
+        "uses_certified_resolver": true
+      },
+      "dataset_collector": {
+        "module": "experiments/collect_suite_distillation_states.py",
+        "pass": true,
+        "direct_pole_calls": [],
+        "uses_certified_resolver": true
+      },
+      "sharing_evaluator": {
+        "module": "experiments/eval_suite_sharing_crossover.py",
+        "pass": true,
+        "direct_pole_calls": [],
+        "uses_certified_resolver": true
+      }
+    },
+    "scales": {
+      "2v2": {
+        "certified": {
+          "A": null,
+          "B": null
+        },
+        "artifacts": []
+      },
+      "4v4": {
+        "certified": {
+          "A": {
+            "policy": "A",
+            "team_size": 4,
+            "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+            "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+            "genome_id": "SDS2_A_payoff_INIT_3",
+            "base_opponent": "OP6",
+            "overlay": {
+              "min_alive_for_defender": 4
+            },
+            "opening_hold_steps": 0,
+            "pole_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+            "lock_defender": null,
+            "enable_2v1": null,
+            "min_alive_for_defender": 4
+          },
+          "B": {
+            "policy": "B",
+            "team_size": 4,
+            "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+            "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+            "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+            "base_opponent": "OP7",
+            "overlay": {
+              "enable_2v1": true,
+              "lock_defender": 10,
+              "min_alive_for_defender": 4
+            },
+            "opening_hold_steps": 0,
+            "pole_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+            "lock_defender": 10,
+            "enable_2v1": true,
+            "min_alive_for_defender": 4
+          }
+        },
+        "artifacts": [
+          {
+            "artifact": "pi_A training",
+            "pole": "A",
+            "source": null,
+            "status": "UNKNOWN",
+            "detail": "artifact records no pole identity"
+          },
+          {
+            "artifact": "pi_B training",
+            "pole": "B",
+            "source": "pi_B_specialist_4v4_b3_entity_repair_corrected/run_manifest.json (live attestation)",
+            "recorded_overlay": {
+              "enable_2v1": true,
+              "lock_defender": 10,
+              "min_alive_for_defender": 4
+            },
+            "certified_overlay": {
+              "enable_2v1": true,
+              "lock_defender": 10,
+              "min_alive_for_defender": 4
+            },
+            "hash_agrees": true,
+            "status": "MATCH"
+          },
+          {
+            "artifact": "pi_D training",
+            "pole": "A",
+            "source": "pi_A_specialist_4v4_a4_split_attack_defend_v1/run_manifest.json (live attestation)",
+            "recorded_overlay": {
+              "min_alive_for_defender": 4
+            },
+            "certified_overlay": {
+              "min_alive_for_defender": 4
+            },
+            "hash_agrees": true,
+            "status": "MATCH"
+          },
+          {
+            "artifact": "distillation dataset",
+            "pole": "A",
+            "source": null,
+            "status": "UNKNOWN",
+            "detail": "artifact records no pole identity"
+          },
+          {
+            "artifact": "distillation dataset",
+            "pole": "B",
+            "source": null,
+            "status": "UNKNOWN",
+            "detail": "artifact records no pole identity"
+          }
+        ]
+      },
+      "6v6": {
+        "certified": {
+          "A": {
+            "policy": "A",
+            "team_size": 6,
+            "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+            "certification_sha256": "b33d92f42bdc0fde3f42ffa66efc71af0b46ebe8ab8b0c23e7a1a4168323b2ce",
+            "genome_id": "SDS2_A_payoff_INIT_3",
+            "base_opponent": "OP6",
+            "overlay": {
+              "min_alive_for_defender": 6
+            },
+            "opening_hold_steps": 0,
+            "pole_config_hash": "1c17c67afb2ad130a4576202ee3afe160171f093b051fa90f507ceccfd7ac11a",
+            "lock_defender": null,
+            "enable_2v1": null,
+            "min_alive_for_defender": 6
+          },
+          "B": {
+            "policy": "B",
+            "team_size": 6,
+            "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+            "certification_sha256": "b33d92f42bdc0fde3f42ffa66efc71af0b46ebe8ab8b0c23e7a1a4168323b2ce",
+            "genome_id": "SDS_PARENT_OP7",
+            "base_opponent": "OP7",
+            "overlay": {
+              "min_alive_for_defender": 6
+            },
+            "opening_hold_steps": 0,
+            "pole_config_hash": "765cf7dc353a7942de0fb0feb8ea0219c2e43c686838e2cb4743abdd420458ad",
+            "lock_defender": null,
+            "enable_2v1": null,
+            "min_alive_for_defender": 6
+          }
+        },
+        "artifacts": [
+          {
+            "artifact": "pi_A training",
+            "pole": "A",
+            "source": null,
+            "status": "PENDING",
+            "detail": "not built"
+          },
+          {
+            "artifact": "pi_B training",
+            "pole": "B",
+            "source": null,
+            "status": "PENDING",
+            "detail": "not built"
+          },
+          {
+            "artifact": "pi_D training",
+            "pole": "A",
+            "source": null,
+            "status": "PENDING",
+            "detail": "not built"
+          }
+        ]
+      }
+    },
+    "stage_failures": [],
+    "artifact_failures": [
+      {
+        "scale": "4v4",
+        "artifact": "pi_A training",
+        "pole": "A",
+        "source": null,
+        "status": "UNKNOWN",
+        "detail": "artifact records no pole identity"
+      },
+      {
+        "scale": "4v4",
+        "artifact": "distillation dataset",
+        "pole": "A",
+        "source": null,
+        "status": "UNKNOWN",
+        "detail": "artifact records no pole identity"
+      },
+      {
+        "scale": "4v4",
+        "artifact": "distillation dataset",
+        "pole": "B",
+        "source": null,
+        "status": "UNKNOWN",
+        "detail": "artifact records no pole identity"
+      }
+    ],
+    "pass": false
+  },
+  "attested": false,
+  "attested_requires": "layer 1 (configuration semantics) AND layer 2 (implementation path) AND layer 3 (resolved experimental objects). Layer 2 alone passed while two stages received different Pole-B genomes through the same module.",
+  "semantics": {
+    "PENDING": "artifact not built yet; not a mismatch, and not an attestation either",
+    "UNKNOWN": "artifact present but its setting could not be read from the loaded object; treated as a mismatch",
+    "CONFLICT[...]": "roles within one scale disagree"
+  },
+  "what_this_does_not_check": [
+    "that the executed code path was byte-identical across scales",
+    "pole overlay equality between scales",
+    "that the N' teacher schedule/cadence/formula match beyond the lambda being present"
+  ]
+}

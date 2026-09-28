@@ -1,0 +1,71 @@
+{
+  "record_id": "SUITE_SHARE_BACKBONE_4V4_CONSTRUCTION_AMENDMENT",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-25T15:00:00Z",
+  "classification": "DIAGNOSTIC / EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL.",
+  "authorized_by": "PI path 2026-09-25: extend 4v4 sharing depth with Share-Backbone (rung2) on the SAME SUITE_DISTILLATION_4V4_DATASET under CLOSEST_DEFENDS(k=2), after Share-Encoder / Fully Shared+z exploratory crossovers both FLAGGED on Δ_B.",
+  "amends": [
+    "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#DEPTH_VS_BREADTH",
+    "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json#NOT_AUTHORIZED_BY_THIS_SPEC",
+    "SUITE_SHARE_ENCODER_4V4_CONSTRUCTION_AMENDMENT.json#NOT_AUTHORIZED_BY_THIS_SPEC"
+  ],
+  "parent_construction": "RUNG2_CONSTRUCTION_AND_PREDICTION.json (shared CNN + latent body; private action heads per z)",
+
+  "THE_QUESTION": "Under CLOSEST_DEFENDS(k=2) and the same 4v4 teacher-state set as Share-Encoder / Fully Shared+z, does sharing the MLP body (Share-Backbone) still preserve specialization, or does crossover die earlier than at 2v2?",
+
+  "CONSTRUCTION_locked": {
+    "architecture": "rl.ladder_rung1.build_rung(2, …) / LadderModel — identical sharing rule to 2v2 Rung-2",
+    "shared": ["actor_cnn", "latent_actor.body"],
+    "private_per_z": ["latent_actor.action_head", "critic.*", "entity_encoder (4v4; never suite-shared)"],
+    "branch_arch": "specialists' own architecture from KL teacher pi_A (entity_repair_enabled inherited; role_conditioning_enabled=False)",
+    "entity_kwargs_forward": "LadderModel.policy_logits forwards teammates/enemies kwargs",
+    "initialisation": {
+      "branch_z0_seed": 22582001,
+      "branch_z1_seed": 22582002,
+      "fresh_random": true,
+      "not_warm_start": true
+    }
+  },
+
+  "IDENTITY_WITH_SUITE_locked": {
+    "same_teachers": "SUITE_DISTILLATION_4V4_DATASET.json#teachers",
+    "same_states": "SUITE_DISTILLATION_4V4_DATASET.json (CLOSEST_DEFENDS k=2)",
+    "same_objective": "0.5*KL(pi_A||z0) + 0.5*KL(pi_B||z1), decision-eligible only",
+    "same_budget": "20 epochs, batch 256, Adam lr 3e-4, grad-norm clip 1.0, no weight decay, terminal weights only",
+    "only_difference": "sharing structure vs Share-Encoder / Fully Shared+z / Share-Macro"
+  },
+
+  "DATASET": {
+    "manifest": "SUITE_DISTILLATION_4V4_DATASET.json",
+    "status_required": "FROZEN_DATASET"
+  },
+
+  "PREFLIGHT_REQUIRED": [
+    "dataset both poles + holdout non-empty",
+    "shared modules identity + unique-param arithmetic OK",
+    "teacher self-KL = 0",
+    "z changes logits (mixed-z)",
+    "initial loss finite positive",
+    "grad on shared set + both private stacks; none on critic",
+    "optimizer step moves shared + both private; critic immobile",
+    "save/load round-trip logits both z"
+  ],
+
+  "OUTPUTS": {
+    "preflight": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_backbone/preflight.json",
+    "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_backbone/ckpts/final_share_backbone_4v4.pt",
+    "frozen": "artifacts/strategic_demand/sppo/suite_sharing/4v4/share_backbone/STUDENT_FROZEN.json",
+    "format": "sharing_ladder_rung2_v1"
+  },
+
+  "RUNNER": "experiments/run_suite_sharing_distillation.py --arm share_backbone --team-size 4",
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "confirmatory n=128 crossover",
+    "sharing entity_encoder across z",
+    "changing CLOSEST_DEFENDS k or the frozen dataset",
+    "claiming PAPER-FAITHFUL"
+  ],
+
+  "SEQUENCE": "freeze -> preflight -> 20-epoch distill -> STUDENT_FROZEN -> pin sha into crossover SPEC -> exploratory n=64"
+}

@@ -1,0 +1,20 @@
+2026-09-27T14:42:55.6276522-04:00 std_pole_a_diag start (commit 6445ac12)
+2026-09-27T14:42:55.7901813-04:00 STOP: spec has no LAUNCH.command_presplit,command_split
+2026-09-27T14:43:08.3631408-04:00 std_pole_a_diag start (commit 8ae62821)
+2026-09-27T14:43:13.0439289-04:00 CHECK-ONLY command_presplit dry-run exited 0
+2026-09-27T14:43:18.1125026-04:00 CHECK-ONLY command_split dry-run exited 0
+2026-09-27T14:43:18.1140026-04:00 CHECK-ONLY PASS (pass -Launch to spend seeds)
+2026-09-27T14:43:26.3049842-04:00 std_pole_a_diag start (commit 8ae62821)
+2026-09-27T14:43:26.5570704-04:00 run command_presplit : .venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23700001 --n-seeds 128 --label STANDARDIZED_2V2_DIAG_PRESPLIT --device cuda --registry-experiment-id STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG
+2026-09-27T22:00:30.1817027-04:00 std_pole_a_diag start (commit 4b20c450)
+2026-09-27T22:00:43.5331259-04:00 CHECK-ONLY command_presplit dry-run exited 0
+2026-09-27T22:00:53.4220775-04:00 CHECK-ONLY command_split dry-run exited 0
+2026-09-27T22:00:53.4230840-04:00 CHECK-ONLY PASS (pass -Launch to spend seeds)
+2026-09-27T22:01:05.2503189-04:00 std_pole_a_diag start (commit 4b20c450)
+2026-09-27T22:01:05.7868495-04:00 run command_presplit : .venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23700001 --n-seeds 128 --label STANDARDIZED_2V2_DIAG_PRESPLIT --device cuda --registry-experiment-id STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG
+2026-09-28T03:31:24.4734240-04:00 std_pole_a_diag command_presplit exited 1
+2026-09-28T03:31:24.4874269-04:00 STANDARDIZED_2V2_DIAG_PRESPLIT record status SEALED
+2026-09-28T03:31:24.4889272-04:00 run command_split : .venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23700001 --n-seeds 128 --label STANDARDIZED_2V2_DIAG_SPLIT --device cuda --role-fixed-for-episode --frozen-attack-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --frozen-attack-path-sha256 858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f --role-k-defend 1 --registry-experiment-id STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG
+2026-09-28T07:47:10.6820041-04:00 std_pole_a_diag command_split exited 0
+2026-09-28T07:47:10.7005525-04:00 STANDARDIZED_2V2_DIAG_SPLIT record status SEALED
+2026-09-28T07:47:10.7015528-04:00 std_pole_a_diag DONE

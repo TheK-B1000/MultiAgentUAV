@@ -18,9 +18,29 @@ pytest.importorskip("torch")
 from experiments import run_sppo_production as P  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _unlaunched_output_root(tmp_path, monkeypatch):
+    """Validate against an output root in which production has NOT run yet.
+
+    The real 1M production run exists, so the real one-attempt guard
+    (production_dir_is_empty) now refuses every launch -- correctly. Without this the
+    baseline tests below would be permanently red for a reason that is the guard
+    working, not the config drifting. The guard itself is exercised on its own below.
+    """
+    monkeypatch.setattr(P, "OUT", tmp_path / "production")
+
+
 def _cfg():
     cfg, _ = P.build_production_config()
     return cfg
+
+
+def test_one_attempt_guard_refuses_a_non_empty_production_dir():
+    run_dir = P.OUT / P.RUN_TAG
+    run_dir.mkdir(parents=True)
+    (run_dir / "anything").write_text("", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="production_dir_is_empty"):
+        P.validate(_cfg())
 
 
 # ----------------------------------------------------------- baseline passes

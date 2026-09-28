@@ -39,6 +39,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from experiments import run_state as rs  # noqa: E402
+from experiments import seed_registry as sr  # noqa: E402
 from experiments.eval_hog_psp_v3 import _mean_ci  # noqa: E402
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
@@ -53,6 +55,78 @@ def _now() -> str:
 
 def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def load_partial(partial: Path, fingerprint: dict) -> dict:
+    """Completed cells from an interrupted run's PARTIAL rows file, keyed (policy, pole, seed).
+
+    Line 1 is the run's fingerprint (every input that decides an episode's outcome); each
+    later line is one finished episode row. Resuming is legal only if the fingerprint matches
+    exactly -- otherwise the partial belongs to a different run and mixing it in would
+    fabricate a result. A torn last line (the process died mid-write) is dropped; any other
+    malformed line refuses.
+    """
+    lines = partial.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        return {}
+    try:
+        head = json.loads(lines[0])
+    except ValueError:
+        raise SystemExit(f"REFUSING: {partial.name} has an unreadable fingerprint line")
+    if head.get("fingerprint") != fingerprint:
+        raise SystemExit(f"REFUSING: {partial.name} was written by a different run configuration; "
+                         f"recorded {head.get('fingerprint')} vs now {fingerprint}")
+    done: dict = {}
+    for i, ln in enumerate(lines[1:], start=2):
+        try:
+            row = json.loads(ln)
+        except ValueError:
+            if i == len(lines):
+                break                                   # torn final write
+            raise SystemExit(f"REFUSING: {partial.name} line {i} is malformed")
+        done[(row["policy"], row["pole"], int(row["seed"]))] = row
+    return done
+
+
+def shared_block_owner(reg_id: str, label: str, lo: int, hi: int, seed_class: str) -> dict:
+    """Validate a SHARED diagnostic block before any episode. Returns the registry entry.
+
+    A paired diagnostic evaluates several labels on the SAME seeds. The per-label default
+    (one block per label) cannot express that without reusing seeds, so the block is
+    registered once, up front, with the exact labels allowed to spend it
+    (``shared_by_labels``). Refuses unless: the id is registered with exactly this range and
+    class, it is still RESERVED, and this label is declared on it.
+    """
+    b = next((x for x in sr.load()["blocks"] if x["experiment_id"] == reg_id), None)
+    if b is None:
+        raise SystemExit(f"REFUSING (Rule 9): shared block {reg_id!r} is not registered")
+    if (b["lo"], b["hi"]) != (lo, hi):
+        raise SystemExit(f"REFUSING (Rule 9): shared block {reg_id} is {b['lo']}..{b['hi']}, "
+                         f"this run asks for {lo}..{hi}")
+    if b["seed_class"] != seed_class:
+        raise SystemExit(f"REFUSING (Rule 9): shared block {reg_id} is {b['seed_class']}, "
+                         f"the spec implies {seed_class}")
+    if b["status"] != "RESERVED":
+        raise SystemExit(f"REFUSING (Rule 9): shared block {reg_id} is {b['status']}")
+    labels = b.get("shared_by_labels") or []
+    if label not in labels:
+        raise SystemExit(f"REFUSING (Rule 9): label {label!r} is not declared on shared block "
+                         f"{reg_id} (shared_by_labels={labels})")
+    return b
+
+
+def shared_block_all_sealed(block: dict, sd: Path) -> bool:
+    """True once every declared label has a sealed result record (only then is it SPENT)."""
+    for lab in block.get("shared_by_labels") or []:
+        out = sd / f"{lab}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+        if not out.is_file():
+            return False
+        try:
+            if json.loads(out.read_text(encoding="utf-8")).get("status") not in ("SEALED", "AUDIT_FAILED"):
+                return False
+        except (OSError, ValueError):
+            return False
+    return True
 
 
 def main() -> int:
@@ -97,15 +171,26 @@ def main() -> int:
     ap.add_argument("--role-k-defend", type=int, default=0,
                     help="explicit CLOSEST_DEFENDS defender count. 0 = default role_k(N)=N/2. "
                          "6v6 locked closure uses 1 (5A/1D). Passed to RoleHoldState.k_defend.")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue an interrupted run of THIS label from its PARTIAL rows file "
+                         "(fingerprint must match exactly); with no PARTIAL file it starts fresh. "
+                         "Without --resume an existing PARTIAL file refuses.")
+    ap.add_argument("--registry-experiment-id", default="",
+                    help="spend a SHARED diagnostic block registered up front under this id with "
+                         "shared_by_labels listing this --label (paired multi-label diagnostics). "
+                         "Default: one block per label, id <LABEL>_SPECIALIST_CROSSOVER.")
     args = ap.parse_args()
 
     N = int(args.team_size)
     label = str(args.label)
     seeds = list(range(int(args.seed_base), int(args.seed_base) + int(args.n_seeds)))
+    EXP_ID = f"{label}_SPECIALIST_CROSSOVER"
+    lo, hi = int(seeds[0]), int(seeds[-1])
 
     OUT = SD / f"{label}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
     ROWS_CSV = SD / f"{label.lower()}_specialist_crossover_eval_rows.csv"
     PREAUDIT_FLAG = SD / f"{label}_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json"
+    PARTIAL = SD / f"{label.lower()}_specialist_crossover_eval_rows.PARTIAL.jsonl"
 
     # ---- preflight: fail closed on everything that must already be true --------------
     spec_path = Path(args.spec)
@@ -115,6 +200,31 @@ def main() -> int:
     if not str(spec.get("status", "")).startswith("FROZEN"):
         raise SystemExit(f"REFUSING: spec not frozen: {spec.get('status')!r}")
 
+    seed_class = (
+        "sealed_confirmatory" if bool(spec.get("confirmatory", False)) else "exploratory"
+    )
+    REG_ID = str(args.registry_experiment_id or "").strip() or EXP_ID
+    shared_block = None
+    if REG_ID != EXP_ID:
+        shared_block = shared_block_owner(REG_ID, label, lo, hi, seed_class)
+        print(f"  Rule 9: shared block {REG_ID} {lo}..{hi} [{seed_class}/RESERVED], "
+              f"label {label} declared among {shared_block.get('shared_by_labels')}")
+    ok, msg = sr.check_block(lo, hi, seed_class, experiment_id=REG_ID)
+    if not ok:
+        raise SystemExit(f"REFUSING (Rule 9): {msg}")
+    if shared_block is None and not any(b["experiment_id"] == EXP_ID for b in sr.load()["blocks"]):
+        if args.dry_run:
+            print(f"  Rule 9: block {lo}..{hi} free; would allocate as {EXP_ID} on real run")
+        else:
+            sr.allocate(
+                EXP_ID, lo, hi, seed_class,
+                purpose=f"{label} specialist crossover eval ({N}v{N})",
+                spec=spec_path.name,
+            )
+            print(f"  Rule 9: allocated {lo}..{hi} -> {EXP_ID} [{seed_class}/RESERVED]")
+    else:
+        print(f"  Rule 9: {msg}")
+
     paths = {}
     for name, p in (("pi_A", args.pi_a_path), ("pi_B", args.pi_b_path)):
         ck = Path(p)
@@ -123,6 +233,9 @@ def main() -> int:
         paths[name] = ck
     if OUT.is_file() or ROWS_CSV.is_file() or PREAUDIT_FLAG.is_file():
         raise SystemExit(f"REFUSING: an output for label {label!r} already exists; one-shot")
+    if PARTIAL.is_file() and not args.resume:
+        raise SystemExit(f"REFUSING: {PARTIAL.name} exists (an interrupted run of this label); "
+                         f"pass --resume to continue it")
 
     frozen_attack_path_str = str(args.frozen_attack_path or "")
     frozen_attack_ckpt_path: Path | None = None
@@ -143,7 +256,7 @@ def main() -> int:
     import torch
     from experiments.opponent_spec import (
         _with_full_team_defender_gate, assert_live_opponent_batch,
-        install_keyed_opponent_overlays, pole_A_genome, pole_B_genome,
+        install_keyed_opponent_overlays,
     )
     from experiments.sds_genome import SDSGenome
     import experiments.r2_learned_crossover as R2
@@ -168,19 +281,30 @@ def main() -> int:
     )
     _cert_verdict, _cert_path = governing_certification(N)
     pole_attestations = {}
+    # The genome each pole is ATTESTED against is the genome that gets INSTALLED. Resolving
+    # a second time for installation -- as this evaluator used to for Pole B, and as it did
+    # for Pole A via pole_A_genome() directly -- lets the attested object and the evaluated
+    # object diverge, which is how the 4v4 suite stages ended up on plain OP7.
+    _resolved = {}
     for _pol in ("A", "B"):
         _g = resolve_pole_genome(_pol, N, args.pole_b_genome_json if _pol == "B" else None)
+        _resolved[_pol] = _g
         pole_attestations[_pol] = assert_resolved_matches_certification(
             _pol, N, _cert_path, _g, is_smoke=False)
         print(f"  POLE {_pol} ATTESTATION vs {_cert_path.name}:")
         print(format_attestation_banner(pole_attestations[_pol]))
-    pole_b_resolved = resolve_pole_genome("B", N, args.pole_b_genome_json)
+    pole_a_resolved, pole_b_resolved = _resolved["A"], _resolved["B"]
+    from experiments.pole_attestation import pole_identity
+    POLE_IDENTITY = {p: pole_identity(p, N, g) for p, g in _resolved.items()}
 
-    # Both poles resolved at the LIVE team size. At N=2 pole_B_genome(2) carries no overlay,
-    # reproducing the 2v2 evaluator exactly; at N>2 the Pole-B overlay is required.
+    # Both poles resolved at the LIVE team size, with no team-size fork: pole_B_genome(2)
+    # carries an empty overlay, so installing it at N=2 is inert. Verified by comparing all
+    # 36 fields of core._bt_resolved_profile_tensors() with the genome installed and omitted
+    # (identical), which is why the former `if N != 2` branch could be removed without
+    # changing the 2v2 evaluator's behaviour.
     genomes_by_pole = {
-        "A": {"OP6": pole_A_genome(N)},
-        "B": {"OP7": pole_b_resolved} if N != 2 else {},
+        "A": {"OP6": pole_a_resolved},
+        "B": {"OP7": pole_b_resolved},
     }
 
     print(f"SPECIALIST CROSSOVER EVAL  {label}  {N}v{N}  {_now()}")
@@ -192,7 +316,7 @@ def main() -> int:
               f"ATTACK slots -> frozen_attack_path={frozen_attack_ckpt_path}  "
               f"sha {_sha(frozen_attack_ckpt_path)[:12]}...")
     print(f"  seeds      {seeds[0]}..{seeds[-1]} (n={len(seeds)}), SHARED across policies and poles")
-    print(f"  poles      A: OP6+{dict(pole_A_genome(N).overlay or {})}   "
+    print(f"  poles      A: OP6+{dict(pole_a_resolved.overlay or {})}   "
           f"B: OP7+{dict(pole_b_resolved.overlay or {})}")
     print(f"  gate       delta_A_spec > 0 & LCB95 > 0; delta_B_spec symmetric")
     print(f"  bootstrap  n={N_BOOT}, alpha={ALPHA}, rng_seed={BOOTSTRAP_SEED}\n", flush=True)
@@ -375,14 +499,47 @@ def main() -> int:
 
     from experiments.tqdm_loop import set_postfix, tqdm_iter
 
+    state = rs.RunState(SD, EXP_ID)
+    state.begin(seed_base=seeds[0], n_seeds=len(seeds), team_size=N,
+                pi_a=str(paths["pi_A"]), pi_b=str(paths["pi_B"]))
+
+    # Crash safety: every finished episode is appended (and fsynced) to PARTIAL, headed by a
+    # fingerprint of everything that decides an outcome. Each cell is a fresh env built from its
+    # own seed with deterministic actions, so a resumed run yields exactly the rows an
+    # uninterrupted one would.
+    fingerprint = {
+        "label": label, "team_size": N, "seeds": [seeds[0], seeds[-1], len(seeds)],
+        "checkpoints": {n: _sha(paths[n]) for n in POLICIES},
+        "frozen_attack_sha256": (_sha(frozen_attack_ckpt_path) if frozen_attack_ckpt_path is not None else None),
+        "role_fixed_for_episode": bool(args.role_fixed_for_episode),
+        "role_k_defend": int(getattr(args, "role_k_defend", 0) or 0),
+        "spec_sha256": _sha(spec_path),
+        "pole_config_hash": {p: pole_attestations[p]["live_config_hash"] for p in ("A", "B")},
+        "device": str(device),
+    }
+    done = load_partial(PARTIAL, fingerprint) if PARTIAL.is_file() else {}
+    if done:
+        print(f"  RESUME: {len(done)} finished episode(s) read from {PARTIAL.name}", flush=True)
+    else:
+        PARTIAL.write_text(json.dumps({"fingerprint": fingerprint}) + "\n", encoding="utf-8")
+    import os as _os
+
     cells = [(name, pole, seed) for name in POLICIES for pole in ("A", "B") for seed in seeds]
     rows = []
     bar = tqdm_iter(cells, desc=f"{label} crossover", unit="ep")
     for name, pole, seed in bar:
         set_postfix(bar, f"{name}@Pole{pole} seed={seed}")
-        cell_attack_policy = frozen_attack_policy if name == "pi_A" else None
-        rows.append({"policy": name, "pole": pole, "seed": seed,
-                     **run_cell(policies[name], pole, seed, attack_policy=cell_attack_policy)})
+        if (name, pole, seed) in done:
+            rows.append(done[(name, pole, seed)])
+        else:
+            cell_attack_policy = frozen_attack_policy if name == "pi_A" else None
+            row = {"policy": name, "pole": pole, "seed": seed,
+                   **run_cell(policies[name], pole, seed, attack_policy=cell_attack_policy)}
+            with PARTIAL.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row) + "\n")
+                fh.flush()
+                _os.fsync(fh.fileno())
+            rows.append(row)
         if seed == seeds[-1]:
             wr = np.mean([r["win"] for r in rows if r["policy"] == name and r["pole"] == pole])
             print(f"  {name:5s} on Pole {pole}: win rate {wr:.4f}", flush=True)
@@ -401,6 +558,14 @@ def main() -> int:
     delta_a["passes"] = bool(delta_a["mean"] > 0 and delta_a["lcb95"] > 0)
     delta_b["passes"] = bool(delta_b["mean"] > 0 and delta_b["lcb95"] > 0)
 
+    gate_passes = bool(delta_a["passes"] and delta_b["passes"])
+    print("\n  PRIMARY GATE")
+    print(f"    delta_A_spec {delta_a['mean']:+.4f} [{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]"
+          f" {'PASS' if delta_a['passes'] else 'FAIL'}")
+    print(f"    delta_B_spec {delta_b['mean']:+.4f} [{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]"
+          f" {'PASS' if delta_b['passes'] else 'FAIL'}")
+    print(f"\n  GATE: {'PASS' if gate_passes else 'FAIL'}")
+
     tie_or_reversal = [k for k, d in (("delta_A", delta_a), ("delta_B", delta_b))
                        if d["mean"] <= 0.0]
     if tie_or_reversal:
@@ -410,34 +575,50 @@ def main() -> int:
             "implements": f"{spec_path.name}#EVALUATION.tie_or_reversal",
             "triggered_by": tie_or_reversal,
             "point_estimates": {"delta_A": delta_a["mean"], "delta_B": delta_b["mean"]},
-            "rule": "requires a row-level integrity audit before any verdict-bearing result. "
-                    f"Raw rows: {ROWS_CSV.name}.",
+            "rule": "requires a row-level integrity audit before any scientific interpretation. "
+                    f"Raw rows: {ROWS_CSV.name}. Sealing still proceeds for immutability.",
         }, indent=2), encoding="utf-8")
-        print(f"\n  TIE/REVERSAL on {tie_or_reversal} -- integrity audit REQUIRED.")
+        print(f"  TIE/REVERSAL on {tie_or_reversal} -- integrity FLAG written; still sealing rows.")
         print(f"  -> {PREAUDIT_FLAG}")
-        return 0
 
-    gate_passes = bool(delta_a["passes"] and delta_b["passes"])
-    print("\n  PRIMARY GATE")
-    print(f"    delta_A_spec {delta_a['mean']:+.4f} [{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]"
-          f" {'PASS' if delta_a['passes'] else 'FAIL'}")
-    print(f"    delta_B_spec {delta_b['mean']:+.4f} [{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]"
-          f" {'PASS' if delta_b['passes'] else 'FAIL'}")
-    print(f"\n  GATE: {'PASS' if gate_passes else 'FAIL'}")
-
-    OUT.write_text(json.dumps({
-        "record": f"{label} specialist crossover EVAL", "status": "FROZEN_RESULT",
+    claims = [
+        rs.Claim(name="delta_A", recorded={k: delta_a[k] for k in ("mean", "lcb95", "ucb95")},
+                 minuend={"policy": "pi_A", "pole": "A"},
+                 subtrahend={"policy": "pi_B", "pole": "A"}, value_field="win"),
+        rs.Claim(name="delta_B", recorded={k: delta_b[k] for k in ("mean", "lcb95", "ucb95")},
+                 minuend={"policy": "pi_B", "pole": "B"},
+                 subtrahend={"policy": "pi_A", "pole": "B"}, value_field="win"),
+    ]
+    plan = rs.AuditPlan(
+        rows_csv=ROWS_CSV, expected_rows=len(rows), expected_seeds=seeds,
+        group_by=("policy", "pole"), seed_field="seed",
+        int_fields=("seed", "blue", "red", "margin"), binary_fields=("win",), derived={},
+        checkpoints={n: (paths[n], _sha(paths[n])) for n in POLICIES},
+        spec_path=spec_path, claims=claims,
+        n_boot=N_BOOT, alpha=ALPHA, rng_seed=BOOTSTRAP_SEED,
+        seed_class=seed_class, experiment_id=REG_ID,
+    )
+    # status is owned by seal(); do not set it here. Sealed != gate PASS.
+    payload = {
+        "record": f"{label} specialist crossover EVAL",
         "one_shot": True, "utc": _now(),
         "arm": spec.get("arm", "n/a"), "confirmatory": bool(spec.get("confirmatory", False)),
         "implements": f"{spec_path.name}#EVALUATION",
         "team_size": N, "device": device,
         "role_fixed_for_episode": bool(args.role_fixed_for_episode),
-        "seeds": {"block": [seeds[0], seeds[-1]], "n": len(seeds), "shared_across_policies": True},
+        "seeds": {
+            "block": [seeds[0], seeds[-1]], "n": len(seeds),
+            "shared_across_policies": True,
+            "seed_class": seed_class, "registry_experiment_id": REG_ID,
+            "shared_by_labels": (shared_block.get("shared_by_labels") if shared_block else None),
+        },
         "poles": {p: {"base": BASE_KEY[p],
-                      "overlay": dict((pole_A_genome(N) if p == "A" else pole_b_resolved).overlay or {}),
+                      "overlay": dict((pole_a_resolved if p == "A" else pole_b_resolved).overlay or {}),
                       "candidate_genome_id": (pole_b_resolved.genome_id
                                               if p == "B" and args.pole_b_genome_json else None)}
                   for p in ("A", "B")},
+        # Full resolved identity, comparable across stages (Layer 3 reads this).
+        "pole_identity": POLE_IDENTITY,
         "pole_attestations": {p: {k: pole_attestations[p][k] for k in (
             "certification_record", "certified_genome_id", "live_genome_id",
             "certified_overlay", "live_overlay", "certified_config_hash",
@@ -452,8 +633,26 @@ def main() -> int:
         "bootstrap": {"procedure": "paired percentile bootstrap over evaluation seeds",
                       "samples": N_BOOT, "alpha": ALPHA, "rng_seed": BOOTSTRAP_SEED},
         "no_model_selection_occurred": True, "total_episodes": len(rows),
-    }, indent=2), encoding="utf-8")
-    print(f"\n  -> {OUT}")
+        "integrity_flag": (str(PREAUDIT_FLAG.relative_to(ROOT)) if tie_or_reversal else None),
+    }
+    rs.seal(out_path=OUT, payload=payload, plan=plan, state=state, strict=False)
+    PARTIAL.unlink(missing_ok=True)       # the sealed rows CSV is now the record
+    sealed = json.loads(OUT.read_text(encoding="utf-8"))
+    if shared_block is None:
+        sr.set_status(EXP_ID, "SPENT",
+                      note=f"sealed {sealed.get('status')}; gate_passes={gate_passes}")
+    else:
+        fresh = next(x for x in sr.load()["blocks"] if x["experiment_id"] == REG_ID)
+        if shared_block_all_sealed(fresh, SD):
+            sr.set_status(REG_ID, "SPENT", note=f"all shared labels sealed (last: {label})")
+        else:
+            doc = sr.load()
+            b = next(x for x in doc["blocks"] if x["experiment_id"] == REG_ID)
+            b.setdefault("notes", []).append({"utc": _now(), "note": f"label {label} sealed "
+                                              f"{sealed.get('status')}; block stays RESERVED for "
+                                              f"the remaining shared labels"})
+            sr.save(doc)
+    print(f"\n  -> {OUT} ({sealed.get('status')})")
     return 0 if gate_passes else 1
 
 

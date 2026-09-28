@@ -1,0 +1,59 @@
+{
+  "record_id": "ACTION_INTERFACE_COMMITMENT_MECHANISM_CONTRACT_PROVENANCE_NOTE",
+  "status": "PROVENANCE_NOTE",
+  "utc": "2026-09-26T05:15:00Z",
+  "classification": "Provenance / audit note. Changes no scientific result and authorizes nothing. The sealed probe result, its rows, and its reading are untouched.",
+  "authorized_by": "PI, 2026-09-26: keep the launcher fix and the G8/G9 split, restore the genuine Sep 18 PASS byte-for-byte, and document the restoration so the history is explicit rather than mysterious.",
+
+  "WHAT_HAPPENED": {
+    "summary": "ACTION_INTERFACE_COMMITMENT_MECHANISM_CONTRACT_RESULT.json is the PRE-RUN authorization record: it evidences that the probe's contracts passed BEFORE any seed was spent (Rule 3). A standing contract test re-ran run_contracts() AFTER the probe had completed and overwrote that record with a FAIL, because gate G8 asked whether the sealed result was absent -- a condition that can never hold again once the probe has legitimately run.",
+    "timeline": [
+      {"commit": "a856469d", "date": "2026-09-18", "utc_in_record": "2026-09-18T15:31:15Z", "overall_pass": true, "G8_pass": true, "note": "the genuine pre-run authorization. Seeds 19600001..19600016 were allocated 15:16:59Z and spent 15:47:24Z, i.e. AFTER this record."},
+      {"commit": "af8f76c2", "date": "2026-09-23", "utc_in_record": "2026-09-22T15:33:35Z", "overall_pass": false, "G8_pass": false, "note": "the overwritten record. A test invocation on 2026-09-22 rewrote the file with result_exists=true; it was committed incidentally alongside unrelated work."}
+    ],
+    "discovered": "2026-09-26, while running the full test suite to establish a green baseline before the cross-scale 2v2 port. The failure was initially mistaken for a plain stale-test problem; reading the gate showed it was structurally unsatisfiable post-run."
+  },
+
+  "RESTORATION": {
+    "action": "git checkout a856469d -- AICTFProject/artifacts/strategic_demand/sppo/ACTION_INTERFACE_COMMITMENT_MECHANISM_CONTRACT_RESULT.json",
+    "nothing_recomputed": "The PASS was NOT regenerated, recomputed, or hand-edited. The exact historical bytes that authorized the run were restored from the commit that recorded them.",
+    "verification": {
+      "method": "git object identity, which is what determines the committed content",
+      "restored_index_blob_sha": "a6ba11866af8",
+      "a856469d_blob_sha": "a6ba11866af8",
+      "git_diff_vs_a856469d": "EMPTY",
+      "content_sha256_LF_normalized": "0afd946f65c78798 (identical on both sides)",
+      "raw_on_disk_byte_note": "The working-tree copy carries CRLF line endings because core.autocrlf=true in this clone, exactly as it did when originally checked out. Raw on-disk bytes therefore differ from the LF blob bytes while the git object is identical; the LF-normalized content hashes match."
+    }
+  },
+
+  "CODE_FIX_ACCOMPANYING_THIS_RESTORATION": {
+    "file": "experiments/eval_action_interface_commitment_mechanism.py",
+    "G8_is_now_mode_aware": {
+      "PRE_RUN": "no result and no lock -- G8 applies and gates; a run may start",
+      "IN_FLIGHT": "lock present with no sealed result -- G8 applies and FAILS; a run is live or crashed and a second must not start",
+      "POST_RUN": "result sealed -- G8 is marked applicable=false and is reported but excluded from the verdict"
+    },
+    "G9_SEALED_RESULT_PROVENANCE": "New POST_RUN gate that verifies what G8's frozen spec text actually promises ('uses a fresh Rule-9 exploratory block and never overwrites prior scale artifacts') directly against the sealed result: seeds fall inside the Rule-9 block registered to this experiment id with the spec's seed class, seed count and arms match the frozen spec, every trace is complete at HORIZON ticks with a trace hash, and no stale run lock remains. Prior-artifact protection remains G0. This is a stronger post-run check than the existence proxy it replaces.",
+    "launcher_refusal_UNCHANGED": "main() still refuses to promote when the result or the run lock exists. Verified after restoration: the launcher now refuses with 'REFUSING: result or run lock already exists' (the correct reason) rather than 'mechanism contracts are not PASS' (the symptom of the clobbered record).",
+    "clobber_footgun_closed": "main() previously rewrote the authorization record on every --contracts invocation, which is the mechanism that destroyed it. Only a PRE_RUN evaluation may write CONTRACT_RESULT now; POST_RUN evaluations write CONTRACT_ATTESTATION.json instead. Verified by sha256: --contracts leaves CONTRACT_RESULT byte-identical.",
+    "test": "tests/test_action_interface_commitment_mechanism_contracts.py writes the attestation file, never the authorization record, and asserts the mode/gate relationship so a future silent retirement of G8 without G9 fails."
+  },
+
+  "VERIFIED_NOT_JUST_GREEN": {
+    "IN_FLIGHT_still_blocks": "simulated a lock with no result -> overall_pass=false",
+    "PRE_RUN_still_gates": "simulated absent result and lock -> G8 applicable=true, pass=true, no G9",
+    "G9_negative_control": "tampering with the sealed result's seed list made G9 fail on seed_count_matches_spec and seeds_are_registered_rule9_block",
+    "launcher_negative_control": "attempted --promote --seeds 19600001-19600016 in both record states; refused in both"
+  },
+
+  "WHAT_THIS_DOES_NOT_CHANGE": [
+    "ACTION_INTERFACE_COMMITMENT_MECHANISM_RESULT.json and its READING -- the probe's scientific outcome is untouched",
+    "the agent-tick and episode row CSVs",
+    "the seed registry entry (19600001..19600016, exploratory, SPENT)",
+    "the launcher's refusal semantics",
+    "any conclusion drawn from the probe"
+  ],
+
+  "KNOWN_REMAINING_HAZARD": "Running the test suite in this repository mutates tracked artifact files: sibling contract tests rewrite their own *_CONTRACT_RESULT.json with a fresh utc on every run (observed for ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json and CCP_SUCCESSOR_COMPOSITION_SMOKE.json, both restored). PI deferred this to a separate test-hygiene task: wrap test runs so the tracked working-tree status is captured before and after and any test-written artifact is reported. Not braided into the cross-scale methodology port."
+}

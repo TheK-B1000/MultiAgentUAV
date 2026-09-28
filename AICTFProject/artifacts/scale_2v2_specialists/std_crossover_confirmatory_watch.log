@@ -1,0 +1,6 @@
+2026-09-27T09:03:15.8655968-04:00 std_crossover_confirmatory start (commit c4c380f9)
+2026-09-27T09:03:16.0256412-04:00 CHECK-ONLY: spec committed+clean+FROZEN; running evaluator --dry-run
+2026-09-27T09:03:20.7381180-04:00 CHECK-ONLY dry-run exited 0 (pass -Launch to spend seeds)
+2026-09-27T09:04:32.7406864-04:00 std_crossover_confirmatory start (commit 933534ea)
+2026-09-27T09:04:33.2088670-04:00 run: .venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_SEPARATED_CROSSOVER_CONFIRMATORY_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23600001 --n-seeds 128 --label STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY --device cuda --role-fixed-for-episode --frozen-attack-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --frozen-attack-path-sha256 858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f --role-k-defend 1
+2026-09-27T13:25:31.3876635-04:00 std_crossover_confirmatory exited 1

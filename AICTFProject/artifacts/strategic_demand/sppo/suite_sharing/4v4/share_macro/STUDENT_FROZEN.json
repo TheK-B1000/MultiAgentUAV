@@ -1,0 +1,33 @@
+{
+  "record": "suite share_macro 4v4",
+  "utc": "2026-09-25T15:23:59Z",
+  "status": "FROZEN_STUDENT",
+  "checkpoint": "artifacts\\strategic_demand\\sppo\\suite_sharing\\4v4\\share_macro\\ckpts\\final_share_macro_4v4.pt",
+  "sha256": "12e66d98fd3710466c70ef04b6c27fb1e4ab7fe1e8109384e84eb2f1e48b4ccb",
+  "unique_actor_params": 3531371,
+  "branch_seeds": [
+    22583001,
+    22583002
+  ],
+  "rung": 3,
+  "final_holdout": {
+    "epoch": 20,
+    "train_kl_A": 0.0145508237711504,
+    "train_kl_B": 0.022071039621183213,
+    "holdout_agree_z0_vs_piA": 0.8991420786043155,
+    "holdout_agree_z1_vs_piB": 0.8588713299604482,
+    "holdout_teacher_argmax_disagreement": 0.737892447547108,
+    "holdout_kl_A": 0.022203753284254946,
+    "holdout_kl_B": 0.028639613107659008,
+    "holdout_student_z0_z1_jsd": 0.28522788363265783,
+    "holdout_teacher_A_B_jsd": 0.29055405468752665
+  },
+  "recipe": {
+    "epochs": 20,
+    "batch": 256,
+    "lr": 0.0003,
+    "clip": 1.0,
+    "weight_decay": 0.0
+  },
+  "dataset": "artifacts\\strategic_demand\\sppo\\SUITE_DISTILLATION_4V4_DATASET.json"
+}
