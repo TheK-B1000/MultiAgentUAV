@@ -72,10 +72,12 @@ def _sha(p: Path) -> str:
 
 
 def _git_identity() -> dict:
-    import subprocess
-    def run(*a):
-        return subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, text=True).stdout.strip()
-    return {"git_sha": run("rev-parse", "HEAD"), "git_dirty": bool(run("status", "--porcelain", "--", "experiments"))}
+    # The git sha is provenance; the scientific-tree hash is the experimental identity (a commit
+    # that only adds artifacts moves HEAD but not the tree). Dirty = any scientific path, not only
+    # experiments/ (see experiments/code_identity.py).
+    from experiments import code_identity as CI
+    return {"git_sha": CI._git(ROOT, "rev-parse", "HEAD").strip(), "git_dirty": CI.scientific_dirty(ROOT),
+            "scientific_tree_sha256": CI.scientific_tree_sha256("HEAD", ROOT)}
 
 
 def check_collection_seeds(spec: dict) -> dict:
@@ -326,7 +328,8 @@ def main() -> int:
     # from uncommitted collector code, and the commit is inside every shard's fingerprint, so
     # --resume can never splice shards from two collector versions into one dataset.
     if not smoke and ident["git_dirty"]:
-        raise SystemExit("REFUSING: experiments/ has uncommitted changes; a dataset must be "
+        raise SystemExit("REFUSING: scientific code (experiments/ rl/ gpu_env/ configs/ root *.py) has "
+                         "uncommitted changes; a dataset must be "
                          "collected by committed collector code (its git sha is recorded per shard)")
     fingerprint = json.dumps({
         "team_size": N_AGENTS, "k_defend": K_DEFEND, "allocator": alloc,

@@ -17,7 +17,9 @@ Per dataset:
   SPENT; in EVERY stored row: exactly k defenders, a non-empty decision mask, entity tensors with N-1
   teammates and N enemies.
 Across datasets:
-  same collector git sha (byte-identical collector code), same manifest key set, same fingerprint key set,
+  same scientific implementation (identical collector blob AND no diff under the scientific paths of
+  experiments/code_identity.py; both real git shas reported, and differing shas need a FROZEN
+  COLLECTOR_COMMIT_EQUIVALENCE attestation equal to the live recomputation), same manifest key set, same fingerprint key set,
   same allocator except k, same stored keys, same n_per_pole, decision-rows-only / entities / roles flags.
 """
 from __future__ import annotations
@@ -34,6 +36,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+from experiments import code_identity as CI  # noqa: E402
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 DATASETS = {
@@ -122,6 +126,9 @@ def audit_one(scale: str, spec_name: str, man_name: str, checks: list) -> dict:
     check("manifest_fingerprint_collector_sha", (man.get("fingerprint") or {}).get("collector_git_sha") == sha,
           [(man.get("fingerprint") or {}).get("collector_git_sha"), sha])
     check("collector_clean_at_collection", col.get("git_dirty") is False, col.get("git_dirty"))
+    if "scientific_tree_sha256" in col:   # recorded from 2026-09-28 on; older manifests are recomputed from git_sha
+        check("manifest_scientific_tree_matches_git_sha",
+              col["scientific_tree_sha256"] == CI.scientific_tree_sha256(sha), col["scientific_tree_sha256"][:16])
     bad_def, bad_dec, bad_ent, missing, rows, foreign = 0, 0, 0, 0, 0, 0
     for s_ in shards:
         f = ROOT / s_["file"]
@@ -161,8 +168,21 @@ def main() -> int:
     if all(got.values()):
         m2, m4 = got["2v2"]["manifest"], got["4v4"]["manifest"]
         s2, s4 = got["2v2"]["spec"], got["4v4"]["spec"]
-        cross("same_collector_git_sha", m2["collector"]["git_sha"] == m4["collector"]["git_sha"],
-              [m2["collector"]["git_sha"], m4["collector"]["git_sha"]])
+        # Identity is the executed code, not HEAD: an artifact-only commit between the two collections
+        # changes the sha but not one executed instruction. Both real shas are reported, never rewritten.
+        sha2, sha4 = m2["collector"]["git_sha"], m4["collector"]["git_sha"]
+        try:
+            eq = CI.code_equivalence(sha2, sha4)
+        except RuntimeError as exc:
+            eq = {"equivalent": False, "error": str(exc)}
+        cross("same_scientific_implementation", eq["equivalent"],
+              {"git_sha_2v2": sha2, "git_sha_4v4": sha4, "collector_identical": eq.get("collector_identical"),
+               "scientific_changed_files": eq.get("scientific_changed_files"), "error": eq.get("error")})
+        if sha2 != sha4:
+            att_p = SD / CI.attestation_name(sha2, sha4)
+            att = json.loads(att_p.read_text(encoding="utf-8")) if att_p.is_file() else {}
+            cross("differing_shas_have_frozen_equivalence_attestation",
+                  att.get("status") == "FROZEN" and att.get("equivalence") == eq, att_p.name)
         cross("same_manifest_keys", set(m2) == set(m4), sorted(set(m2) ^ set(m4)))
         cross("same_fingerprint_keys", set(m2["fingerprint"]) == set(m4["fingerprint"]))
         a2 = {kk: v for kk, v in m2["allocator"].items() if kk != "k_defend"}

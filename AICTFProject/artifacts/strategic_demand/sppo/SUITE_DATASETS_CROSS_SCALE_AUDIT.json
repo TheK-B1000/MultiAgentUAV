@@ -1,0 +1,672 @@
+{
+  "record_id": "SUITE_DATASETS_CROSS_SCALE_AUDIT",
+  "utc": "2026-09-28T18:42:03Z",
+  "verdict": "GREEN",
+  "datasets": {
+    "2v2": "SUITE_DISTILLATION_2V2_DATASET.json",
+    "4v4": "SUITE_DISTILLATION_4V4_V2_DATASET.json"
+  },
+  "rows": {
+    "2v2": 33305,
+    "4v4": 39317
+  },
+  "checks": [
+    {
+      "scale": "2v2",
+      "check": "manifest_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_2V2_DATASET.json"
+    },
+    {
+      "scale": "2v2",
+      "check": "spec_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_2V2_SPEC.json"
+    },
+    {
+      "scale": "2v2",
+      "check": "manifest_FROZEN_DATASET",
+      "ok": true,
+      "detail": "FROZEN_DATASET"
+    },
+    {
+      "scale": "2v2",
+      "check": "spec_FROZEN",
+      "ok": true,
+      "detail": "FROZEN_BEFORE_COLLECTION"
+    },
+    {
+      "scale": "2v2",
+      "check": "collector_recorded",
+      "ok": true,
+      "detail": {
+        "module": "experiments/collect_suite_distillation_states.py",
+        "spec": "SUITE_DISTILLATION_2V2_SPEC.json",
+        "spec_sha256": "fc53946db6e31e5f648e8237c9644510957dba235fb4caaa570e0e9ebf390693",
+        "git_sha": "342cbc46a1788626a6b5015d86596734c38cc675",
+        "git_dirty": false
+      }
+    },
+    {
+      "scale": "2v2",
+      "check": "spec_sha_matches_manifest",
+      "ok": true,
+      "detail": "fc53946db6e31e5f648e8237c9644510957dba235fb4caaa570e0e9ebf390693"
+    },
+    {
+      "scale": "2v2",
+      "check": "fingerprint_recorded",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "allocator_CD_k_fixed_H8",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 1,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8
+      }
+    },
+    {
+      "scale": "2v2",
+      "check": "spec_allocator_k",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 1,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8,
+        "source": "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC (same allocator as the Separated arm)"
+      }
+    },
+    {
+      "scale": "2v2",
+      "check": "pole_A_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+        "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "pole_A_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {
+          "min_alive_for_defender": 2
+        },
+        {
+          "min_alive_for_defender": 2
+        }
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "pole_B_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+        "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "pole_B_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {},
+        {}
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_pi_D_file_sha",
+      "ok": true,
+      "detail": "e75b27751757290b"
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_pi_D_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_frozen_attack_file_sha",
+      "ok": true,
+      "detail": "858805dde3588a68"
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_frozen_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_pi_B_act_file_sha",
+      "ok": true,
+      "detail": "9ee024ad6356ea79"
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_pi_B_act_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_pi_A_kl_file_sha",
+      "ok": true,
+      "detail": "858805dde3588a68"
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_pi_A_kl_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_pi_B_kl_file_sha",
+      "ok": true,
+      "detail": "9ee024ad6356ea79"
+    },
+    {
+      "scale": "2v2",
+      "check": "pin_pi_B_kl_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "frozen_attack_is_KL_pi_A",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "acting_pi_B_is_KL_pi_B",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "shards_A_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        23800001,
+        23800096
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "registry_collection_A_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        23800001,
+        23800096
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "manifest_registry_collection_A",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "shards_B_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        23900001,
+        23900096
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "registry_collection_B_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        23900001,
+        23900096
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "manifest_registry_collection_B",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2",
+      "check": "manifest_fingerprint_collector_sha",
+      "ok": true,
+      "detail": [
+        "342cbc46a1788626a6b5015d86596734c38cc675",
+        "342cbc46a1788626a6b5015d86596734c38cc675"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "check": "collector_clean_at_collection",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "scale": "2v2",
+      "check": "all_shard_files_present",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "2v2",
+      "check": "every_shard_from_the_manifest_collector_commit",
+      "ok": true,
+      "detail": {
+        "foreign_shards": 0,
+        "sha": "342cbc46a1788626a6b5015d86596734c38cc675"
+      }
+    },
+    {
+      "scale": "2v2",
+      "check": "every_row_exactly_k_defenders",
+      "ok": true,
+      "detail": {
+        "rows": 33305,
+        "violations": 0
+      }
+    },
+    {
+      "scale": "2v2",
+      "check": "every_row_decision_eligible",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "2v2",
+      "check": "entity_tensor_shapes_follow_N",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "2v2",
+      "check": "flags_decision_only_entities_roles",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "manifest_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_4V4_V2_DATASET.json"
+    },
+    {
+      "scale": "4v4",
+      "check": "spec_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_4V4_V2_SPEC.json"
+    },
+    {
+      "scale": "4v4",
+      "check": "manifest_FROZEN_DATASET",
+      "ok": true,
+      "detail": "FROZEN_DATASET"
+    },
+    {
+      "scale": "4v4",
+      "check": "spec_FROZEN",
+      "ok": true,
+      "detail": "FROZEN_BEFORE_COLLECTION"
+    },
+    {
+      "scale": "4v4",
+      "check": "collector_recorded",
+      "ok": true,
+      "detail": {
+        "module": "experiments/collect_suite_distillation_states.py",
+        "spec": "SUITE_DISTILLATION_4V4_V2_SPEC.json",
+        "spec_sha256": "f880688f5406cfb0049a7735eb98d028585ff7254ca57bb6b11d7947499ac8cb",
+        "git_sha": "1255788a40451b5e0d5028ecfaa86461848228d5",
+        "git_dirty": false
+      }
+    },
+    {
+      "scale": "4v4",
+      "check": "spec_sha_matches_manifest",
+      "ok": true,
+      "detail": "f880688f5406cfb0049a7735eb98d028585ff7254ca57bb6b11d7947499ac8cb"
+    },
+    {
+      "scale": "4v4",
+      "check": "fingerprint_recorded",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "allocator_CD_k_fixed_H8",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 2,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8
+      }
+    },
+    {
+      "scale": "4v4",
+      "check": "spec_allocator_k",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 2,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8,
+        "source": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC / confirmatory seal (same allocator as the 4v4 Separated arm)"
+      }
+    },
+    {
+      "scale": "4v4",
+      "check": "pole_A_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+        "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "pole_A_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {
+          "min_alive_for_defender": 4
+        },
+        {
+          "min_alive_for_defender": 4
+        }
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "pole_B_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+        "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "pole_B_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {
+          "enable_2v1": true,
+          "lock_defender": 10,
+          "min_alive_for_defender": 4
+        },
+        {
+          "enable_2v1": true,
+          "lock_defender": 10,
+          "min_alive_for_defender": 4
+        }
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_pi_D_file_sha",
+      "ok": true,
+      "detail": "b538cdf4ba5d2c5d"
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_pi_D_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_frozen_attack_file_sha",
+      "ok": true,
+      "detail": "94dde69d091a7934"
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_frozen_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_pi_B_act_file_sha",
+      "ok": true,
+      "detail": "021342c84bbe3aa3"
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_pi_B_act_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_pi_A_kl_file_sha",
+      "ok": true,
+      "detail": "94dde69d091a7934"
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_pi_A_kl_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_pi_B_kl_file_sha",
+      "ok": true,
+      "detail": "021342c84bbe3aa3"
+    },
+    {
+      "scale": "4v4",
+      "check": "pin_pi_B_kl_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "frozen_attack_is_KL_pi_A",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "acting_pi_B_is_KL_pi_B",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "shards_A_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        24000001,
+        24000096
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "registry_collection_A_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        24000001,
+        24000096
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "manifest_registry_collection_A",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "shards_B_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        24100001,
+        24100096
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "registry_collection_B_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        24100001,
+        24100096
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "manifest_registry_collection_B",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4",
+      "check": "manifest_fingerprint_collector_sha",
+      "ok": true,
+      "detail": [
+        "1255788a40451b5e0d5028ecfaa86461848228d5",
+        "1255788a40451b5e0d5028ecfaa86461848228d5"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "check": "collector_clean_at_collection",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "scale": "4v4",
+      "check": "all_shard_files_present",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "4v4",
+      "check": "every_shard_from_the_manifest_collector_commit",
+      "ok": true,
+      "detail": {
+        "foreign_shards": 0,
+        "sha": "1255788a40451b5e0d5028ecfaa86461848228d5"
+      }
+    },
+    {
+      "scale": "4v4",
+      "check": "every_row_exactly_k_defenders",
+      "ok": true,
+      "detail": {
+        "rows": 39317,
+        "violations": 0
+      }
+    },
+    {
+      "scale": "4v4",
+      "check": "every_row_decision_eligible",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "4v4",
+      "check": "entity_tensor_shapes_follow_N",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "4v4",
+      "check": "flags_decision_only_entities_roles",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "cross",
+      "check": "same_scientific_implementation",
+      "ok": true,
+      "detail": {
+        "git_sha_2v2": "342cbc46a1788626a6b5015d86596734c38cc675",
+        "git_sha_4v4": "1255788a40451b5e0d5028ecfaa86461848228d5",
+        "collector_identical": true,
+        "scientific_changed_files": [],
+        "error": null
+      }
+    },
+    {
+      "scale": "cross",
+      "check": "differing_shas_have_frozen_equivalence_attestation",
+      "ok": true,
+      "detail": "COLLECTOR_COMMIT_EQUIVALENCE_342cbc46_1255788a.json"
+    },
+    {
+      "scale": "cross",
+      "check": "same_manifest_keys",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "scale": "cross",
+      "check": "same_fingerprint_keys",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "cross",
+      "check": "same_allocator_except_k",
+      "ok": true,
+      "detail": [
+        {
+          "rule": "CLOSEST_DEFENDS",
+          "fixed_for_episode": true,
+          "hold_ticks_H_r": 8
+        },
+        {
+          "rule": "CLOSEST_DEFENDS",
+          "fixed_for_episode": true,
+          "hold_ticks_H_r": 8
+        }
+      ]
+    },
+    {
+      "scale": "cross",
+      "check": "same_stored_keys",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "cross",
+      "check": "same_n_per_pole",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "cross",
+      "check": "k_is_the_scale_knob",
+      "ok": true,
+      "detail": null
+    }
+  ]
+}

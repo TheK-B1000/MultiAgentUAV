@@ -37,19 +37,29 @@ OUT_MD = ROOT / "paper" / "data" / "BASELINE_RESULTS_MEAN_EFFECTS.md"
 
 #: The standardized suite's evaluation-only baseline rows. Each filled source names its rows CSV,
 #: its governing record, and how the record states pole identity.
+#:
+#: table_role (PI, 2026-09-28) -- consumers (LaTeX tables) select rows by role, never by position:
+#:   "main"                      the scale's reported value for that baseline (fresh confirmatory where one exists)
+#:   "role_allocation_paired"    the Separated arm evaluated on EXACTLY the seeds of its no-role partner
+#:                               (paired_with), for the role-allocation comparison only; not the main value
+#: A "main" row may also be the no-role side of a paired comparison (it names no partner itself).
 ROWS = [
     {"scale": "2v2", "row": "Specialists (repaired pi_A vs repaired pi_B, no roles)",
-     "label": "STANDARDIZED_2V2_DIAG_PRESPLIT", "kind": "sealed_result",
-     "pending_reason": "the PRESPLIT arm of STANDARDIZED_2V2_POLE_A_LOCALIZATION_DIAG (running; ETA 2026-09-27 ~23:30)"},
+     "label": "STANDARDIZED_2V2_DIAG_PRESPLIT", "kind": "sealed_result", "table_role": "main",
+     "note": "also the no-role side of the paired role-allocation comparison (same 128 seeds as the paired SPLIT arm)"},
     {"scale": "2v2", "row": "Separated (frozen pi_A ATTACK + pi_D DEFEND, CLOSEST_DEFENDS k=1)",
-     "label": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY", "kind": "sealed_result",
-     "note": "fresh-seed confirmatory values are the 2v2 numbers; the earlier n=64 exploratory draw (+0.281/+0.500) is not reported as the 2v2 value"},
+     "label": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY", "kind": "sealed_result", "table_role": "main",
+     "note": "fresh-seed confirmatory values are the 2v2 main numbers; the earlier n=64 exploratory draw (+0.281/+0.500) is not reported as the 2v2 value"},
+    {"scale": "2v2", "row": "Separated, paired with no-role Specialists (same seeds; CLOSEST_DEFENDS k=1)",
+     "label": "STANDARDIZED_2V2_DIAG_SPLIT", "kind": "sealed_result", "table_role": "role_allocation_paired",
+     "paired_with": "STANDARDIZED_2V2_DIAG_PRESPLIT",
+     "note": "role-allocation comparison only: evaluated on exactly the no-role Specialists' seeds, so the difference between the two rows is the effect of role allocation on matched seeds; the main 2v2 Separated value is the confirmatory row"},
     {"scale": "4v4", "row": "Specialists (repaired pi_A3 vs repaired pi_B3-corrected, no roles)",
      "rows_csv": "confirmatory_b3_entity_repair_corrected_specialist_crossover_eval_rows.csv",
-     "record": "4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json", "kind": "audited_reading",
+     "record": "4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json", "kind": "audited_reading", "table_role": "main",
      "note": "no RESULT json (the eval wrote INTEGRITY_REQUIRED on the delta_B reversal); the reading rests on the row-level TIE_REVERSAL audit and pi_B3's live pole attestation against certified B3-3"},
     {"scale": "4v4", "row": "Separated (frozen pi_A ATTACK + pi_D DEFEND, CLOSEST_DEFENDS k=2)",
-     "label": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1", "kind": "sealed_result"},
+     "label": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1", "kind": "sealed_result", "table_role": "main"},
     {"scale": "6v6", "row": "Specialists (repaired c2 pair, no roles)", "kind": "pending",
      "pending_reason": "suite checkpoints are produced by SCHOOL_PC_6V6_LOCKED_PIPELINE.json and are not on this machine (c2 dirs hold only stale run locks); the historical 6v6 specialists are explicitly not suite teachers"},
     {"scale": "6v6", "row": "Separated (CLOSEST_DEFENDS k=1)", "kind": "pending",
@@ -57,8 +67,10 @@ ROWS = [
     {"scale": "all", "row": "Generalist", "kind": "pending",
      "pending_reason": "no standardized generalist checkpoint exists at any scale; needs a design decision"},
     {"scale": "all", "row": "Distilled / sharing arms", "kind": "pending",
-     "pending_reason": "need the standardized CLOSEST_DEFENDS datasets per scale (4v4 must be recollected on certified B3-3; the old 4v4 student rows are invalidated)"},
+     "pending_reason": "2v2 + 4v4 V2 standardized CLOSEST_DEFENDS datasets are FROZEN and the cross-scale audit is GREEN (2026-09-28); the distilled/sharing students are not yet trained (the old 4v4 student rows stay invalidated)"},
 ]
+for _s in ROWS:
+    _s.setdefault("table_role", "main")
 
 
 def _sha(p: Path) -> str:
@@ -85,7 +97,11 @@ def _derive(rows_csv: Path) -> dict:
 def collect() -> dict:
     out_rows = []
     for spec in ROWS:
-        row = {k: spec[k] for k in ("scale", "row")}
+        row = {k: spec[k] for k in ("scale", "row", "table_role")}
+        if spec.get("paired_with"):
+            row["paired_with"] = spec["paired_with"]
+        if spec.get("label"):
+            row["label"] = spec["label"]
         if spec["kind"] == "pending":
             row.update(status="PENDING", reason=spec["pending_reason"])
             out_rows.append(row)
@@ -130,6 +146,16 @@ def collect() -> dict:
         if spec.get("note"):
             row["note"] = spec["note"]
         out_rows.append(row)
+    by_label = {r["label"]: r for r in out_rows if r.get("label")}
+    for r in out_rows:
+        if not r.get("paired_with") or r["status"] != "FILLED":
+            continue
+        p = by_label.get(r["paired_with"])
+        if p is None or p["status"] != "FILLED":
+            raise SystemExit(f"FAIL-CLOSED: {r['label']} is paired with {r['paired_with']}, which is not filled")
+        if (p["n_seeds"], p["seed_block"]) != (r["n_seeds"], r["seed_block"]):
+            raise SystemExit(f"FAIL-CLOSED: {r['label']} seeds {r['seed_block']} (n={r['n_seeds']}) differ from "
+                             f"its pair {p['label']} {p['seed_block']} (n={p['n_seeds']})")
     return {
         "record_id": "BASELINE_RESULTS_MEAN_EFFECTS",
         "utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -145,14 +171,16 @@ def _md(doc: dict) -> str:
          "Generated by `experiments/collect_baseline_results.py` from the rows on disk (every cell re-derived and "
          "checked against its governing record). Headline = mean effect; 95% intervals are for figures.", "",
          "Δ_A = V(π_A, A) − V(π_B, A); Δ_B = V(π_B, B) − V(π_A, B).", "",
-         "| Scale | Baseline | Mean Δ_A / Δ_B | 95% CI (figures) | Win rates π_A@A, π_A@B, π_B@A, π_B@B | n | Source |",
-         "|---|---|---|---|---|---:|---|"]
+         "Use: `main` = the scale's reported value; `role_allocation_paired` = same-seed arm for the role-allocation "
+         "comparison only (select rows by this field, never by position).", "",
+         "| Scale | Baseline | Use | Mean Δ_A / Δ_B | 95% CI (figures) | Win rates π_A@A, π_A@B, π_B@A, π_B@B | n | Source |",
+         "|---|---|---|---|---|---|---:|---|"]
     for r in doc["rows"]:
         if r["status"] != "FILLED":
-            L.append(f"| {r['scale']} | {r['row']} | PENDING | — | — | — | {r['reason']} |")
+            L.append(f"| {r['scale']} | {r['row']} | {r['table_role']} | PENDING | — | — | — | {r['reason']} |")
             continue
         a, b, w = r["delta_A"], r["delta_B"], r["win_rates"]
-        L.append(f"| {r['scale']} | {r['row']} | **{a['mean']:+.3f} / {b['mean']:+.3f}** | "
+        L.append(f"| {r['scale']} | {r['row']} | {r['table_role']} | **{a['mean']:+.3f} / {b['mean']:+.3f}** | "
                  f"[{a['lcb95']:+.3f}, {a['ucb95']:+.3f}] / [{b['lcb95']:+.3f}, {b['ucb95']:+.3f}] | "
                  f"{w['pi_A@A']:.3f}, {w['pi_A@B']:.3f}, {w['pi_B@A']:.3f}, {w['pi_B@B']:.3f} | {r['n_seeds']} | "
                  f"`{r['provenance']['record']}` ({r['provenance'].get('seed_class') or r['provenance']['record_status']}) |")

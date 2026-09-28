@@ -1,0 +1,31 @@
+{
+  "record_id": "COLLECTOR_COMMIT_EQUIVALENCE",
+  "status": "FROZEN",
+  "utc": "2026-09-28T18:41:59Z",
+  "statement": "1255788a differs from 342cbc46 only in artifacts (199 files). No collector, environment, policy, or dataset-generation code changed. Collections run at the two commits are therefore implementation-equivalent despite differing repository HEADs. Both real SHAs are kept in their manifests; neither manifest is rewritten.",
+  "equivalence": {
+    "sha_a": "342cbc46a1788626a6b5015d86596734c38cc675",
+    "sha_b": "1255788a40451b5e0d5028ecfaa86461848228d5",
+    "collector": "experiments/collect_suite_distillation_states.py",
+    "collector_blob_a": "8764332d73b500ebb88d4ee24f1e778a97b34b7e",
+    "collector_blob_b": "8764332d73b500ebb88d4ee24f1e778a97b34b7e",
+    "collector_identical": true,
+    "scientific_paths": {
+      "dirs": [
+        "experiments",
+        "rl",
+        "gpu_env",
+        "configs"
+      ],
+      "root_level": "*.py"
+    },
+    "scientific_tree_sha256_a": "3b0d474cd85a67f535f4557a98d349b6630fc22e2e557657e36770d311178cdb",
+    "scientific_tree_sha256_b": "3b0d474cd85a67f535f4557a98d349b6630fc22e2e557657e36770d311178cdb",
+    "scientific_changed_files": [],
+    "n_changed_files": 199,
+    "changed_top_level": [
+      "artifacts"
+    ],
+    "equivalent": true
+  }
+}
