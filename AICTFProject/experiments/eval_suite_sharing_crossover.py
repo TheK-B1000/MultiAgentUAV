@@ -180,6 +180,8 @@ def main() -> int:
     POLE_GENOMES = {p: resolve_pole_genome(p, N_AGENTS) for p in ("A", "B")}
     POLE_IDENTITY = {p: pole_identity(p, N_AGENTS, g) for p, g in POLE_GENOMES.items()}
     for p, spec_pole in (spec.get("POLES") or {}).items():
+        if not isinstance(spec_pole, dict):
+            continue                     # notes such as "source" sit beside the pole entries
         if p in POLE_IDENTITY and spec_pole.get("pole_config_hash") not in (None, POLE_IDENTITY[p]["pole_config_hash"]):
             raise SystemExit(
                 f"FAIL-CLOSED: {SPEC_PATH.name} pins pole {p} hash {spec_pole['pole_config_hash'][:12]}, "
