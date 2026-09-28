@@ -34,6 +34,7 @@ from experiments.eval_hog_psp_v3 import _mean_ci  # noqa: E402  (the evaluator's
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 OUT_JSON = ROOT / "paper" / "data" / "baseline_results_mean_effects.json"
 OUT_MD = ROOT / "paper" / "data" / "BASELINE_RESULTS_MEAN_EFFECTS.md"
+OUT_TEX_DIR = ROOT / "paper" / "aamas2027" / "generated"
 
 #: The standardized suite's evaluation-only baseline rows. Each filled source names its rows CSV,
 #: its governing record, and how the record states pole identity.
@@ -54,6 +55,20 @@ ROWS = [
      "label": "STANDARDIZED_2V2_DIAG_SPLIT", "kind": "sealed_result", "table_role": "role_allocation_paired",
      "paired_with": "STANDARDIZED_2V2_DIAG_PRESPLIT",
      "note": "role-allocation comparison only: evaluated on exactly the no-role Specialists' seeds, so the difference between the two rows is the effect of role allocation on matched seeds; the main 2v2 Separated value is the confirmatory row"},
+    {"scale": "2v2", "row": "Share-Encoder (shared CNN encoder; private per-z body and heads)",
+     "label": "STANDARDIZED_2V2_SHARE_ENCODER", "kind": "sharing_result",
+     "eval_spec": "STANDARDIZED_2V2_SHARING_EVAL_SPEC.json", "arm_key": "share_encoder",
+     "frozen": "suite_sharing_std/2v2/share_encoder/STUDENT_FROZEN.json"},
+    {"scale": "2v2", "row": "Fully Shared+z (one network, concat strategy ID)",
+     "label": "STANDARDIZED_2V2_FULLY_SHARED_Z", "kind": "sharing_result",
+     "eval_spec": "STANDARDIZED_2V2_SHARING_EVAL_SPEC.json", "arm_key": "fully_shared_z",
+     "frozen": "suite_sharing_std/2v2/fully_shared_z/STUDENT_FROZEN.json"},
+    {"scale": "2v2", "row": "Generalist (one network, no strategy ID)",
+     "label": "STANDARDIZED_2V2_GENERALIST", "kind": "generalist_result",
+     "eval_spec": "STANDARDIZED_2V2_SHARING_EVAL_SPEC.json", "arm_key": "generalist",
+     "frozen": "suite_sharing_std/2v2/generalist/STUDENT_FROZEN.json",
+     "reference": "STANDARDIZED_2V2_SEPARATED_GENERALIST_REF",
+     "note": "GENERALIST_DEFINITION_V1: a single policy has no crossover Delta; reported as V(pi_G, A), V(pi_G, B) and Delta_G = V(ours) - V(pi_G), paired by seed against the Separated system re-scored on the same 128 seeds"},
     {"scale": "4v4", "row": "Specialists (repaired pi_A3 vs repaired pi_B3-corrected, no roles)",
      "rows_csv": "confirmatory_b3_entity_repair_corrected_specialist_crossover_eval_rows.csv",
      "record": "4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json", "kind": "audited_reading", "table_role": "main",
@@ -64,10 +79,10 @@ ROWS = [
      "pending_reason": "suite checkpoints are produced by SCHOOL_PC_6V6_LOCKED_PIPELINE.json and are not on this machine (c2 dirs hold only stale run locks); the historical 6v6 specialists are explicitly not suite teachers"},
     {"scale": "6v6", "row": "Separated (CLOSEST_DEFENDS k=1)", "kind": "pending",
      "pending_reason": "the 6v6 split pi_D (split_defend_k1_v1) is produced on the school PC; not on this machine"},
-    {"scale": "all", "row": "Generalist", "kind": "pending",
-     "pending_reason": "no standardized generalist checkpoint exists at any scale; needs a design decision"},
-    {"scale": "all", "row": "Distilled / sharing arms", "kind": "pending",
-     "pending_reason": "2v2 + 4v4 V2 standardized CLOSEST_DEFENDS datasets are FROZEN and the cross-scale audit is GREEN (2026-09-28); the distilled/sharing students are not yet trained (the old 4v4 student rows stay invalidated)"},
+    *({"scale": sc, "row": arm, "kind": "pending",
+       "pending_reason": f"{sc} is opened only after the previous scale locks (PI operating rule 2026-09-28); "
+                         f"same frozen definitions as 2v2 (GENERALIST_DEFINITION_V1 for the Generalist)"}
+      for sc in ("4v4", "6v6") for arm in ("Share-Encoder", "Fully Shared+z", "Generalist")),
 ]
 for _s in ROWS:
     _s.setdefault("table_role", "main")
@@ -77,10 +92,20 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def _derive(rows_csv: Path) -> dict:
+def _cells(rows_csv: Path, field: str) -> dict:
+    """(value of ``field``, pole) -> {seed: win} from a sealed rows CSV."""
     by: dict = {}
     for r in csv.DictReader(rows_csv.open(encoding="utf-8")):
-        by.setdefault((r["policy"], r["pole"]), {})[int(r["seed"])] = float(r["win"])
+        by.setdefault((r[field], r["pole"]), {})[int(r["seed"])] = float(r["win"])
+    return by
+
+
+def _derive(rows_csv: Path, field: str = "policy") -> dict:
+    """Crossover cells. Sharing arms record ``z`` (0 plays pi_A's role, 1 plays pi_B's) instead of
+    ``policy``; the deltas are the same definition either way."""
+    by = _cells(rows_csv, field)
+    if field == "z":
+        by = {({"0": "pi_A", "1": "pi_B"}[k[0]], k[1]): v for k, v in by.items()}
     seeds = sorted(by[("pi_A", "A")])
     for k in (("pi_A", "B"), ("pi_B", "A"), ("pi_B", "B")):
         if sorted(by[k]) != seeds:
@@ -94,6 +119,76 @@ def _derive(rows_csv: Path) -> dict:
     }
 
 
+def _sealed(rec_p: Path) -> dict:
+    rec = json.loads(rec_p.read_text(encoding="utf-8"))
+    if rec.get("status") not in ("SEALED", "FROZEN_RESULT"):
+        raise SystemExit(f"FAIL-CLOSED: {rec_p.name} status {rec.get('status')!r}")
+    return rec
+
+
+def _check_recorded(name: str, rederived: dict, recorded: dict) -> None:
+    if abs(rederived["mean"] - float(recorded["mean"])) > 1e-3:
+        raise SystemExit(f"FAIL-CLOSED: {name}: rows give {rederived['mean']:+.4f}, "
+                         f"record says {float(recorded['mean']):+.4f}")
+
+
+def _collect_suite_arm(spec: dict) -> dict | None:
+    """A distilled sharing arm or the Generalist, from its sealed record under the scale's eval spec.
+    None while the record does not exist yet; any disagreement with the spec fails closed."""
+    label = spec["label"]
+    rec_p = SD / f"{label}_CROSSOVER_EVAL_RESULT.json"
+    csv_p = SD / f"{label.lower()}_crossover_eval_rows.csv"
+    if not rec_p.is_file():
+        return None
+    rec = _sealed(rec_p)
+    es = json.loads((SD / spec["eval_spec"]).read_text(encoding="utf-8"))
+    arm = es["ARMS"][spec["arm_key"]]
+    if rec.get("checkpoint_sha256") != arm["sha256"] or _sha(ROOT / arm["checkpoint"]) != arm["sha256"]:
+        raise SystemExit(f"FAIL-CLOSED: {label} checkpoint differs from {spec['eval_spec']}")
+    for p in ("A", "B"):
+        if (rec.get("poles") or {}).get(p, {}).get("pole_config_hash") != es["POLES"][p]["pole_config_hash"]:
+            raise SystemExit(f"FAIL-CLOSED: {label} pole {p} identity differs from {spec['eval_spec']}")
+    frozen = json.loads((SD / spec["frozen"]).read_text(encoding="utf-8"))
+    provenance = {"record": rec_p.name, "record_status": rec["status"], "seed_class": rec["seeds"]["seed_class"],
+                  "checkpoint_sha256": arm["sha256"], "rows_csv": csv_p.name, "rows_csv_sha256": _sha(csv_p),
+                  "unique_actor_params": frozen.get("unique_actor_params"),
+                  "holdout_fidelity": {k: frozen["final_holdout"][k] for k in
+                                       ("holdout_agree_z0_vs_piA", "holdout_agree_z1_vs_piB")},
+                  "pole_config_hash": {p: rec["poles"][p]["pole_config_hash"] for p in ("A", "B")}}
+    if spec["kind"] == "sharing_result":
+        d = _derive(csv_p, field="z")
+        for k in ("delta_A", "delta_B"):
+            _check_recorded(f"{rec_p.name} {k}", d[k], rec["PRIMARY_GATE"][k])
+        provenance["frozen_gate_verdict_provenance_only"] = "PASS" if rec["PRIMARY_GATE"].get("passes") else "FAIL"
+        return {**d, "provenance": provenance}
+
+    # Generalist: V(pi_G, pole) and Delta_G against the Separated reference on the same seeds
+    g = _cells(csv_p, "z")
+    ref_label = spec["reference"]
+    ref_p = SD / f"{ref_label}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    ref_csv = SD / f"{ref_label.lower()}_specialist_crossover_eval_rows.csv"
+    if not ref_p.is_file():
+        return None
+    ref_rec, ref = _sealed(ref_p), _cells(ref_csv, "policy")
+    seeds = sorted(g[("0", "A")])
+    for cell, src in ((g[("0", "B")], "pi_G@B"), (ref[("pi_A", "A")], "ref pi_A@A"), (ref[("pi_B", "B")], "ref pi_B@B")):
+        if sorted(cell) != seeds:
+            raise SystemExit(f"FAIL-CLOSED: {label}: {src} seed set differs from pi_G@A -- Delta_G must be paired")
+    vec = lambda c: np.array([c[s] for s in seeds], dtype=np.float64)   # noqa: E731
+    v_a, v_b = _mean_ci(vec(g[("0", "A")])), _mean_ci(vec(g[("0", "B")]))
+    _check_recorded(f"{rec_p.name} V_pole_A", v_a, rec["PRIMARY_GATE"]["V_pole_A"])
+    _check_recorded(f"{rec_p.name} V_pole_B", v_b, rec["PRIMARY_GATE"]["V_pole_B"])
+    provenance.update(reference_record=ref_p.name, reference_status=ref_rec["status"],
+                      reference_rows_csv_sha256=_sha(ref_csv))
+    return {"n_seeds": len(seeds), "seed_block": [seeds[0], seeds[-1]],
+            "V_pole_A": v_a, "V_pole_B": v_b,
+            "ours_win_rates": {"pi_A+D@A": float(vec(ref[("pi_A", "A")]).mean()),
+                               "pi_B@B": float(vec(ref[("pi_B", "B")]).mean())},
+            "delta_G_A": _mean_ci(vec(ref[("pi_A", "A")]) - vec(g[("0", "A")])),
+            "delta_G_B": _mean_ci(vec(ref[("pi_B", "B")]) - vec(g[("0", "B")])),
+            "provenance": provenance}
+
+
 def collect() -> dict:
     out_rows = []
     for spec in ROWS:
@@ -104,6 +199,16 @@ def collect() -> dict:
             row["label"] = spec["label"]
         if spec["kind"] == "pending":
             row.update(status="PENDING", reason=spec["pending_reason"])
+            out_rows.append(row)
+            continue
+        if spec["kind"] in ("sharing_result", "generalist_result"):
+            filled = _collect_suite_arm(spec)
+            if filled is None:
+                row.update(status="PENDING", reason=f"{spec['label']} not sealed yet")
+            else:
+                row.update(status="FILLED", **filled)
+                if spec.get("note"):
+                    row["note"] = spec["note"]
             out_rows.append(row)
             continue
         if spec["kind"] == "sealed_result":
@@ -179,6 +284,13 @@ def _md(doc: dict) -> str:
         if r["status"] != "FILLED":
             L.append(f"| {r['scale']} | {r['row']} | {r['table_role']} | PENDING | — | — | — | {r['reason']} |")
             continue
+        if "delta_G_A" in r:          # Generalist: no crossover Delta (GENERALIST_DEFINITION_V1)
+            a, b, va, vb = r["delta_G_A"], r["delta_G_B"], r["V_pole_A"], r["V_pole_B"]
+            L.append(f"| {r['scale']} | {r['row']} | {r['table_role']} | Δ_G **{a['mean']:+.3f} / {b['mean']:+.3f}** | "
+                     f"[{a['lcb95']:+.3f}, {a['ucb95']:+.3f}] / [{b['lcb95']:+.3f}, {b['ucb95']:+.3f}] | "
+                     f"π_G@A {va['mean']:.3f}, π_G@B {vb['mean']:.3f} | {r['n_seeds']} | "
+                     f"`{r['provenance']['record']}` ({r['provenance']['seed_class']}) |")
+            continue
         a, b, w = r["delta_A"], r["delta_B"], r["win_rates"]
         L.append(f"| {r['scale']} | {r['row']} | {r['table_role']} | **{a['mean']:+.3f} / {b['mean']:+.3f}** | "
                  f"[{a['lcb95']:+.3f}, {a['ucb95']:+.3f}] / [{b['lcb95']:+.3f}, {b['ucb95']:+.3f}] | "
@@ -189,8 +301,60 @@ def _md(doc: dict) -> str:
         L += ["", "Notes:"] + notes
     L += ["", "Frozen gate verdicts (lower bound above zero on both Δ) are kept in the records as provenance and are "
           "not the headline: " + "; ".join(f"{r['scale']} {r['row'].split(' (')[0]} = {r['provenance']['frozen_gate_verdict_provenance_only']}"
-                                            for r in doc["rows"] if r["status"] == "FILLED") + "."]
+                                            for r in doc["rows"] if r["status"] == "FILLED"
+                                            and "frozen_gate_verdict_provenance_only" in r["provenance"]) + "."]
     return "\n".join(L) + "\n"
+
+
+#: Macro stem per sealed row (letters only, as LaTeX requires). experiments.tex references only
+#: these macros, so every number in the paper is regenerated from the sealed rows, never typed.
+TEX_STEM = {
+    "STANDARDIZED_2V2_DIAG_PRESPLIT": "TwoSpec",
+    "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY": "TwoSep",
+    "STANDARDIZED_2V2_DIAG_SPLIT": "TwoSepPaired",
+    "STANDARDIZED_2V2_SHARE_ENCODER": "TwoShareEnc",
+    "STANDARDIZED_2V2_FULLY_SHARED_Z": "TwoFullZ",
+    "STANDARDIZED_2V2_GENERALIST": "TwoGen",
+}
+
+
+def _tex(doc: dict, scale: str) -> str:
+    """\\newcommand macros for one scale's FILLED rows. A row that is not filled defines no macro, so a
+    paper that cites it fails to compile instead of printing a stale number."""
+    s = lambda x: f"{x:+.3f}"            # noqa: E731  signed; cite inside math mode ($\TwoSepDA$) for a true minus
+    u = lambda x: f"{x:.3f}"                                            # noqa: E731
+    out = [f"% Generated by experiments/collect_baseline_results.py -- do not edit by hand.",
+           f"% Source: paper/data/baseline_results_mean_effects.json ({doc['utc']})."]
+
+    def cmd(name, val):
+        out.append(f"\\newcommand{{\\{name}}}{{{val}}}")
+
+    for r in doc["rows"]:
+        stem = TEX_STEM.get(r.get("label", ""))
+        if r["scale"] != scale or r["status"] != "FILLED" or stem is None:
+            continue
+        cmd(f"{stem}N", r["n_seeds"])
+        pairs = (("DGA", "delta_G_A"), ("DGB", "delta_G_B")) if "delta_G_A" in r else (("DA", "delta_A"), ("DB", "delta_B"))
+        for short, key in pairs:
+            cmd(f"{stem}{short}", s(r[key]["mean"]))
+            cmd(f"{stem}{short}Lo", s(r[key]["lcb95"]))
+            cmd(f"{stem}{short}Hi", s(r[key]["ucb95"]))
+        if "delta_G_A" in r:
+            cmd(f"{stem}VA", u(r["V_pole_A"]["mean"]))
+            cmd(f"{stem}VB", u(r["V_pole_B"]["mean"]))
+            cmd(f"{stem}OursA", u(r["ours_win_rates"]["pi_A+D@A"]))
+            cmd(f"{stem}OursB", u(r["ours_win_rates"]["pi_B@B"]))
+        else:
+            for k, name in (("pi_A@A", "WAA"), ("pi_A@B", "WAB"), ("pi_B@A", "WBA"), ("pi_B@B", "WBB")):
+                cmd(f"{stem}{name}", u(r["win_rates"][k]))
+        prov = r["provenance"]
+        if prov.get("unique_actor_params"):
+            cmd(f"{stem}Params", f"{prov['unique_actor_params'] / 1e6:.2f}M")
+        if prov.get("holdout_fidelity"):
+            f = prov["holdout_fidelity"]
+            cmd(f"{stem}AgreeA", u(f["holdout_agree_z0_vs_piA"]))
+            cmd(f"{stem}AgreeB", u(f["holdout_agree_z1_vs_piB"]))
+    return "\n".join(out) + "\n"
 
 
 def main() -> int:
@@ -206,6 +370,12 @@ def main() -> int:
         OUT_JSON.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
         OUT_MD.write_text(md, encoding="utf-8")
         print(f"-> {OUT_JSON}\n-> {OUT_MD}")
+        for scale in ("2v2", "4v4", "6v6"):
+            if any(r["scale"] == scale and r["status"] == "FILLED" and r.get("label") in TEX_STEM for r in doc["rows"]):
+                p = OUT_TEX_DIR / f"results_{scale}.tex"
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(_tex(doc, scale), encoding="utf-8")
+                print(f"-> {p}")
     return 0
 
 
