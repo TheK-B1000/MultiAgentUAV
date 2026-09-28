@@ -1,21 +1,25 @@
-"""Forced-z crossover eval for the suite's distilled sharing arms, at any team size.
+"""Forced-z crossover eval for the suite's distilled sharing arms (and the Generalist), any team size.
 
 Loads suite ``.pt`` students (not PPO ``.zip``), forces z, augments entity
-tensors, and applies the program gate:
+tensors, and records per-seed wins. Sharing arms:
 
     delta_A = V(z0, A) - V(z1, A)
     delta_B = V(z1, B) - V(z0, B)
 
-PASS iff both means > 0 AND both LCB95 > 0 (n_boot=20000, alpha=0.05, rng=7).
+(gate carried as provenance: both means > 0 AND both LCB95 > 0; n_boot=20000, alpha=0.05, rng=7).
+The Generalist has no z (GENERALIST_DEFINITION_V1): it plays each pole once per seed and its
+sealed claims are V(pi_G, A) and V(pi_G, B); Delta_G against the Separated reference is formed
+later from the two sealed row sets on the same seeds.
 
-Implements SUITE_SHARING_<N>V<N>_CROSSOVER_EVAL_SPEC.json. Team size is an argument;
+Implements the scale's STANDARDIZED_<N>V<N>_SHARING_EVAL_SPEC.json. Team size is an argument;
 there is no module-level team size (CROSS_SCALE_CANONICAL_RECIPE_V1.json#STAGE_IMPLEMENTATIONS_required).
+Seeds come from the spec's shared registry block (every arm of the scale on the same seeds); the
+block is SPENT only once every label declared on it has sealed. Every finished episode is appended
+to a fingerprinted PARTIAL file, so an interrupted run continues with --resume.
 
 Run:
-  python experiments/eval_suite_sharing_crossover.py --team-size 4 --arm fully_shared --dry-run
-  python experiments/eval_suite_sharing_crossover.py --team-size 4 --arm share_encoder --device cuda
-  python experiments/eval_suite_sharing_crossover.py --team-size 4 --arm share_backbone --device cuda
-  python experiments/eval_suite_sharing_crossover.py --team-size 4 --arm share_macro --device cuda
+  python experiments/eval_suite_sharing_crossover.py --team-size 2 --arm share_encoder --dry-run
+  python experiments/eval_suite_sharing_crossover.py --team-size 2 --arm share_encoder --device cuda --resume
 """
 from __future__ import annotations
 
@@ -23,6 +27,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,18 +41,25 @@ if str(ROOT) not in sys.path:
 from experiments import run_state as rs  # noqa: E402
 from experiments import seed_registry as sr  # noqa: E402
 from experiments.eval_hog_psp_v3 import _mean_ci  # noqa: E402
+from experiments.eval_specialist_crossover_scaled import (  # noqa: E402
+    shared_block_all_sealed, shared_block_owner,
+)
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 N_BOOT, ALPHA, BOOTSTRAP_SEED = 20_000, 0.05, 7
 BASE_KEY = {"A": "OP6", "B": "OP7"}
 SUPPORTED_TEAM_SIZES = (2, 4, 6)
-SEED_CLASS = "exploratory"
-#: CLOSEST_DEFENDS defender count per scale -- the one scale knob besides N.
-K_DEFEND_BY_SCALE = {2: 1, 4: 2, 6: 1}
+ARM_KEY = {
+    "fully_shared": "fully_shared_z",
+    "generalist": "generalist",
+    "share_encoder": "share_encoder",
+    "share_backbone": "share_backbone",
+    "share_macro": "share_macro",
+}
 
 
 def _spec_path(n: int) -> Path:
-    return SD / f"SUITE_SHARING_{n}V{n}_CROSSOVER_EVAL_SPEC.json"
+    return SD / f"STANDARDIZED_{n}V{n}_SHARING_EVAL_SPEC.json"
 
 
 def _now() -> str:
@@ -58,20 +70,43 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def load_partial(partial: Path, fingerprint: dict) -> dict:
+    """Finished cells of an interrupted run, keyed (z, pole, seed). Same rules as the Separated
+    evaluator: the fingerprint must match exactly, a torn last line is dropped, any other
+    malformed line refuses."""
+    lines = partial.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        return {}
+    try:
+        head = json.loads(lines[0])
+    except ValueError:
+        raise SystemExit(f"REFUSING: {partial.name} has an unreadable fingerprint line")
+    if head.get("fingerprint") != fingerprint:
+        raise SystemExit(f"REFUSING: {partial.name} was written by a different run configuration; "
+                         f"recorded {head.get('fingerprint')} vs now {fingerprint}")
+    done: dict = {}
+    for i, ln in enumerate(lines[1:], start=2):
+        try:
+            row = json.loads(ln)
+        except ValueError:
+            if i == len(lines):
+                break
+            raise SystemExit(f"REFUSING: {partial.name} line {i} is malformed")
+        done[(int(row["z"]), row["pole"], int(row["seed"]))] = row
+    return done
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument(
-        "--arm",
-        required=True,
-        choices=("fully_shared", "share_encoder", "share_backbone", "share_macro"),
-    )
+    ap.add_argument("--arm", required=True, choices=tuple(ARM_KEY))
     ap.add_argument(
         "--team-size", type=int, required=True, choices=SUPPORTED_TEAM_SIZES,
     )
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--n-seeds", type=int, default=None, help="override SPEC n (smoke only)")
-    ap.add_argument("--seed-base", type=int, default=None, help="override SPEC seed base")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue an interrupted run of this arm from its PARTIAL rows file "
+                         "(fingerprint must match); with no PARTIAL file it starts fresh")
     args = ap.parse_args()
 
     N_AGENTS = int(args.team_size)
@@ -79,59 +114,49 @@ def main() -> int:
     if not SPEC_PATH.is_file():
         raise SystemExit(
             f"FAIL-CLOSED: {SPEC_PATH.name} not found. Each scale needs its own frozen "
-            f"crossover eval spec pinning that scale's arms, seeds and poles."
+            f"eval spec pinning that scale's arms, seeds and poles."
         )
     spec = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     if not str(spec.get("status", "")).startswith("FROZEN"):
         raise SystemExit(f"REFUSING: {SPEC_PATH.name} not frozen: {spec.get('status')!r}")
 
-    arm_key = {
-        "fully_shared": "fully_shared_z",
-        "share_encoder": "share_encoder",
-        "share_backbone": "share_backbone",
-        "share_macro": "share_macro",
-    }[args.arm]
+    arm_key = ARM_KEY[args.arm]
     if arm_key not in spec["ARMS"]:
         raise SystemExit(f"REFUSING: SPEC missing ARMS[{arm_key!r}] — pin after distill freeze")
     arm = spec["ARMS"][arm_key]
-    label = str(arm["label_exploratory"])
-    seed_key = f"{arm_key}_exploratory"
-    seed_range = str(spec["SEEDS"][seed_key])
-    seed_base = int(args.seed_base) if args.seed_base else int(seed_range.split("..")[0])
-    n_seeds = int(args.n_seeds) if args.n_seeds else int(spec["SEEDS"]["n_exploratory"])
-    seeds = list(range(seed_base, seed_base + n_seeds))
+    is_generalist = args.arm == "generalist"
+    label = str(arm["label"])
+    SEEDS = spec["SEEDS"]
+    REG_ID = str(SEEDS["registry_experiment_id"])
+    seed_class = str(SEEDS["seed_class"])
+    lo, hi = (int(x) for x in str(SEEDS["block"]).split(".."))
+    seeds = list(range(lo, hi + 1))
+    if len(seeds) != int(SEEDS["n"]):
+        raise SystemExit(f"FAIL-CLOSED: spec block {lo}..{hi} is not n={SEEDS['n']}")
 
     OUT = SD / f"{label}_CROSSOVER_EVAL_RESULT.json"
     ROWS_CSV = SD / f"{label.lower()}_crossover_eval_rows.csv"
+    PARTIAL = SD / f"{label.lower()}_crossover_eval_rows.PARTIAL.jsonl"
     PREAUDIT_FLAG = SD / f"{label}_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json"
-    LOG = SD / "suite_sharing" / f"{N_AGENTS}v{N_AGENTS}" / args.arm / "crossover_eval.log"
+    LOG = SD / "suite_sharing_std" / f"{N_AGENTS}v{N_AGENTS}" / ARM_KEY[args.arm] / "crossover_eval.log"
     EXP_ID = label
-    lo, hi = int(seeds[0]), int(seeds[-1])
 
     ck = ROOT / arm["checkpoint"]
     if not ck.is_file():
         raise SystemExit(f"REFUSING: checkpoint missing: {ck}")
-    if _sha(ck) != arm["sha256"]:
+    ck_sha = _sha(ck)
+    if ck_sha != arm["sha256"]:
         raise SystemExit(f"REFUSING: checkpoint sha mismatch vs SPEC pin")
 
-    ok, msg = sr.check_block(lo, hi, SEED_CLASS, experiment_id=EXP_ID)
-    if not ok:
-        raise SystemExit(f"REFUSING (Rule 9): {msg}")
-    if not any(b["experiment_id"] == EXP_ID for b in sr.load()["blocks"]):
-        if args.dry_run:
-            print(f"  Rule 9: block {lo}..{hi} free; would allocate as {EXP_ID} on real run")
-        else:
-            sr.allocate(
-                EXP_ID, lo, hi, SEED_CLASS,
-                purpose=f"Suite {N_AGENTS}v{N_AGENTS} {args.arm} forced-z crossover (exploratory)",
-                spec=SPEC_PATH.name,
-            )
-            print(f"  Rule 9: allocated {lo}..{hi} -> {EXP_ID} [{SEED_CLASS}/RESERVED]")
-    else:
-        print(f"  Rule 9: {msg}")
+    shared_block = shared_block_owner(REG_ID, label, lo, hi, seed_class)
+    print(f"  Rule 9: shared block {REG_ID} {lo}..{hi} [{seed_class}/RESERVED], "
+          f"label {label} declared among {shared_block.get('shared_by_labels')}")
 
-    if not args.dry_run and (OUT.is_file() or ROWS_CSV.is_file() or PREAUDIT_FLAG.is_file()):
+    if OUT.is_file() or ROWS_CSV.is_file() or PREAUDIT_FLAG.is_file():
         raise SystemExit(f"REFUSING: an output for label {label!r} already exists; one-shot")
+    if PARTIAL.is_file() and not args.resume and not args.dry_run:
+        raise SystemExit(f"REFUSING: {PARTIAL.name} exists (an interrupted run of this label); "
+                         f"pass --resume to continue it")
 
     import torch
     from experiments.opponent_spec import (
@@ -155,9 +180,13 @@ def main() -> int:
     POLE_GENOMES = {p: resolve_pole_genome(p, N_AGENTS) for p in ("A", "B")}
     POLE_IDENTITY = {p: pole_identity(p, N_AGENTS, g) for p, g in POLE_GENOMES.items()}
     for p, spec_pole in (spec.get("POLES") or {}).items():
+        if p in POLE_IDENTITY and spec_pole.get("pole_config_hash") not in (None, POLE_IDENTITY[p]["pole_config_hash"]):
+            raise SystemExit(
+                f"FAIL-CLOSED: {SPEC_PATH.name} pins pole {p} hash {spec_pole['pole_config_hash'][:12]}, "
+                f"but the certified pole resolves to {POLE_IDENTITY[p]['pole_config_hash'][:12]}")
         want = {k: (int(v) if isinstance(v, float) and float(v).is_integer() else v)
                 for k, v in sorted((spec_pole.get("overlay") or {}).items())}
-        if p in POLE_IDENTITY and POLE_IDENTITY[p]["overlay"] != want:
+        if p in POLE_IDENTITY and "overlay" in spec_pole and POLE_IDENTITY[p]["overlay"] != want:
             raise SystemExit(
                 f"FAIL-CLOSED: {SPEC_PATH.name} names pole {p} overlay {want}, but the "
                 f"certified pole resolves to {POLE_IDENTITY[p]['overlay']}. Spec and "
@@ -169,9 +198,8 @@ def main() -> int:
 
     print(f"SUITE {N_AGENTS}V{N_AGENTS} CROSSOVER EVAL  {label}  {_now()}  device={device}")
     print(f"  arm        {args.arm}")
-    print(f"  checkpoint {ck.relative_to(ROOT)}  sha {_sha(ck)[:12]}...")
-    print(f"  seeds      {seeds[0]}..{seeds[-1]} (n={len(seeds)})")
-    print(f"  gate       delta_A>0 & LCB95>0; delta_B symmetric")
+    print(f"  checkpoint {ck.relative_to(ROOT)}  sha {ck_sha[:12]}...")
+    print(f"  seeds      {seeds[0]}..{seeds[-1]} (n={len(seeds)}, {seed_class})")
     print(f"  bootstrap  n={N_BOOT}, alpha={ALPHA}, rng_seed={BOOTSTRAP_SEED}\n", flush=True)
 
     probe = R2.build_env(device, seeds[0])
@@ -180,13 +208,15 @@ def main() -> int:
         raise SystemExit(f"FAIL-CLOSED: env agent dim != {N_AGENTS}")
     probe.close()
 
-    if args.arm == "fully_shared":
+    if args.arm in ("fully_shared", "generalist"):
         from rl.custom_ppo.inference_policy import CustomPPOInferencePolicy
-        from rl.suite_fully_shared_distill import load_fully_shared
+        from rl import suite_fully_shared_distill as FS
 
-        model, payload = load_fully_shared(str(ck), obs_space, act_space, device=device)
+        loader = FS.load_generalist if is_generalist else FS.load_fully_shared
+        model, payload = loader(str(ck), obs_space, act_space, device=device)
         cfg = dict(payload.get("cfg") or {})
-        cfg["fixed_latent_strategy"] = True
+        if not is_generalist:
+            cfg["fixed_latent_strategy"] = True
         policy = CustomPPOInferencePolicy(model, device=device, cfg=cfg)
         needs_entity = getattr(model, "entity_encoder", None) is not None
     else:
@@ -202,22 +232,25 @@ def main() -> int:
         policy = L1.make_dispatch_policy(model, branch_cfg, device=device)
         needs_entity = bool(getattr(model, "entity_repair_enabled", False))
 
-    if not bool(getattr(model, "uses_latent_strategy", False)) and not hasattr(model, "branch"):
-        # Fully shared sets uses_latent_strategy; Rung1Model also sets it.
-        pass
-    if int(getattr(model, "latent_k", 0) or 0) != 2:
-        raise SystemExit(f"REFUSING: latent_k must be 2; got {getattr(model, 'latent_k', None)}")
+    want_k = 0 if is_generalist else 2
+    if int(getattr(model, "latent_k", 0) or 0) != want_k:
+        raise SystemExit(f"REFUSING: latent_k must be {want_k}; got {getattr(model, 'latent_k', None)}")
     if not needs_entity:
         raise SystemExit(f"REFUSING: suite {N_AGENTS}v{N_AGENTS} students are entity-repair; refusing non-entity eval")
+
+    def force_z(z: int) -> None:
+        if is_generalist:
+            return                   # pi_G(a|o): there is no z to force
+        policy.fixed_latent_strategy = True
+        policy.fixed_latent_strategy_id = int(z)
+        if hasattr(policy, "reset_strategy"):
+            policy.reset_strategy()
 
     def run_cell(z: int, pole: str, seed: int) -> dict:
         env = R2.build_env(device, seed)
         core = env.core
         try:
-            policy.fixed_latent_strategy = True
-            policy.fixed_latent_strategy_id = int(z)
-            if hasattr(policy, "reset_strategy"):
-                policy.reset_strategy()
+            force_z(z)
             core._bt_profile_override = None
             core._sds_opening_hold_steps = 0
             genomes = genomes_by_pole[pole]
@@ -265,7 +298,7 @@ def main() -> int:
             env.close()
 
     if args.dry_run:
-        # One forced-z smoke step to prove entity+predict path.
+        # One smoke step to prove entity+predict path (z forced for the sharing arms).
         env = R2.build_env(device, 99_991_004)
         try:
             core = env.core
@@ -275,10 +308,7 @@ def main() -> int:
             obs = env.reset()
             obs["global_state"] = env.state()
             obs = augment_obs_with_entities(obs, core, side="blue")
-            policy.fixed_latent_strategy = True
-            policy.fixed_latent_strategy_id = 0
-            if hasattr(policy, "reset_strategy"):
-                policy.reset_strategy()
+            force_z(0)
             action, _ = policy.predict(obs, deterministic=True)
             print(f"  dry-run predict OK  action_shape={np.asarray(action).shape}")
         finally:
@@ -313,15 +343,31 @@ def main() -> int:
                 team_size=N_AGENTS, arm=args.arm)
 
     LOG.parent.mkdir(parents=True, exist_ok=True)
-    cells = [(z, pole, seed) for z in (0, 1) for pole in ("A", "B") for seed in seeds]
+    zs = (0,) if is_generalist else (0, 1)
+    cells = [(z, pole, seed) for z in zs for pole in ("A", "B") for seed in seeds]
+    fingerprint = {"label": label, "arm": args.arm, "team_size": N_AGENTS, "checkpoint_sha256": ck_sha,
+                   "seeds": [lo, hi], "spec_sha256": _sha(SPEC_PATH),
+                   "poles": {p: POLE_IDENTITY[p]["pole_config_hash"] for p in ("A", "B")}}
+    done = load_partial(PARTIAL, fingerprint) if PARTIAL.is_file() else {}
+    if done:
+        print(f"  RESUME: {len(done)} finished episode(s) read from {PARTIAL.name}", flush=True)
+    else:
+        PARTIAL.write_text(json.dumps({"fingerprint": fingerprint}) + "\n", encoding="utf-8")
     rows = []
     bar = tqdm_iter(cells, desc=f"{label}", unit="ep")
     for z, pole, seed in bar:
         set_postfix(bar, f"z{z}@Pole{pole} seed={seed}")
-        rows.append({"z": z, "pole": pole, "seed": seed, **run_cell(z, pole, seed)})
+        row = done.get((z, pole, seed))
+        if row is None:
+            row = {"z": z, "pole": pole, "seed": seed, **run_cell(z, pole, seed)}
+            with PARTIAL.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row) + "\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+        rows.append({k: row[k] for k in ("z", "pole", "seed", "blue", "red", "win", "margin")})
         if seed == seeds[-1]:
             wr = float(np.mean([r["win"] for r in rows if r["z"] == z and r["pole"] == pole]))
-            print(f"  z{z} on Pole {pole}: win rate {wr:.4f}", flush=True)
+            print(f"  {'pi_G' if is_generalist else f'z{z}'} on Pole {pole}: win rate {wr:.4f}", flush=True)
 
     with ROWS_CSV.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
@@ -332,55 +378,63 @@ def main() -> int:
         by = {r["seed"]: r["win"] for r in rows if r["z"] == z and r["pole"] == pole}
         return np.array([by[s] for s in seeds], dtype=np.float64)
 
-    delta_a = _mean_ci(wins(0, "A") - wins(1, "A"))
-    delta_b = _mean_ci(wins(1, "B") - wins(0, "B"))
-    delta_a["passes"] = bool(delta_a["mean"] > 0 and delta_a["lcb95"] > 0)
-    delta_b["passes"] = bool(delta_b["mean"] > 0 and delta_b["lcb95"] > 0)
+    tie_or_reversal: list = []
+    if is_generalist:
+        v_a, v_b = _mean_ci(wins(0, "A")), _mean_ci(wins(0, "B"))
+        print(f"\n  V(pi_G, A) {v_a['mean']:.4f} [{v_a['lcb95']:.4f}, {v_a['ucb95']:.4f}]")
+        print(f"  V(pi_G, B) {v_b['mean']:.4f} [{v_b['lcb95']:.4f}, {v_b['ucb95']:.4f}]")
+        claims = [rs.Claim(name=f"V_pole_{p}", recorded={k: v[k] for k in ("mean", "lcb95", "ucb95")},
+                           minuend={"z": 0, "pole": p}, value_field="win")
+                  for p, v in (("A", v_a), ("B", v_b))]
+        primary = {"V_pole_A": v_a, "V_pole_B": v_b,
+                   "note": "no crossover delta for a single policy; Delta_G is formed against the "
+                           "Separated reference sealed on the same seeds (GENERALIST_DEFINITION_V1)"}
+        gate_passes = None
+    else:
+        delta_a = _mean_ci(wins(0, "A") - wins(1, "A"))
+        delta_b = _mean_ci(wins(1, "B") - wins(0, "B"))
+        delta_a["passes"] = bool(delta_a["mean"] > 0 and delta_a["lcb95"] > 0)
+        delta_b["passes"] = bool(delta_b["mean"] > 0 and delta_b["lcb95"] > 0)
+        gate_passes = bool(delta_a["passes"] and delta_b["passes"])
+        print(f"\n  delta_A {delta_a['mean']:+.4f} [{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]")
+        print(f"  delta_B {delta_b['mean']:+.4f} [{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]")
+        print(f"  (frozen gate, provenance only: {'PASS' if gate_passes else 'FAIL'})")
+        tie_or_reversal = [
+            k for k, d in (("delta_A", delta_a), ("delta_B", delta_b)) if d["mean"] <= 0.0
+        ]
+        if tie_or_reversal:
+            PREAUDIT_FLAG.write_text(json.dumps({
+                "record": f"{label} crossover EVAL integrity audit REQUIRED",
+                "status": "FLAGGED", "utc": _now(),
+                "triggered_by": tie_or_reversal,
+                "point_estimates": {"delta_A": delta_a["mean"], "delta_B": delta_b["mean"]},
+                "raw_rows": str(ROWS_CSV.relative_to(ROOT)),
+            }, indent=2), encoding="utf-8")
+            print(f"  TIE/REVERSAL on {tie_or_reversal} -- integrity FLAG written; still sealing rows.")
+            print(f"  -> {PREAUDIT_FLAG}")
+        claims = [
+            rs.Claim(name="delta_A", recorded={k: delta_a[k] for k in ("mean", "lcb95", "ucb95")},
+                     minuend={"z": 0, "pole": "A"}, subtrahend={"z": 1, "pole": "A"}, value_field="win"),
+            rs.Claim(name="delta_B", recorded={k: delta_b[k] for k in ("mean", "lcb95", "ucb95")},
+                     minuend={"z": 1, "pole": "B"}, subtrahend={"z": 0, "pole": "B"}, value_field="win"),
+        ]
+        primary = {"delta_A": delta_a, "delta_B": delta_b, "passes": gate_passes}
 
-    gate_passes = bool(delta_a["passes"] and delta_b["passes"])
-    print("\n  PRIMARY GATE")
-    print(f"    delta_A {delta_a['mean']:+.4f} [{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]"
-          f" {'PASS' if delta_a['passes'] else 'FAIL'}")
-    print(f"    delta_B {delta_b['mean']:+.4f} [{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]"
-          f" {'PASS' if delta_b['passes'] else 'FAIL'}")
-    print(f"\n  GATE: {'PASS' if gate_passes else 'FAIL'}")
-
-    tie_or_reversal = [
-        k for k, d in (("delta_A", delta_a), ("delta_B", delta_b)) if d["mean"] <= 0.0
-    ]
-    if tie_or_reversal:
-        PREAUDIT_FLAG.write_text(json.dumps({
-            "record": f"{label} crossover EVAL integrity audit REQUIRED",
-            "status": "FLAGGED", "utc": _now(),
-            "triggered_by": tie_or_reversal,
-            "point_estimates": {"delta_A": delta_a["mean"], "delta_B": delta_b["mean"]},
-            "raw_rows": str(ROWS_CSV.relative_to(ROOT)),
-        }, indent=2), encoding="utf-8")
-        print(f"  TIE/REVERSAL on {tie_or_reversal} -- integrity FLAG written; still sealing rows.")
-        print(f"  -> {PREAUDIT_FLAG}")
-
-    ck_sha = _sha(ck)
-    claims = [
-        rs.Claim(name="delta_A", recorded={k: delta_a[k] for k in ("mean", "lcb95", "ucb95")},
-                 minuend={"z": 0, "pole": "A"}, subtrahend={"z": 1, "pole": "A"}, value_field="win"),
-        rs.Claim(name="delta_B", recorded={k: delta_b[k] for k in ("mean", "lcb95", "ucb95")},
-                 minuend={"z": 1, "pole": "B"}, subtrahend={"z": 0, "pole": "B"}, value_field="win"),
-    ]
     plan = rs.AuditPlan(
         rows_csv=ROWS_CSV, expected_rows=len(rows), expected_seeds=seeds,
         group_by=("z", "pole"), seed_field="seed",
         int_fields=("z", "seed", "blue", "red", "margin"), binary_fields=("win",), derived={},
         checkpoints={"student": (ck, ck_sha)}, spec_path=SPEC_PATH, claims=claims,
         n_boot=N_BOOT, alpha=ALPHA, rng_seed=BOOTSTRAP_SEED,
-        seed_class=SEED_CLASS, experiment_id=EXP_ID,
+        seed_class=seed_class, experiment_id=REG_ID,
     )
     # status is owned by seal(); do not set it here. Sealed != gate PASS.
     payload = {
         "record": f"{label} crossover EVAL",
         "one_shot": True,
         "utc": _now(),
-        "arm": "EXPLORATORY",
-        "confirmatory": False,
+        "arm": seed_class.upper(),
+        "confirmatory": seed_class == "sealed_confirmatory",
         "implements": f"{SPEC_PATH.name}#EVALUATION",
         "suite_arm": args.arm,
         "team_size": N_AGENTS,
@@ -390,26 +444,28 @@ def main() -> int:
         "seeds": {
             "block": [seeds[0], seeds[-1]], "n": len(seeds),
             "shared_across_z_and_poles": True,
-            "seed_class": SEED_CLASS, "registry_experiment_id": EXP_ID,
+            "seed_class": seed_class, "registry_experiment_id": REG_ID,
+            "shared_by_labels": shared_block.get("shared_by_labels"),
         },
         # The resolved experimental object each pole was evaluated on (Layer 3 reads this).
         "poles": POLE_IDENTITY,
-        "PRIMARY_GATE": {"delta_A": delta_a, "delta_B": delta_b, "passes": gate_passes},
+        "PRIMARY_GATE": primary,
         "bootstrap": {
             "procedure": "paired percentile bootstrap over evaluation seeds",
             "samples": N_BOOT, "alpha": ALPHA, "rng_seed": BOOTSTRAP_SEED,
         },
         "no_model_selection_occurred": True,
         "total_episodes": len(rows),
-        "claim_boundary": "EXPLORATORY n=64; not confirmatory; not PAPER-FAITHFUL",
+        "claim_boundary": str(spec.get("claim_boundary", "")),
         "integrity_flag": (str(PREAUDIT_FLAG.relative_to(ROOT)) if tie_or_reversal else None),
     }
     rs.seal(out_path=OUT, payload=payload, plan=plan, state=state, strict=False)
     sealed = json.loads(OUT.read_text(encoding="utf-8"))
-    sr.set_status(EXP_ID, "SPENT",
-                  note=f"sealed {sealed.get('status')}; gate_passes={gate_passes}")
+    PARTIAL.unlink(missing_ok=True)       # the sealed rows CSV is now the record
+    if shared_block_all_sealed(shared_block, SD):
+        sr.set_status(REG_ID, "SPENT", note=f"all shared labels sealed (last: {label})")
     print(f"\n  -> {OUT} ({sealed.get('status')})")
-    return 0 if gate_passes else 1
+    return 0
 
 
 if __name__ == "__main__":

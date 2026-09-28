@@ -1,0 +1,91 @@
+{
+  "record_id": "STANDARDIZED_2V2_SHARING_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-28T20:30:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL (evaluation only). Not PAPER-FAITHFUL.",
+  "decided_by": "PI, 2026-09-28: finish 2v2 -- Share-Encoder, Fully Shared+z, Generalist -- then noise, then lock.",
+  "parent": ["STANDARDIZED_2V2_SHARING_SPEC.json (training; EVALUATION_planned)", "GENERALIST_DEFINITION_V1.json#SCORING_locked"],
+  "claim_boundary": "2v2 sharing baselines, n=128 matched seeds (sealed_confirmatory block shared by all arms); mean effects are the headline, 95% intervals for figures; not PAPER-FAITHFUL",
+
+  "ARMS": {
+    "share_encoder": {
+      "label": "STANDARDIZED_2V2_SHARE_ENCODER",
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2/share_encoder/ckpts/final_share_encoder_2v2.pt",
+      "sha256": "5d12f5c7cc83424d0c7d98ea6a65aa488685618a2cf70bcfa4c2cdd44953edff",
+      "format": "sharing_ladder_rung1_v1"
+    },
+    "fully_shared_z": {
+      "label": "STANDARDIZED_2V2_FULLY_SHARED_Z",
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2/fully_shared_z/ckpts/final_fully_shared_z_2v2.pt",
+      "sha256": "cbd7fee0098cd0a0e5276ff68faf816a1bc7e18597935d9b55471e8807a6572b",
+      "format": "suite_fully_shared_z_v1"
+    },
+    "generalist": {
+      "label": "STANDARDIZED_2V2_GENERALIST",
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2/generalist/ckpts/final_generalist_2v2.pt",
+      "sha256": "c60b4efff14e38fa350efc91a7bd7ad726bfafe8df6e29fa9c9b34ceb3f3756e",
+      "format": "suite_generalist_v1"
+    }
+  },
+
+  "SEPARATED_REFERENCE": {
+    "label": "STANDARDIZED_2V2_SEPARATED_GENERALIST_REF",
+    "why": "Delta_G = V(ours) - V(pi_G) must be paired by seed (GENERALIST_DEFINITION_V1#SCORING_locked); ours is re-scored on this block for that pairing only. The 2v2 main Separated value stays the fresh confirmatory +0.117/+0.539.",
+    "system": "split composite exactly as in the confirmatory pass: pi_D on DEFEND + repaired pi_A frozen on ATTACK, roles fixed for the episode, CLOSEST_DEFENDS k=1; pi_B the repaired pi_B",
+    "checkpoints": {
+      "pi_D": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+               "sha256": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97"},
+      "pi_A_frozen_attack": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+                             "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"},
+      "pi_B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+               "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"}
+    },
+    "delta_G": {
+      "Delta_G_A": "V(split pi_A+D, A) from this reference minus V(pi_G, A), paired by seed",
+      "Delta_G_B": "V(pi_B, B) from this reference minus V(pi_G, B), paired by seed",
+      "bootstrap": "eval_hog_psp_v3._mean_ci on the per-seed differences"
+    }
+  },
+
+  "SEEDS": {
+    "registry_experiment_id": "STANDARDIZED_2V2_SHARING_EVAL",
+    "block": "24500001..24500128",
+    "n": 128,
+    "seed_class": "sealed_confirmatory",
+    "shared_by_labels": ["STANDARDIZED_2V2_SHARE_ENCODER", "STANDARDIZED_2V2_FULLY_SHARED_Z", "STANDARDIZED_2V2_GENERALIST", "STANDARDIZED_2V2_SEPARATED_GENERALIST_REF"],
+    "spent_when": "all four labels have sealed"
+  },
+
+  "POLES": {
+    "A": {"pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"},
+    "B": {"pole_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"},
+    "source": "resolved from the certification at run time (experiments/pole_attestation.py); must equal these hashes (the ones the dataset was collected on)"
+  },
+
+  "EVALUATION": {
+    "sharing_arms": "forced z, no router, deterministic; Delta_A = V(z0,A) - V(z1,A), Delta_B = V(z1,B) - V(z0,B); every z x pole cell on all 128 seeds",
+    "generalist": "no z; V(pi_G,A), V(pi_G,B) on all 128 seeds",
+    "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7, "procedure": "paired percentile over seeds"},
+    "tie_or_reversal": "a sharing arm with a Delta mean <= 0 writes its integrity flag and still seals; a row-level audit precedes any interpretation",
+    "crash_safety": "every finished episode is appended to a fingerprinted PARTIAL file; launches pass --resume"
+  },
+
+  "LAUNCH": {
+    "share_encoder": ".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py --team-size 2 --arm share_encoder --device cuda --resume",
+    "fully_shared_z": ".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py --team-size 2 --arm fully_shared --device cuda --resume",
+    "generalist": ".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py --team-size 2 --arm generalist --device cuda --resume",
+    "separated_reference": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_SHARING_EVAL_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 24500001 --n-seeds 128 --label STANDARDIZED_2V2_SEPARATED_GENERALIST_REF --device cuda --role-fixed-for-episode --frozen-attack-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --frozen-attack-path-sha256 858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f --role-k-defend 1 --registry-experiment-id STANDARDIZED_2V2_SHARING_EVAL --resume",
+    "preflight": "every command with --dry-run passes; this spec and the evaluators committed; scientific tree clean",
+    "concurrency": "the four labels are independent (fresh env per episode, deterministic actions) and may run in parallel"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "re-running any label (one-shot by label)",
+    "replacing the 2v2 main Separated value with the reference run",
+    "any 4v4 or 6v6 evaluation",
+    "the deployment-noise cases",
+    "claiming PAPER-FAITHFUL"
+  ]
+}

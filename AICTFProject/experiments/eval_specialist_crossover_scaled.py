@@ -116,10 +116,15 @@ def shared_block_owner(reg_id: str, label: str, lo: int, hi: int, seed_class: st
 
 
 def shared_block_all_sealed(block: dict, sd: Path) -> bool:
-    """True once every declared label has a sealed result record (only then is it SPENT)."""
+    """True once every declared label has a sealed result record (only then is it SPENT).
+
+    A block may be shared by this evaluator's labels (<label>_SPECIALIST_CROSSOVER_EVAL_RESULT)
+    and eval_suite_sharing_crossover's (<label>_CROSSOVER_EVAL_RESULT); either record counts.
+    """
     for lab in block.get("shared_by_labels") or []:
-        out = sd / f"{lab}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
-        if not out.is_file():
+        out = next((p for p in (sd / f"{lab}_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+                                sd / f"{lab}_CROSSOVER_EVAL_RESULT.json") if p.is_file()), None)
+        if out is None:
             return False
         try:
             if json.loads(out.read_text(encoding="utf-8")).get("status") not in ("SEALED", "AUDIT_FAILED"):
