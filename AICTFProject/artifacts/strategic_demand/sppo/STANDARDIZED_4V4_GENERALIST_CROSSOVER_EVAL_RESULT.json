@@ -1,0 +1,99 @@
+{
+  "record": "STANDARDIZED_4V4_GENERALIST crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-09-29T15:23:42Z",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "STANDARDIZED_4V4_SHARING_EVAL_SPEC.json#EVALUATION",
+  "suite_arm": "generalist",
+  "team_size": 4,
+  "device": "cuda",
+  "checkpoint": "artifacts\\strategic_demand\\sppo\\suite_sharing_std\\4v4\\generalist\\ckpts\\final_generalist_4v4.pt",
+  "checkpoint_sha256": "29d667f537bea10a33d91ac53d86e92d76894212bd0bd19b13844fdc5d7113f2",
+  "seeds": {
+    "block": [
+      25000001,
+      25000128
+    ],
+    "n": 128,
+    "shared_across_z_and_poles": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_4V4_SHARING_EVAL",
+    "shared_by_labels": [
+      "STANDARDIZED_4V4_SHARE_ENCODER",
+      "STANDARDIZED_4V4_FULLY_SHARED_Z",
+      "STANDARDIZED_4V4_GENERALIST",
+      "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF"
+    ]
+  },
+  "poles": {
+    "A": {
+      "policy": "A",
+      "team_size": 4,
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 4
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 4,
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "base_opponent": "OP7",
+      "overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "lock_defender": 10,
+      "enable_2v1": true,
+      "min_alive_for_defender": 4
+    }
+  },
+  "PRIMARY_GATE": {
+    "V_pole_A": {
+      "mean": 0.7578125,
+      "lcb95": 0.6796875,
+      "ucb95": 0.828125
+    },
+    "V_pole_B": {
+      "mean": 0.6953125,
+      "lcb95": 0.6171875,
+      "ucb95": 0.7734375
+    },
+    "note": "no crossover delta for a single policy; Delta_G is formed against the Separated reference sealed on the same seeds (GENERALIST_DEFINITION_V1)"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 256,
+  "claim_boundary": "4v4 sharing baselines, n=128 matched seeds (sealed_confirmatory block shared by all arms); mean effects are the headline, 95% intervals for figures; not PAPER-FAITHFUL",
+  "integrity_flag": null,
+  "status": "SEALED",
+  "sealed_utc": "2026-09-29T15:23:43Z",
+  "git_sha": "a427a70fb843e7621002c3ed377a91dd520cf48e",
+  "AUDIT": {
+    "path": "STANDARDIZED_4V4_GENERALIST_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 13,
+    "n_gating": 11,
+    "failed_checks": [],
+    "rows_sha256": "e2c51678b2bfab8135dcaa7425621320858fd3d5bacddbc4ceaeaa59fba6ca4e"
+  }
+}

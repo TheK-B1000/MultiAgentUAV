@@ -1,0 +1,49 @@
+{
+  "label": "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF_SPECIALIST_CROSSOVER",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-29T10:57:34Z",
+      "pid": 47124,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "a427a70fb843e7621002c3ed377a91dd520cf48e",
+      "seed_base": 25000001,
+      "n_seeds": 128,
+      "team_size": 4,
+      "pi_a": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_a4_split_attack_defend_v1\\ckpts\\final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+      "pi_b": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_b3_entity_repair_corrected\\ckpts\\final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-29T20:09:29Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-29T20:09:29Z",
+      "audit": "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 14
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-29T20:09:29Z",
+      "result": "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-29T20:09:29Z",
+  "pid": 47124,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "a427a70fb843e7621002c3ed377a91dd520cf48e",
+  "seed_base": 25000001,
+  "n_seeds": 128,
+  "team_size": 4,
+  "pi_a": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_a4_split_attack_defend_v1\\ckpts\\final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+  "pi_b": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_b3_entity_repair_corrected\\ckpts\\final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+  "reason": "all episodes written",
+  "audit": "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 14,
+  "result": "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+}

@@ -2091,7 +2091,7 @@
       "lo": 25000001,
       "hi": 25000128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_4V4_SHARING_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-29T10:43:50Z",
@@ -2100,10 +2100,17 @@
         "STANDARDIZED_4V4_FULLY_SHARED_Z",
         "STANDARDIZED_4V4_GENERALIST",
         "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF"
+      ],
+      "spent_utc": "2026-09-29T20:09:29Z",
+      "notes": [
+        {
+          "utc": "2026-09-29T20:09:29Z",
+          "note": "all shared labels sealed (last: STANDARDIZED_4V4_SEPARATED_GENERALIST_REF)"
+        }
       ]
     }
   ],
-  "updated_utc": "2026-09-29T10:56:24Z",
+  "updated_utc": "2026-09-29T20:09:29Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

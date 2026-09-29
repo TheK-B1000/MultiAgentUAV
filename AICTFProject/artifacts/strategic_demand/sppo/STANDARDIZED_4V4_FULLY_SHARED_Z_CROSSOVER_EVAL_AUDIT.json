@@ -1,0 +1,154 @@
+{
+  "record": "audit of STANDARDIZED_4V4_FULLY_SHARED_Z_CROSSOVER_EVAL_RESULT.json",
+  "audit_utc": "2026-09-29T19:41:09Z",
+  "git_sha": "a427a70fb843e7621002c3ed377a91dd520cf48e",
+  "passed": true,
+  "n_checks": 13,
+  "n_gating": 11,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 512,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_SEED_SPEND'",
+      "spec": "STANDARDIZED_4V4_SHARING_EVAL_SPEC.json",
+      "sha256": "81f45b7c87aaa9f951c909e689f3a341ce3be0b398764ab795dbbb31c4e2eb66",
+      "status": "FROZEN_BEFORE_SEED_SPEND"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "standardized_4v4_fully_shared_z_crossover_eval_rows.csv (11308 bytes)",
+      "sha256": "ad7521d592751bd12644c8659877ec59633b04edeae8d098cc9ee29191514bb1"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "512 rows, expected 512",
+      "found": 512,
+      "expected": 512
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "4 cells; 0 with a seed set != frozen block 25000001..25000128 (n=128)",
+      "n_cells": 4,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win takes values [0, 1]",
+      "field": "win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "checkpoint::student",
+      "gating": true,
+      "result": "PASS",
+      "detail": "student sha 71cd291eb6da... vs frozen 71cd291eb6da...",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing_std\\4v4\\fully_shared_z\\ckpts\\final_fully_shared_z_4v4.pt",
+      "sha256": "71cd291eb6da70b0e622c350cac29fd7fd423acb463d844bad7fe5cfac8ac5a1",
+      "frozen_sha256": "71cd291eb6da70b0e622c350cac29fd7fd423acb463d844bad7fe5cfac8ac5a1"
+    },
+    {
+      "name": "claim::delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.3671875,
+        "lcb95": 0.2734375,
+        "ucb95": 0.4609375
+      },
+      "rederived": {
+        "mean": 0.3671875,
+        "lcb95": 0.2734375,
+        "ucb95": 0.4609375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.109375,
+        "lcb95": -0.21875,
+        "ucb95": 0.0
+      },
+      "rederived": {
+        "mean": -0.109375,
+        "lcb95": -0.21875,
+        "ucb95": 0.0
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "split_half::delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.3750 | second half +0.3594",
+      "first_half": 0.375,
+      "second_half": 0.359375,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.1406 | second half -0.0781",
+      "first_half": -0.140625,
+      "second_half": -0.078125,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to STANDARDIZED_4V4_SHARING_EVAL (status RESERVED) -- same block, no conflict",
+      "seed_class": "sealed_confirmatory",
+      "experiment_id": "STANDARDIZED_4V4_SHARING_EVAL"
+    }
+  ]
+}
