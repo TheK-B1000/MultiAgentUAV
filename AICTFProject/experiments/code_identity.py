@@ -96,6 +96,64 @@ def code_equivalence(sha_a: str, sha_b: str, root: Path = ROOT) -> dict:
     }
 
 
+#: Modules the suite collector imports, some only inside functions; the closure is everything these
+#: pull in from the project at run time (PI 2026-09-29: identity = the code collection executes).
+COLLECTOR_ENTRY_MODULES = (
+    "experiments.collect_suite_distillation_states", "experiments.collect_distillation_states",
+    "experiments.phase0_collect_scorer_data", "experiments.r2_learned_crossover", "experiments.pole_attestation",
+    "experiments.opponent_spec", "experiments.seed_registry", "experiments.code_identity",
+    "gpu_env._core._entity_obs", "rl.causal_supervision", "rl.curriculum", "rl.custom_ppo",
+    "rl.custom_ppo.rule_role_assignment", "rl.custom_ppo.split_attack_defend",
+)
+
+
+def collector_closure(root: Path = ROOT) -> list[str]:
+    """Project files (relative to the project root) the collector executes, by importing it in a fresh
+    interpreter of this checkout. Fails closed if the import fails."""
+    code = ("import sys, pathlib, importlib; root = pathlib.Path('.').resolve(); sys.path.insert(0, str(root))\n"
+            f"[importlib.import_module(m) for m in {list(COLLECTOR_ENTRY_MODULES)!r}]\n"
+            "fs = sorted({str(pathlib.Path(m.__file__).resolve().relative_to(root)).replace('\\\\', '/') "
+            "for m in list(sys.modules.values()) if getattr(m, '__file__', None) "
+            "and pathlib.Path(m.__file__).resolve().is_relative_to(root) and '.venv' not in m.__file__})\n"
+            "print('\\n'.join(fs))")
+    r = subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"collector closure import failed: {r.stderr.strip()[-400:]}")
+    files = [f for f in r.stdout.splitlines() if f.strip()]
+    if "experiments/collect_suite_distillation_states.py" not in files:
+        raise RuntimeError("collector closure does not contain the collector itself")
+    return files
+
+
+def _blob_or_none(rev: str, rel: str, root: Path) -> str | None:
+    r = subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "--quiet", f"{rev}:{_prefix(root)}{rel}"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() or None
+
+
+def executed_code_diff(sha_a: str, sha_b: str, files: list[str], root: Path = ROOT) -> list[dict]:
+    """Closure files whose blob differs between the two commits (a file absent at a commit has blob None)."""
+    out = []
+    for f in files:
+        a, b = _blob_or_none(sha_a, f, root), _blob_or_none(sha_b, f, root)
+        if a != b:
+            out.append({"file": f, "blob_a": a, "blob_b": b})
+    return out
+
+
+def executed_code_equivalence(sha_a: str, sha_b: str, attested: list[dict], root: Path = ROOT,
+                              files: list[str] | None = None) -> dict:
+    """Equivalent iff every closure file is identical at both commits, or its exact (blob_a, blob_b)
+    change is in the reviewed ``attested`` list. Anything unreviewed -- a new edit, a new file in the
+    closure -- breaks equivalence."""
+    files = files if files is not None else collector_closure(root)
+    diff = executed_code_diff(sha_a, sha_b, files, root)
+    ok = {(d["file"], d.get("blob_a"), d.get("blob_b")) for d in attested}
+    unreviewed = [d for d in diff if (d["file"], d["blob_a"], d["blob_b"]) not in ok]
+    return {"sha_a": sha_a, "sha_b": sha_b, "n_closure_files": len(files), "differing": diff,
+            "unreviewed": unreviewed, "equivalent": not unreviewed}
+
+
 def attestation_name(sha_a: str, sha_b: str) -> str:
     return f"COLLECTOR_COMMIT_EQUIVALENCE_{sha_a[:8]}_{sha_b[:8]}.json"
 
