@@ -1,0 +1,25 @@
+{
+  "record_id": "COLLECTOR_EXECUTED_CODE_ATTESTATION",
+  "status": "FROZEN",
+  "utc": "2026-09-29T20:19:29Z",
+  "decided_by": "PI, 2026-09-29: audit later collections on the code the collector actually executes",
+  "reference_collection_commit": "342cbc46a1788626a6b5015d86596734c38cc675",
+  "reviewed_at_commit": "4268222343479a54ec37269a1e03cd75451f4f02",
+  "closure_files": 201,
+  "rule": "a later collection is equivalent to the reference iff every closure file is identical, or its exact (blob_a, blob_b) change is listed here; any other edit -- or a later edit of a listed file -- breaks it",
+  "reviewed_changes": [
+    {
+      "file": "experiments/code_identity.py",
+      "blob_a": null,
+      "blob_b": "5dbbb771ac802c725b25ed4dce7a4c06e9bfa68c",
+      "review": "new module: provenance helpers (scientific tree hash, dirty check, commit/closure identity). Imported by the collector only inside _git_identity; computes hashes of the repository, never touches the env."
+    },
+    {
+      "file": "experiments/collect_suite_distillation_states.py",
+      "blob_a": "8764332d73b500ebb88d4ee24f1e778a97b34b7e",
+      "blob_b": "6570b8b799c6b8fda161913169a7beaa7e5a7650",
+      "review": "_git_identity now records scientific_tree_sha256 and treats any uncommitted scientific path (not only experiments/) as dirty; the refusal message names those paths. Provenance and launch guard only: no change to episodes, acting, allocator, KL targets, stored keys, shard format or fingerprint fields other than what the manifest records about its own code."
+    }
+  ],
+  "review_basis": "git diff 342cbc46..<reviewed_at_commit> of both files, read in full on 2026-09-29"
+}
