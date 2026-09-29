@@ -189,6 +189,68 @@ def _collect_suite_arm(spec: dict) -> dict | None:
             "provenance": provenance}
 
 
+#: Deployment-noise suite per scale: the final system on ONE matched seed block, nominal first.
+#: (label, perturbation family, macro stem)
+NOISE = {
+    "2v2": {"spec": "STANDARDIZED_2V2_NOISE_SPEC.json", "conditions": [
+        ("STANDARDIZED_2V2_NOISE_NOMINAL", "nominal", "TwoNoiseNom"),
+        ("STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM", "localization_noise", "TwoNoiseLoc"),
+        ("STANDARDIZED_2V2_NOISE_MOTION_MEDIUM", "motion_error", "TwoNoiseMot"),
+        ("STANDARDIZED_2V2_NOISE_DELAY_MEDIUM", "control_delay", "TwoNoiseDel"),
+    ]},
+}
+
+
+def collect_noise(scale: str) -> dict | None:
+    """Per-condition crossover and paired degradation from nominal, seed by seed.
+
+    None until every condition has sealed. Fails closed if a record's perturbation is not the
+    condition's family, if its poles are not attested, or if the seed sets differ (the
+    degradation is only defined on matched seeds)."""
+    cfg = NOISE.get(scale)
+    if cfg is None:
+        return None
+    recs = {}
+    for label, family, _stem in cfg["conditions"]:
+        rec_p = SD / f"{label}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+        if not rec_p.is_file():
+            return None
+        rec = _sealed(rec_p)
+        if (rec.get("perturbation") or {}).get("family") != family:
+            raise SystemExit(f"FAIL-CLOSED: {rec_p.name} perturbation {rec.get('perturbation')} is not {family}")
+        att = rec.get("pole_attestations") or {}
+        if not all(att.get(p, {}).get("hashes_match") is True for p in ("A", "B")):
+            raise SystemExit(f"FAIL-CLOSED: {rec_p.name} lacks a matching pole attestation for both poles")
+        csv_p = SD / f"{label.lower()}_specialist_crossover_eval_rows.csv"
+        recs[label] = (rec, csv_p, _cells(csv_p, "policy"))
+    nom_label = cfg["conditions"][0][0]
+    seeds = sorted(recs[nom_label][2][("pi_A", "A")])
+    out = {"spec": cfg["spec"], "n_seeds": len(seeds), "seed_block": [seeds[0], seeds[-1]], "conditions": []}
+
+    def vecs(cells):
+        for k, c in cells.items():
+            if sorted(c) != seeds:
+                raise SystemExit(f"FAIL-CLOSED: noise cell {k} seed set differs from nominal -- not matched")
+        v = {k: np.array([c[s] for s in seeds], dtype=np.float64) for k, c in cells.items()}
+        return v[("pi_A", "A")] - v[("pi_B", "A")], v[("pi_B", "B")] - v[("pi_A", "B")], v
+
+    nom_a, nom_b, _ = vecs(recs[nom_label][2])
+    for label, family, stem in cfg["conditions"]:
+        rec, csv_p, cells = recs[label]
+        da, db, v = vecs(cells)
+        d = {"label": label, "family": family, "stem": stem,
+             "perturbation": rec["perturbation"],
+             "delta_A": _mean_ci(da), "delta_B": _mean_ci(db),
+             "own_pole_win": {"pi_A+D@A": float(v[("pi_A", "A")].mean()), "pi_B@B": float(v[("pi_B", "B")].mean())},
+             "record": f"{label}_SPECIALIST_CROSSOVER_EVAL_RESULT.json", "rows_csv_sha256": _sha(csv_p)}
+        for k in ("delta_A", "delta_B"):
+            _check_recorded(f"{d['record']} {k}", d[k], rec["PRIMARY_GATE"][k])
+        if family != "nominal":
+            d["paired_change_vs_nominal"] = {"delta_A": _mean_ci(da - nom_a), "delta_B": _mean_ci(db - nom_b)}
+        out["conditions"].append(d)
+    return out
+
+
 def collect() -> dict:
     out_rows = []
     for spec in ROWS:
@@ -268,6 +330,7 @@ def collect() -> dict:
         "delta_convention": "delta_A = V(pi_A,A) - V(pi_B,A); delta_B = V(pi_B,B) - V(pi_A,B)",
         "bootstrap": "eval_hog_psp_v3._mean_ci -- paired percentile over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
         "rows": out_rows,
+        "noise": {scale: collect_noise(scale) for scale in NOISE},
     }
 
 
@@ -303,6 +366,20 @@ def _md(doc: dict) -> str:
           "not the headline: " + "; ".join(f"{r['scale']} {r['row'].split(' (')[0]} = {r['provenance']['frozen_gate_verdict_provenance_only']}"
                                             for r in doc["rows"] if r["status"] == "FILLED"
                                             and "frozen_gate_verdict_provenance_only" in r["provenance"]) + "."]
+    for scale, noise in (doc.get("noise") or {}).items():
+        if not noise:
+            L += ["", f"Deployment noise {scale}: PENDING (not every condition has sealed)."]
+            continue
+        L += ["", f"## Deployment noise, {scale} (final system, {noise['n_seeds']} matched seeds, `{noise['spec']}`)", "",
+              "| Condition | Mean Δ_A / Δ_B | 95% CI | Own-pole win π_A+D@A, π_B@B | Paired change vs nominal Δ_A / Δ_B |",
+              "|---|---|---|---|---|"]
+        for c in noise["conditions"]:
+            a, b, w = c["delta_A"], c["delta_B"], c["own_pole_win"]
+            ch = c.get("paired_change_vs_nominal")
+            chs = "—" if ch is None else f"{ch['delta_A']['mean']:+.3f} / {ch['delta_B']['mean']:+.3f}"
+            L.append(f"| {c['family']} | **{a['mean']:+.3f} / {b['mean']:+.3f}** | "
+                     f"[{a['lcb95']:+.3f}, {a['ucb95']:+.3f}] / [{b['lcb95']:+.3f}, {b['ucb95']:+.3f}] | "
+                     f"{w['pi_A+D@A']:.3f}, {w['pi_B@B']:.3f} | {chs} |")
     return "\n".join(L) + "\n"
 
 
@@ -354,6 +431,23 @@ def _tex(doc: dict, scale: str) -> str:
             f = prov["holdout_fidelity"]
             cmd(f"{stem}AgreeA", u(f["holdout_agree_z0_vs_piA"]))
             cmd(f"{stem}AgreeB", u(f["holdout_agree_z1_vs_piB"]))
+    noise = (doc.get("noise") or {}).get(scale)
+    if noise:
+        for c in noise["conditions"]:
+            st = c["stem"]
+            cmd(f"{st}N", noise["n_seeds"])
+            for short, key in (("DA", "delta_A"), ("DB", "delta_B")):
+                cmd(f"{st}{short}", s(c[key]["mean"]))
+                cmd(f"{st}{short}Lo", s(c[key]["lcb95"]))
+                cmd(f"{st}{short}Hi", s(c[key]["ucb95"]))
+            cmd(f"{st}WAA", u(c["own_pole_win"]["pi_A+D@A"]))
+            cmd(f"{st}WBB", u(c["own_pole_win"]["pi_B@B"]))
+            for short, key in (("DDA", "delta_A"), ("DDB", "delta_B")):
+                if "paired_change_vs_nominal" in c:
+                    ch = c["paired_change_vs_nominal"][key]
+                    cmd(f"{st}{short}", s(ch["mean"]))
+                    cmd(f"{st}{short}Lo", s(ch["lcb95"]))
+                    cmd(f"{st}{short}Hi", s(ch["ucb95"]))
     return "\n".join(out) + "\n"
 
 
@@ -371,7 +465,8 @@ def main() -> int:
         OUT_MD.write_text(md, encoding="utf-8")
         print(f"-> {OUT_JSON}\n-> {OUT_MD}")
         for scale in ("2v2", "4v4", "6v6"):
-            if any(r["scale"] == scale and r["status"] == "FILLED" and r.get("label") in TEX_STEM for r in doc["rows"]):
+            if any(r["scale"] == scale and r["status"] == "FILLED" and r.get("label") in TEX_STEM for r in doc["rows"]) \
+                    or (doc.get("noise") or {}).get(scale):
                 p = OUT_TEX_DIR / f"results_{scale}.tex"
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text(_tex(doc, scale), encoding="utf-8")

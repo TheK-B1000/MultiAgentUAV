@@ -1,0 +1,78 @@
+{
+  "record_id": "STANDARDIZED_2V2_NOISE_SPEC",
+  "status": "DRAFT_PENDING_MERGE",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-28T21:30:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL (deployment-only evaluation). Not PAPER-FAITHFUL.",
+  "decided_by": "PI, 2026-09-28: after the 2v2 baselines, run the three deployment-noise cases (localization noise, motion error, control delay) on the final 2v2 system, then lock 2v2. Allocator sees localization noise (PI, same day).",
+  "parent": ["DEPLOYMENT_ROBUSTNESS_SPEC.json (tiers, mechanisms, deployment-only guarantee)", "ROBUSTNESS_2V2_RUNG1_RESULT.json (precedent design: medium tier of each family + nominal, paired seeds, n=128)"],
+
+  "THE_QUESTION": "How much of the final 2v2 system's crossover survives each deployment disturbance at the frozen medium tier, measured against a nominal run on the same seeds?",
+
+  "SYSTEM_locked": {
+    "name": "final 2v2 Separated system (the 2v2 main result's system)",
+    "pole_A_policy": "split composite: pi_D on DEFEND + repaired pi_A frozen on ATTACK, roles fixed for the episode, CLOSEST_DEFENDS k=1",
+    "pole_B_policy": "repaired pi_B",
+    "checkpoints": {
+      "pi_D": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+               "sha256": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97"},
+      "pi_A_frozen_attack": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+                             "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"},
+      "pi_B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+               "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"}
+    }
+  },
+
+  "CONDITIONS_locked": {
+    "STANDARDIZED_2V2_NOISE_NOMINAL": {"perturbation": "nominal"},
+    "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM": {"perturbation": "localization_noise", "severity": "medium", "sigma_cells": 0.06},
+    "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM": {"perturbation": "motion_error", "severity": "medium", "sigma_cells": 0.06},
+    "STANDARDIZED_2V2_NOISE_DELAY_MEDIUM": {"perturbation": "control_delay", "severity": "medium", "ticks": 2, "seconds": 1.0},
+    "tier_source": "values are read at run time from DEPLOYMENT_ROBUSTNESS_SPEC.json#TIERS (eval_specialist_crossover_scaled.resolve_perturbation), which also requires DEPLOYMENT_ONLY_GUARANTEE_CHECK.json PASS"
+  },
+
+  "MECHANISMS_locked": {
+    "localization_noise": "core.rt_sensor_noise_sigma_cells = sigma after reset (grid/vec observation model) AND independent N(0, sigma^2) on every entity dx/dy with dist recomputed (entity tensors are built from true positions, so the core noise alone would leave them exact) AND the CLOSEST_DEFENDS allocator ranks agents by noisy own-position estimates (PI 2026-09-28). The first grid/vec observation after reset precedes the core setting, as in the precedent evaluator; the first entity observation and the one role assignment are already noisy.",
+    "motion_error": "core.rt_drift_sigma_cells = sigma after reset (Gaussian noise on post-motion position)",
+    "control_delay": "rl.control_delay.DelayBuffer(ticks) on the final executed action (after the ATTACK/DEFEND splice), fresh per episode",
+    "determinism": "every noise stream is seeded by the episode seed; a crash + --resume reproduces the uninterrupted rows (tests/test_eval_crossover_perturbation.py)",
+    "deployment_only": "no training code reads any of these; the students/teachers are frozen checkpoints"
+  },
+
+  "SEEDS": {
+    "registry_experiment_id": "STANDARDIZED_2V2_NOISE_EVAL",
+    "block": "24600001..24600128",
+    "n": 128,
+    "seed_class": "sealed_confirmatory",
+    "shared_by_labels": ["STANDARDIZED_2V2_NOISE_NOMINAL", "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM", "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM", "STANDARDIZED_2V2_NOISE_DELAY_MEDIUM"],
+    "why_one_block": "degradation is read paired within seed against the nominal run (precedent ROBUSTNESS_2V2_RUNG1_RESULT)"
+  },
+
+  "READINGS": {
+    "per_condition": "Delta_A = V(pi_A+D, A) - V(pi_B, A); Delta_B = V(pi_B, B) - V(pi_A+D, B); mean with 95% CI",
+    "paired_degradation": "for each condition: its per-seed Delta minus the nominal run's per-seed Delta on the same seed, and the same for each policy's win rate on its own pole; eval_hog_psp_v3._mean_ci",
+    "headline": "mean effects (PI reporting rule 2026-09-27); the nominal run here is the noise reference only -- the 2v2 main value stays +0.117/+0.539",
+    "caption_caveat": "For localization and motion perturbations, we use a matched numeric severity schedule of 0.03, 0.06, and 0.12 cells to enable controlled comparison across perturbation families. These levels are not assumed to represent equivalent behavioral difficulty."
+  },
+
+  "LAUNCH": {
+    "common": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_2V2_NOISE_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1/ckpts/final_pi_A_specialist_2v2_std_split_defend_k1.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 24600001 --n-seeds 128 --device cuda --role-fixed-for-episode --frozen-attack-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --frozen-attack-path-sha256 858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f --role-k-defend 1 --registry-experiment-id STANDARDIZED_2V2_NOISE_EVAL --resume",
+    "per_label": {
+      "STANDARDIZED_2V2_NOISE_NOMINAL": "--label STANDARDIZED_2V2_NOISE_NOMINAL",
+      "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM": "--label STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM --perturbation localization_noise --severity medium",
+      "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM": "--label STANDARDIZED_2V2_NOISE_MOTION_MEDIUM --perturbation motion_error --severity medium",
+      "STANDARDIZED_2V2_NOISE_DELAY_MEDIUM": "--label STANDARDIZED_2V2_NOISE_DELAY_MEDIUM --perturbation control_delay --severity medium"
+    },
+    "when": "after the four STANDARDIZED_2V2_SHARING_EVAL labels have sealed (the machine is CPU-bound; running both suites at once does not raise throughput)",
+    "preflight": "each command with --dry-run passes; this spec and the evaluator committed; scientific tree clean"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "low or high tiers (the dose-response ladder is not part of the 2v2 lock)",
+    "noise runs on the baselines (Share-Encoder, Fully Shared+z, Generalist)",
+    "re-running any label",
+    "any 4v4 or 6v6 evaluation",
+    "claiming PAPER-FAITHFUL"
+  ]
+}
