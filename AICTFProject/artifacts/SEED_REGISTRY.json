@@ -1989,9 +1989,27 @@
           "note": "all shared labels sealed (last: STANDARDIZED_2V2_SEPARATED_GENERALIST_REF)"
         }
       ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_2V2_NOISE_EVAL",
+      "purpose": "2v2 deployment-noise suite on the final system: nominal + medium localization/motion/delay, matched seeds",
+      "seed_class": "sealed_confirmatory",
+      "lo": 24600001,
+      "hi": 24600128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_2V2_NOISE_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-29T03:10:45Z",
+      "shared_by_labels": [
+        "STANDARDIZED_2V2_NOISE_NOMINAL",
+        "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM",
+        "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM",
+        "STANDARDIZED_2V2_NOISE_DELAY_MEDIUM"
+      ]
     }
   ],
-  "updated_utc": "2026-09-29T02:57:31Z",
+  "updated_utc": "2026-09-29T03:10:45Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
