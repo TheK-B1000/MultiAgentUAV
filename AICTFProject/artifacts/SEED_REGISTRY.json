@@ -2026,9 +2026,63 @@
         }
       ],
       "spent_utc": "2026-09-29T10:37:17Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_4V4_SHARE_ENCODER_TRAINING",
+      "purpose": "4v4 Share-Encoder distillation init (branch z0, z1)",
+      "seed_class": "exploratory",
+      "lo": 24700001,
+      "hi": 24700002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_4V4_SHARING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-29T10:43:50Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_4V4_FULLY_SHARED_Z_TRAINING",
+      "purpose": "4v4 Fully Shared+z distillation init",
+      "seed_class": "exploratory",
+      "lo": 24800001,
+      "hi": 24800001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_4V4_SHARING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-29T10:43:50Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_4V4_GENERALIST_TRAINING",
+      "purpose": "4v4 Generalist distillation init (GENERALIST_DEFINITION_V1)",
+      "seed_class": "exploratory",
+      "lo": 24900001,
+      "hi": 24900001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_4V4_SHARING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-29T10:43:50Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_4V4_SHARING_EVAL",
+      "purpose": "4v4 matched evaluation of Share-Encoder, Fully Shared+z, Generalist and the Separated Delta_G reference",
+      "seed_class": "sealed_confirmatory",
+      "lo": 25000001,
+      "hi": 25000128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_4V4_SHARING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-29T10:43:50Z",
+      "shared_by_labels": [
+        "STANDARDIZED_4V4_SHARE_ENCODER",
+        "STANDARDIZED_4V4_FULLY_SHARED_Z",
+        "STANDARDIZED_4V4_GENERALIST",
+        "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF"
+      ]
     }
   ],
-  "updated_utc": "2026-09-29T10:37:17Z",
+  "updated_utc": "2026-09-29T10:43:50Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

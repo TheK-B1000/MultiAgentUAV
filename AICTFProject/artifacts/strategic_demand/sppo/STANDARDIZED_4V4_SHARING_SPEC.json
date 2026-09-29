@@ -1,7 +1,7 @@
 {
   "record_id": "STANDARDIZED_4V4_SHARING_SPEC",
-  "status": "DRAFT_UNTIL_2V2_LOCKS",
-  "utc": "2026-09-28T22:30:00Z",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "utc": "2026-09-29T10:43:50Z",
   "classification": "EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL.",
   "decided_by": "PI, 2026-09-28: after 2v2 locks, 4v4 with the SAME frozen baseline definitions (Share-Encoder, Fully Shared+z, Generalist), then noise; derived field-by-field from STANDARDIZED_2V2_SHARING_SPEC.json, changing only what the canonical recipe allows to differ.",
   "scope": "4v4 only. Authorizes the three distillation runs below and reserves their evaluation block; the evaluation itself is frozen separately once the three students are frozen.",
@@ -83,14 +83,14 @@
         "critic.*"
       ],
       "branch_arch": "the specialists' own architecture (from KL teacher pi_A)",
-      "init": "fresh; seeds from STANDARDIZED_4V4_SHARE_ENCODER_TRAINING",
+      "init": "fresh; seeds 24700001..24700002 (STANDARDIZED_4V4_SHARE_ENCODER_TRAINING)",
       "seed_block": "STANDARDIZED_4V4_SHARE_ENCODER_TRAINING"
     },
     "fully_shared": {
       "label": "Fully Shared+z",
       "builder": "rl/suite_fully_shared_distill.py::build_fully_shared_student",
       "architecture": "one SharedActorCentralizedCritic, specialist trunk, latent_k=2, concat z embedding d_z=16; no private trunks, no per-z heads, no FiLM, no router",
-      "init": "fresh; seeds from STANDARDIZED_4V4_FULLY_SHARED_Z_TRAINING",
+      "init": "fresh; seeds 24800001..24800001 (STANDARDIZED_4V4_FULLY_SHARED_Z_TRAINING)",
       "seed_block": "STANDARDIZED_4V4_FULLY_SHARED_Z_TRAINING"
     },
     "generalist": {
@@ -99,18 +99,18 @@
       "definition_sha256": "613e042e90360898ba8dfd00ff3b45358abe4d308606c87a9cb09b84513674bb",
       "builder": "rl/suite_fully_shared_distill.py::build_generalist_student",
       "architecture": "the specialist architecture, latent_k=0, no z pathway",
-      "init": "fresh; seeds from STANDARDIZED_4V4_GENERALIST_TRAINING",
+      "init": "fresh; seeds 24900001..24900001 (STANDARDIZED_4V4_GENERALIST_TRAINING)",
       "seed_block": "STANDARDIZED_4V4_GENERALIST_TRAINING"
     }
   },
   "SEEDS_locked": {
     "training": {
-      "STANDARDIZED_4V4_SHARE_ENCODER_TRAINING": "PROPOSED_AT_FREEZE (2 seeds)",
-      "STANDARDIZED_4V4_FULLY_SHARED_Z_TRAINING": "PROPOSED_AT_FREEZE (1 seed)",
-      "STANDARDIZED_4V4_GENERALIST_TRAINING": "PROPOSED_AT_FREEZE (1 seed)"
+      "STANDARDIZED_4V4_SHARE_ENCODER_TRAINING": "24700001..24700002",
+      "STANDARDIZED_4V4_FULLY_SHARED_Z_TRAINING": "24800001..24800001",
+      "STANDARDIZED_4V4_GENERALIST_TRAINING": "24900001..24900001"
     },
     "evaluation": {
-      "STANDARDIZED_4V4_SHARING_EVAL": "PROPOSED_AT_FREEZE (128 seeds)",
+      "STANDARDIZED_4V4_SHARING_EVAL": "25000001..25000128",
       "seed_class": "sealed_confirmatory",
       "shared_by_labels": [
         "STANDARDIZED_4V4_SHARE_ENCODER",
@@ -159,5 +159,6 @@
     "the deployment-noise cases",
     "claiming PAPER-FAITHFUL"
   ],
-  "derived_from": "STANDARDIZED_2V2_SHARING_SPEC.json"
+  "derived_from": "STANDARDIZED_2V2_SHARING_SPEC.json",
+  "frozen_after": "STANDARDIZED_2V2_CLOSED.json (95e1ec63)"
 }
