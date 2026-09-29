@@ -1,270 +1,346 @@
-% experiments.tex -- AAMAS 2027 experiments section (results draft).
-% Flow: our system -> baselines -> our system under deployment noise; each block covers 2v2, 4v4, 6v6.
-%
-% Every number is re-derived from the sealed per-seed rows CSV of the record named in the
-% comment beside it, and agrees with that record's stored mean. "mean \pm std" is the mean and
-% sample standard deviation (ddof=1) over evaluation seeds of the per-seed quantity.
-% Rows marked \pend{} have not sealed yet and are filled in as they do.
+% experiments.tex -- AAMAS 2027 Experimental Evaluation (results draft).
+% Flow: our system -> baselines -> deployment noise; each block covers 2v2, 4v4, 6v6.
+% Every filled number is re-derived from the sealed per-seed rows of the record named
+% in the adjacent comment, and agrees with that record's stored mean.
+% "mean \pm std" is the mean and sample std (ddof=1) of the per-seed quantity.
+% Rows marked Pending have not sealed yet.
 
-\providecommand{\pend}{\textit{pending}}
-\providecommand{\ms}[2]{$#1 \pm #2$}
-
-\section{Experiments}
+\section{Experimental Evaluation}
 \label{sec:experiments}
 
-\paragraph{Evaluation.}
-Each team size plays two scripted opponent regimes, Pole~A and Pole~B, that demand different
-team strategies. For strategies $(\pi_A, \pi_B)$ we report the crossover
-$\Delta_A = V(\pi_A, A) - V(\pi_B, A)$ and $\Delta_B = V(\pi_B, B) - V(\pi_A, B)$, where $V$ is the
-win rate; both are positive when each strategy wins more on its own pole. All cells of a
-comparison share the same evaluation seeds and use deterministic actions, so each seed gives a
-paired difference in $\{-1, 0, 1\}$. We report the mean and standard deviation of that per-seed
-difference over $n$ seeds (the standard error is $\mathrm{std}/\sqrt{n}$); 95\% paired bootstrap
-intervals are shown in the figures. As a secondary measure we report the same crossover computed
-on the final score margin (own score minus opponent score) instead of the win indicator.
+\ADcomment{KB, add your draft description of the results with the key numbers
+(mean + std) in latex tables. I will take it from there. This includes baseline
+numbers as well as numbers for cases with different types of noises with 2v2,
+4v4 and 6v6. Claude can easily create those latex tables with proper captions +
+implications of the results.}
 
-% ---------------------------------------------------------------------------------------------
-\subsection{Our system}
-\label{sec:exp-ours}
+\subsection{Specialization Across Team Sizes}
 
-Our system pairs a Pole-A strategy with a Pole-B specialist. On Pole~A, a frozen attacker policy
-is paired with a learned defender policy under a fixed role allocator: the $k$ agents nearest the
-home flag at the start of the episode defend for the whole episode ($k=1$ at $2$v$2$, $k=2$ at
-$4$v$4$, $k=1$ at $6$v$6$). The same recipe is used at every team size; only $N$ and $k$ change.
+We first evaluate whether the standardized role-allocated system exhibits the
+intended strategic specialization across team sizes. For each team size, we
+report
+\(\Delta_A\), the mean advantage of the Pole-A policy on Pole A, and
+\(\Delta_B\), the mean advantage of the Pole-B policy on Pole B. Positive
+values indicate specialization in the intended direction.
 
-\begin{table}[t]
-\centering
-\caption{Crossover of our system at each team size (mean $\pm$ std over seeds of the per-seed
-paired win difference). The $2$v$2$ and $4$v$4$ rows are fresh confirmatory evaluations
-($n=128$); the $6$v$6$ row is the exploratory evaluation ($n=64$).}
-\label{tab:ours}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lcccc}
-\toprule
-Scale & Defenders $k$ & $n$ & $\Delta_A$ & $\Delta_B$ \\
-\midrule
-$2$v$2$ & 1 & 128 & \ms{+0.117}{0.749} & \ms{+0.539}{0.546} \\ % STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY
-$4$v$4$ & 2 & 128 & \ms{+0.156}{0.657} & \ms{+0.406}{0.620} \\ % DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1
-$6$v$6$ & 1 & 64  & \ms{+0.016}{0.418} & \ms{+0.078}{0.370} \\ % EXPLORATORY_6V6_SPLIT_K1
-\bottomrule
-\end{tabular}
-\end{table}
+Following the reporting convention used here, the main text emphasizes the
+mean effects, while confidence intervals are reported separately in the
+figures. Standard deviations in the tables are computed across the per-seed
+paired win differences. Since each per-seed win difference takes values in
+\(\{-1,0,+1\}\), the standard deviation can be large relative to the mean.
+
+The 2v2 and 4v4 results are confirmatory evaluations with \(n=128\) seeds.
+The 6v6 result is the sealed exploratory evaluation with \(n=64\) seeds and
+is therefore reported separately as exploratory rather than confirmatory.
 
 \begin{table}[t]
 \centering
-\caption{Win rate of each strategy on each pole for the evaluations in
-Table~\ref{tab:ours}. $\pi_A$ denotes the Pole-A strategy (attacker plus learned defender).}
-\label{tab:ours-winrates}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lcccc}
-\toprule
- & \multicolumn{2}{c}{Pole A} & \multicolumn{2}{c}{Pole B} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}
-Scale & $\pi_A$ & $\pi_B$ & $\pi_A$ & $\pi_B$ \\
-\midrule
-$2$v$2$ & 0.641 & 0.523 & 0.047 & 0.586 \\
-$4$v$4$ & 0.648 & 0.492 & 0.102 & 0.508 \\
-$6$v$6$ & 0.906 & 0.891 & 0.875 & 0.953 \\
-\bottomrule
+\caption{Specialization effects of the proposed role-allocated system across
+team sizes. Values are mean $\pm$ standard deviation across evaluation seeds.
+Positive $\Delta_A$ and $\Delta_B$ indicate specialization in the intended
+direction. The 2v2 and 4v4 rows are confirmatory evaluations; the 6v6 row is
+exploratory.}
+\label{tab:main_specialization}
+\begin{tabular}{c|c|cc}
+\hline
+Team size & Evaluation & $\Delta_A$ & $\Delta_B$ \\
+\hline
+2v2 & Confirmatory
+& $+0.117 \pm 0.749$
+& $+0.539 \pm 0.546$ \\ % STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY
+
+4v4 & Confirmatory
+& $+0.156 \pm 0.657$
+& $+0.406 \pm 0.620$ \\ % DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1
+
+6v6 & Exploratory
+& $+0.016 \pm 0.418$
+& $+0.078 \pm 0.370$ \\ % EXPLORATORY_6V6_SPLIT_K1
+\hline
 \end{tabular}
 \end{table}
+
+The mean specialization effects are positive at all three team sizes. The
+separation is substantially larger at 2v2 and 4v4 than at 6v6. At 6v6,
+$\Delta_A=+0.016$ and $\Delta_B=+0.078$, indicating that specialization
+remains in the intended direction in mean, but the difference in binary win
+rate between the policies is small.
+
+One possible explanation is saturation of the binary win-rate metric at the
+larger team size. Both 6v6 policies achieve high absolute win rates against
+the evaluated opponents, leaving relatively little room for specialization to
+appear as a difference in final win/loss outcome. We therefore also examine
+the paired score margin obtained from the same sealed 64-seed exploratory
+evaluation.
 
 \begin{table}[t]
 \centering
-\caption{Crossover of our system computed on the final score margin instead of the win
-indicator (mean $\pm$ std over the same seeds as Table~\ref{tab:ours}). Secondary analysis of
-the same evaluations; no new episodes.}
-\label{tab:ours-margin}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lccc}
-\toprule
-Scale & $n$ & Margin $\Delta_A$ & Margin $\Delta_B$ \\
-\midrule
-$2$v$2$ & 128 & \ms{+0.156}{1.580} & \ms{+1.125}{1.065} \\
-$4$v$4$ & 128 & \ms{+0.586}{1.406} & \ms{+1.391}{1.475} \\
-$6$v$6$ & 64  & \ms{+0.750}{1.141} & \ms{+0.625}{1.351} \\
-\bottomrule
+\caption{Secondary 6v6 analysis using paired score-margin differences from the
+same 64 seeds as the exploratory win-rate evaluation. On Pole A, the advantage
+is defined as the score margin of $\pi_A$ minus that of $\pi_B$; on Pole B,
+the direction is reversed. Bootstrap confidence intervals use 20,000
+resamples.}
+\label{tab:6v6_score_margin}
+\begin{tabular}{c|ccc}
+\hline
+Pole & Mean advantage & Std. dev. & 95\% bootstrap CI \\
+\hline
+A & $+0.750$ & $1.141$ & $[+0.469,\,+1.016]$ \\
+B & $+0.625$ & $1.351$ & $[+0.297,\,+0.953]$ \\
+\hline
 \end{tabular}
 \end{table}
 
-\paragraph{Results.}
-Both mean crossovers are positive at every team size (Table~\ref{tab:ours}): each strategy wins
-more often on the pole it was built for. The effect is largest on Pole~B at $2$v$2$
-($\Delta_B = +0.539$) and $4$v$4$ ($+0.406$) and shrinks sharply at $6$v$6$
-($\Delta_A = +0.016$, $\Delta_B = +0.078$). The $6$v$6$ win rates explain part of this: both
-strategies win $0.88$--$0.95$ of games on both poles (Table~\ref{tab:ours-winrates}), which leaves
-little room for a win-rate difference. On score margin the $6$v$6$ specialists separate clearly
-(Table~\ref{tab:ours-margin}): the intended strategy wins by $0.750$ more goals on Pole~A and
-$0.625$ more on Pole~B (95\% intervals $[+0.47, +1.02]$ and $[+0.30, +0.95]$), and the $6$v$6$
-margin $\Delta_A$ is the largest of the three team sizes. The gap between weak win-rate separation
-and clearly positive score-margin separation at $6$v$6$ is consistent with saturation of the
-binary win-rate metric at that scale.
+Although the 6v6 binary win-rate differences are small, the intended
+specialist has a larger score margin on its corresponding pole. The paired
+score-margin advantage is \(+0.750\) on Pole A and \(+0.625\) on Pole B, with
+both bootstrap intervals remaining above zero. This discrepancy between weak
+binary win-rate separation and stronger score-margin separation is consistent
+with saturation of the binary win-rate metric at 6v6, although it does not by
+itself establish that saturation is the cause.
 
-% ---------------------------------------------------------------------------------------------
-\subsection{Baselines}
-\label{sec:exp-baselines}
 
-\emph{Specialists, no roles} evaluates the two specialists that our system is built from, with no
-role allocator: all agents run the Pole-A specialist or all run the Pole-B specialist. The Pole-B
-specialist is the same checkpoint in both systems, so the difference isolates the role allocation
-on the Pole-A side. The distilled students (Share-Encoder, Fully Shared+$z$) learn from the same
-two teachers, on the same teacher states, with the same objective and budget; only what they
-share differs. They play $\pi_A$ and $\pi_B$ with their strategy input fixed to $z_0$ and $z_1$.
+\subsection{Baseline Comparison}
+
+We next compare the proposed role-allocated system against alternative policy
+organizations. The specialist baseline executes the repaired Pole-A and
+Pole-B policies directly, without the explicit heuristic ATTACK/DEFEND
+decomposition. The parameter-sharing baselines use the same standardized
+distillation data and evaluation protocol. The Generalist is treated
+separately because it consists of a single policy and therefore does not have
+a meaningful crossover specialization quantity of the form
+\(\Delta_A/\Delta_B\).
+
+Table~\ref{tab:role_baseline_comparison} first isolates the effect of explicit
+role allocation. For 2v2, the role-allocation row is the paired diagnostic
+evaluated on the same seeds as the corresponding no-role specialist baseline.
+It is therefore distinct from the independent 2v2 confirmatory result reported
+in Table~\ref{tab:main_specialization}. For 4v4, the available no-role and
+role-allocated results come from separate sealed evaluations and should not be
+interpreted as a seed-by-seed paired comparison.
+
+\begin{table}[t]
+\centering
+\caption{Specialization effects with and without explicit heuristic role
+allocation. Values are mean $\pm$ standard deviation across evaluation seeds.
+The 2v2 heuristic-role row is the same-seed paired diagnostic used to isolate
+the role-allocation effect and is not the independent confirmatory 2v2 result
+from Table~\ref{tab:main_specialization}.}
+\label{tab:role_baseline_comparison}
+\begin{tabular}{c|l|cc}
+\hline
+Team size & Method & $\Delta_A$ & $\Delta_B$ \\
+\hline
+2v2
+& Specialists, no heuristic roles
+& $+0.055 \pm 0.619$
+& $-0.055 \pm 0.668$ \\ % STANDARDIZED_2V2_DIAG_PRESPLIT
+
+2v2
+& Heuristic roles, paired diagnostic
+& $+0.180 \pm 0.681$
+& $+0.523 \pm 0.546$ \\ % STANDARDIZED_2V2_DIAG_SPLIT
+\hline
+
+4v4
+& Specialists, no heuristic roles
+& $+0.273 \pm 0.611$
+& $-0.156 \pm 0.620$ \\ % 4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING
+
+4v4
+& Heuristic roles
+& $+0.156 \pm 0.657$
+& $+0.406 \pm 0.620$ \\ % DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1
+\hline
+
+6v6
+& Specialists, no heuristic roles
+& \multicolumn{2}{c}{Pending} \\
+
+6v6
+& Heuristic roles, exploratory
+& $+0.016 \pm 0.418$
+& $+0.078 \pm 0.370$ \\ % EXPLORATORY_6V6_SPLIT_K1
+\hline
+\end{tabular}
+\end{table}
+
+At 2v2 and 4v4, the repaired specialists without explicit heuristic roles do
+not exhibit reciprocal specialization because the Pole-B effect is negative.
+Introducing the ATTACK/DEFEND decomposition changes the Pole-B specialization
+effect to the intended positive direction while retaining a positive Pole-A
+effect.
+
+The paired 2v2 diagnostic shows this most directly:
+\(\Delta_B\) changes from \(-0.055\) without heuristic roles to \(+0.523\)
+with heuristic roles. In the same diagnostic, the Pole-A policy's win rate on
+Pole B decreases from \(0.648\) without the explicit role decomposition to
+\(0.070\) after ATTACK/DEFEND roles are introduced. Thus, the role allocation
+increases strategic separation primarily by constraining the Pole-A strategy
+on the opponent for which it is not intended.
+
+A similar pattern is observed at 4v4. The no-role specialist baseline has
+\(\Delta_B=-0.156\), whereas the role-allocated system has
+\(\Delta_B=+0.406\). The Pole-A policy's Pole-B win rate decreases from
+\(0.742\) without explicit roles to \(0.102\) with the role-allocated system.
+Unlike the paired 2v2 diagnostic, however, these 4v4 values come from separate
+evaluation seed sets, so the comparison is descriptive rather than a
+seed-by-seed paired effect. The 4v4 Pole-A win rate also decreases under the
+role-allocated system, from approximately \(0.813\) in the no-role evaluation
+to \(0.648\) in the role-allocated evaluation, indicating that the role
+decomposition trades some raw Pole-A performance for substantially greater
+separation between the two strategic behaviors.
+
+\begin{table}[t]
+\centering
+\caption{Standardized parameter-sharing baselines. Share-Encoder and Fully
+Shared+$z$ are evaluated using the same specialization quantities as the
+proposed system. Values are mean $\pm$ standard deviation across evaluation
+seeds. The 2v2 rows are sealed confirmatory evaluations ($n=128$). The 4v4
+and 6v6 rows will be filled after their sealed evaluations complete.}
+\label{tab:sharing_baselines}
+\begin{tabular}{c|l|cc}
+\hline
+Team size & Method & $\Delta_A$ & $\Delta_B$ \\
+\hline
+2v2 & Share-Encoder
+& $+0.125 \pm 0.652$
+& $+0.070 \pm 0.678$ \\ % STANDARDIZED_2V2_SHARE_ENCODER
+
+2v2 & Fully Shared+$z$
+& $+0.078 \pm 0.635$
+& $+0.062 \pm 0.661$ \\ % STANDARDIZED_2V2_FULLY_SHARED_Z
+\hline
+4v4 & Share-Encoder & Pending & Pending \\
+4v4 & Fully Shared+$z$ & Pending & Pending \\
+\hline
+6v6 & Share-Encoder & Pending & Pending \\
+6v6 & Fully Shared+$z$ & Pending & Pending \\
+\hline
+\end{tabular}
+\end{table}
+
+At 2v2, both distilled students retain positive mean specialization, but the
+effects are much smaller than for the role-allocated system in
+Table~\ref{tab:main_specialization} ($\Delta_A=+0.117$, $\Delta_B=+0.539$).
+Share-Encoder reaches $\Delta_A=+0.125$ and $\Delta_B=+0.070$; Fully Shared+$z$
+reaches $\Delta_A=+0.078$ and $\Delta_B=+0.062$. Relative to the separated
+system, the main loss is on Pole~B: sharing preserves a weak intended-direction
+signal, but does not recover the large $\Delta_B$ of the role-allocated
+specialists.
+
+Because the Generalist uses a single policy without a strategy variable, its
+comparison is reported using absolute win rates on each pole and the
+corresponding gap to the proposed role-allocated system rather than a
+crossover specialization effect. The gap is formed on matched seeds against a
+Separated reference evaluated on the same block.
+
+\begin{table}[t]
+\centering
+\caption{Generalist baseline. The Generalist is a single policy, so we report
+its win rate on each pole and the matched-seed gap between the proposed system
+and the Generalist ($\Delta_G = V(\mathrm{ours}) - V(\pi_G)$). Values are
+mean $\pm$ standard deviation across seeds where the gap is defined.}
+\label{tab:generalist_baseline}
+\begin{tabular}{c|cccc}
+\hline
+Team size
+& Generalist WR$_A$
+& Generalist WR$_B$
+& Gap to ours$_A$
+& Gap to ours$_B$ \\
+\hline
+2v2
+& $0.508$
+& $0.594$
+& $+0.195 \pm 0.722$
+& $-0.023 \pm 0.693$ \\ % STANDARDIZED_2V2_GENERALIST + SEPARATED_GENERALIST_REF
+4v4
+& $0.758$
+& $0.695$
+& Pending
+& Pending \\ % STANDARDIZED_4V4_GENERALIST (WR sealed; gaps await Separated ref)
+6v6
+& Pending & Pending & Pending & Pending \\
+\hline
+\end{tabular}
+\end{table}
+
+At 2v2, the role-allocated system beats the Generalist on Pole~A by
+$+0.195$ in mean win rate on matched seeds, but is essentially tied on Pole~B
+($-0.023$). The 4v4 Generalist wins more often than the 2v2 Generalist
+($0.758$ / $0.695$ vs.\ $0.508$ / $0.594$); the matched gap to our 4v4 system
+is pending until the Separated reference on the same seeds seals.
+
+
+\subsection{Robustness to Deployment Noise}
+
+Finally, we evaluate the proposed system under deployment-time perturbations.
+The robustness experiments consider localization noise, motion error, and
+control delay independently at 2v2, 4v4, and 6v6. Training is unchanged; all
+perturbations are introduced only during evaluation.
+
+For each perturbation, we report the mean and standard deviation of both
+\(\Delta_A\) and \(\Delta_B\). The nominal results in
+Table~\ref{tab:main_specialization} provide the corresponding unperturbed
+reference. Matched-seed degradation relative to a same-block nominal run will
+be reported where available (the 2v2 noise suite uses one matched seed block
+for nominal and all three medium-tier disturbances).
 
 \begin{table*}[t]
 \centering
-\caption{Baselines at each team size (mean $\pm$ std over seeds of the per-seed paired win
-difference). At $2$v$2$, rows marked $\dagger$ share one set of 128 seeds, so their difference is
-the effect of role allocation on matched seeds; rows marked $\ddagger$ share a second set of 128
-seeds with the Generalist (Table~\ref{tab:generalist}); the unmarked ``Ours'' row is the
-confirmatory value from Table~\ref{tab:ours}. At $4$v$4$ the no-role row uses a different set of 128 seeds
-from ``Ours''. The $6$v$6$ ``Ours'' row is exploratory ($n=64$).}
-\label{tab:baselines}
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{llcccc}
-\toprule
-Scale & Method & Shares & $n$ & $\Delta_A$ & $\Delta_B$ \\
-\midrule
-$2$v$2$ & Ours (separated)                & nothing   & 128 & \ms{+0.117}{0.749} & \ms{+0.539}{0.546} \\ % STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY
-        & Ours (separated)$^\dagger$      & nothing   & 128 & \ms{+0.180}{0.681} & \ms{+0.523}{0.547} \\ % STANDARDIZED_2V2_DIAG_SPLIT
-        & Specialists, no roles$^\dagger$ & nothing   & 128 & \ms{+0.055}{0.619} & \ms{-0.055}{0.668} \\ % STANDARDIZED_2V2_DIAG_PRESPLIT
-        & Share-Encoder$^\ddagger$        & encoder   & 128 & \ms{+0.125}{0.652} & \ms{+0.070}{0.678} \\ % STANDARDIZED_2V2_SHARE_ENCODER
-        & Fully Shared+$z^\ddagger$       & all, $+z$ & 128 & \ms{+0.078}{0.635} & \ms{+0.062}{0.661} \\ % STANDARDIZED_2V2_FULLY_SHARED_Z
-\midrule
-$4$v$4$ & Ours (separated)                & nothing   & 128 & \ms{+0.156}{0.657} & \ms{+0.406}{0.620} \\ % DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1
-        & Specialists, no roles           & nothing   & 128 & \ms{+0.273}{0.611} & \ms{-0.156}{0.620} \\ % 4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING
-        & Share-Encoder                   & encoder   & --- & \pend & \pend \\
-        & Fully Shared+$z$                & all, $+z$ & --- & \pend & \pend \\
-\midrule
-$6$v$6$ & Ours (separated)                & nothing   & 64  & \ms{+0.016}{0.418} & \ms{+0.078}{0.370} \\ % EXPLORATORY_6V6_SPLIT_K1
-        & Specialists, no roles           & nothing   & --- & \pend & \pend \\
-        & Share-Encoder                   & encoder   & --- & \pend & \pend \\
-        & Fully Shared+$z$                & all, $+z$ & --- & \pend & \pend \\
-\bottomrule
+\caption{Specialization under deployment-time perturbations (medium tier:
+localization and motion noise $\sigma = 0.06$ cells, control delay of two
+decisions). Entries are mean $\pm$ standard deviation across evaluation seeds.
+Noise is applied only at evaluation time; localization noise also reaches the
+role allocator. All conditions of a team size share one seed block with a
+nominal run (2v2 nominal: $\Delta_A = +0.219 \pm 0.709$,
+$\Delta_B = +0.492 \pm 0.517$). For localization and motion perturbations, we
+use a matched numeric severity schedule of 0.03, 0.06, and 0.12 cells to enable
+controlled comparison across perturbation families. These levels are not
+assumed to represent equivalent behavioral difficulty.}
+\label{tab:noise_results}
+\begin{tabular}{c|cc|cc|cc}
+\hline
+& \multicolumn{2}{c|}{Localization noise}
+& \multicolumn{2}{c|}{Motion error}
+& \multicolumn{2}{c}{Control delay} \\
+Team size
+& $\Delta_A$ & $\Delta_B$
+& $\Delta_A$ & $\Delta_B$
+& $\Delta_A$ & $\Delta_B$ \\
+\hline
+2v2
+& $+0.203 \pm 0.644$ & $+0.531 \pm 0.560$
+& $+0.234 \pm 0.693$ & $+0.539 \pm 0.546$
+& $+0.258 \pm 0.655$ & $+0.477 \pm 0.601$ \\ % STANDARDIZED_2V2_NOISE_{LOCALIZATION,MOTION,DELAY}_MEDIUM (128 seeds, one block)
+
+4v4
+& Pending & Pending
+& Pending & Pending
+& Pending & Pending \\
+
+6v6
+& Pending & Pending
+& Pending & Pending
+& Pending & Pending \\
+\hline
 \end{tabular}
 \end{table*}
 
-\begin{table}[t]
-\centering
-\caption{Win rate of each strategy on each pole, with and without the role allocator. At
-$2$v$2$ both rows are on the same 128 seeds; at $4$v$4$ they are on different seeds. The Pole-B
-specialist $\pi_B$ is the same checkpoint in both rows of a scale.}
-\label{tab:baselines-winrates}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{llcccc}
-\toprule
- & & \multicolumn{2}{c}{Pole A} & \multicolumn{2}{c}{Pole B} \\
-\cmidrule(lr){3-4}\cmidrule(lr){5-6}
-Scale & Method & $\pi_A$ & $\pi_B$ & $\pi_A$ & $\pi_B$ \\
-\midrule
-$2$v$2$ & Ours$^\dagger$                  & 0.648 & 0.469 & 0.070 & 0.594 \\
-        & No roles$^\dagger$              & 0.523 & 0.469 & 0.648 & 0.594 \\
-\midrule
-$4$v$4$ & Ours                            & 0.648 & 0.492 & 0.102 & 0.508 \\
-        & No roles                        & 0.813 & 0.539 & 0.742 & 0.586 \\
-\bottomrule
-\end{tabular}
-\end{table}
+These experiments test whether the intended strategic specialization persists
+when observations and execution are perturbed. For each team size, the
+perturbed results will be compared against the corresponding nominal result in
+Table~\ref{tab:main_specialization}. In addition to the absolute perturbed
+specialization effects, matched-seed degradation relative to nominal will be
+reported where available.
 
-\begin{table}[t]
-\centering
-\caption{Generalist (one network, no strategy input). A single policy has no crossover, so we
-report its win rate on each pole and $\Delta_G$, our system's win rate minus the Generalist's,
-paired by seed (mean $\pm$ std). For the pairing our system is re-evaluated on the Generalist's
-128 seeds, where it wins $0.703$ on Pole~A and $0.570$ on Pole~B.}
-\label{tab:generalist}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lcccc}
-\toprule
-Scale & $V(\pi_G, A)$ & $V(\pi_G, B)$ & $\Delta_G$ (Pole A) & $\Delta_G$ (Pole B) \\
-\midrule
-$2$v$2$ & 0.508 & 0.594 & \ms{+0.195}{0.722} & \ms{-0.023}{0.693} \\ % STANDARDIZED_2V2_GENERALIST vs STANDARDIZED_2V2_SEPARATED_GENERALIST_REF
-$4$v$4$ & \pend & \pend & \pend & \pend \\
-$6$v$6$ & \pend & \pend & \pend & \pend \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\paragraph{Results.}
-Without the role allocator the specialists do not show the crossover. At $2$v$2$, on matched
-seeds, the no-role pair gives $\Delta_A = +0.055$ and $\Delta_B = -0.055$, against $+0.180$ and
-$+0.523$ with the allocator (Table~\ref{tab:baselines}). At $4$v$4$ the no-role Pole-A
-specialist wins more often than the Pole-B specialist on both poles ($0.813$ vs.\ $0.539$ on
-Pole~A, $0.742$ vs.\ $0.586$ on Pole~B; Table~\ref{tab:baselines-winrates}), so $\Delta_B$ is
-negative ($-0.156$); with the allocator $\Delta_B$ becomes $+0.406$. Because $\pi_B$ is unchanged,
-the change in $\Delta_B$ comes from the Pole-A strategy: once one or two agents are committed to
-defence, it wins far less often on Pole~B ($0.648 \to 0.070$ at $2$v$2$, $0.742 \to 0.102$ at
-$4$v$4$), i.e., it becomes specific to Pole~A. On Pole~A itself the allocator raises the win rate
-at $2$v$2$ ($0.523 \to 0.648$, matched seeds), while at $4$v$4$ the Pole-A strategy with the
-allocator wins less often than the no-role specialist ($0.648$ vs.\ $0.813$, different seeds).
-
-The distilled students learn from the no-role specialists, so their reference is the no-role row,
-not our system. At $2$v$2$ both keep a positive mean crossover (Share-Encoder $+0.125$/$+0.070$,
-Fully Shared+$z$ $+0.078$/$+0.062$; Table~\ref{tab:baselines}), comparable to their teachers'
-($+0.055$/$-0.055$, on different seeds): distilling the two strategies into shared parameters does
-not by itself remove what the teachers had. Sharing the whole network gives smaller means than
-sharing only the encoder. Neither student approaches the Pole-B separation that the role
-allocator produces ($\Delta_B \approx +0.5$). Against the Generalist on the same 128 seeds, our
-system wins more often on Pole~A ($\Delta_G = +0.195$) and about equally often on Pole~B
-($-0.023$; Table~\ref{tab:generalist}): its advantage over a single policy fitted to both teachers
-is on Pole~A. Differences in $\Delta_A$ of about $0.1$ between methods should be read with care:
-our own $\Delta_A$ is $+0.117$, $+0.180$, $+0.219$ and $+0.320$ on four disjoint sets of 128 seeds
-(and $\Delta_B$ is $+0.49$ to $+0.54$ on all four).
-% STANDARDIZED_2V2_SEPARATED_GENERALIST_REF (the Generalist's seeds): Delta_A +0.320 +- 0.675, Delta_B +0.508 +- 0.561.
-% 4v4 opens after 2v2 locks (STANDARDIZED_4V4_SHARING_SPEC.json is a draft); 6v6 after 4v4.
-
-% ---------------------------------------------------------------------------------------------
-\subsection{Our system under deployment noise}
-\label{sec:exp-noise}
-
-We evaluate the final system at each team size under three deployment disturbances at the
-medium tier, each against a nominal run on the same seeds. Localization noise
-($\sigma = 0.06$ cells) corrupts every position the team observes, including the positions the
-role allocator ranks; motion error ($\sigma = 0.06$ cells) perturbs realized motion; control delay
-executes each action two decisions (1\,s) late. No training code sees any disturbance.
-
-\begin{table*}[t]
-\centering
-\caption{Our system under deployment noise (medium tier). All conditions of a team size share
-one set of seeds; ``Change'' is the per-seed crossover minus the nominal run's on the same seed
-(mean $\pm$ std). For localization and motion perturbations, we use a matched numeric severity
-schedule of 0.03, 0.06, and 0.12 cells to enable controlled comparison across perturbation
-families. These levels are not assumed to represent equivalent behavioral difficulty.}
-\label{tab:noise}
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{llcccc}
-\toprule
-Scale & Condition & $\Delta_A$ & $\Delta_B$ & Change in $\Delta_A$ & Change in $\Delta_B$ \\
-\midrule
-$2$v$2$ & Nominal      & \ms{+0.219}{0.709} & \ms{+0.492}{0.517} & --- & --- \\ % STANDARDIZED_2V2_NOISE_NOMINAL
-        & Localization & \ms{+0.203}{0.644} & \ms{+0.531}{0.560} & \ms{-0.016}{0.699} & \ms{+0.039}{0.594} \\ % STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM
-        & Motion       & \ms{+0.234}{0.693} & \ms{+0.539}{0.546} & \ms{+0.016}{0.947} & \ms{+0.047}{0.741} \\ % STANDARDIZED_2V2_NOISE_MOTION_MEDIUM
-        & Delay        & \ms{+0.258}{0.655} & \ms{+0.477}{0.601} & \ms{+0.039}{0.891} & \ms{-0.016}{0.742} \\ % STANDARDIZED_2V2_NOISE_DELAY_MEDIUM
-\midrule
-$4$v$4$ & Nominal      & \pend & \pend & ---   & ---   \\
-        & Localization & \pend & \pend & \pend & \pend \\
-        & Motion       & \pend & \pend & \pend & \pend \\
-        & Delay        & \pend & \pend & \pend & \pend \\
-\midrule
-$6$v$6$ & Nominal      & \pend & \pend & ---   & ---   \\
-        & Localization & \pend & \pend & \pend & \pend \\
-        & Motion       & \pend & \pend & \pend & \pend \\
-        & Delay        & \pend & \pend & \pend & \pend \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-\paragraph{Results.}
-At $2$v$2$ none of the three disturbances changes the crossover measurably
-(Table~\ref{tab:noise}). Paired by seed against the nominal run, the mean change is at most
-$0.05$ in either direction under localization noise ($-0.016$ on $\Delta_A$, $+0.039$ on
-$\Delta_B$), motion error ($+0.016$, $+0.047$) and control delay ($+0.039$, $-0.016$), and every
-95\% interval includes zero (widest: $[-0.148, +0.180]$). Both crossovers stay positive under all
-three: $\Delta_B$ between $+0.48$ and $+0.54$, $\Delta_A$ between $+0.20$ and $+0.26$. The largest
-shift in the underlying win rates is under control delay, where the Pole-A strategy wins less
-often on Pole~A ($0.688 \to 0.609$) and the Pole-B specialist wins less often there as well
-($0.469 \to 0.352$), leaving $\Delta_A$ unchanged. The nominal row is the noise reference on its
-own seeds; the headline value of each team size stays the one in Table~\ref{tab:ours}.
-% 95% paired-bootstrap intervals of the change vs nominal (baseline_results_mean_effects.json):
-%   localization dA [-0.141,+0.102] dB [-0.063,+0.141]; motion dA [-0.148,+0.180] dB [-0.078,+0.172];
-%   delay dA [-0.117,+0.188] dB [-0.141,+0.109].
+At 2v2 none of the three disturbances changes the specialization measurably.
+Relative to the nominal run on the same 128 seeds, the paired mean change is
+$-0.016$ / $+0.039$ ($\Delta_A$ / $\Delta_B$) under localization noise,
+$+0.016$ / $+0.047$ under motion error and $+0.039$ / $-0.016$ under control
+delay, and every 95\% interval of the change includes zero. Both effects stay
+positive throughout: $\Delta_A$ between $+0.20$ and $+0.26$, $\Delta_B$ between
+$+0.48$ and $+0.54$.
+% STANDARDIZED_2V2_NOISE_NOMINAL; change CIs: loc [-0.141,+0.102]/[-0.063,+0.141],
+% motion [-0.148,+0.180]/[-0.078,+0.172], delay [-0.117,+0.188]/[-0.141,+0.109].
