@@ -1,6 +1,6 @@
 {
   "record_id": "BASELINE_RESULTS_MEAN_EFFECTS",
-  "utc": "2026-09-29T03:01:54Z",
+  "utc": "2026-09-29T10:42:13Z",
   "reporting_rule": "headline = mean delta_A / delta_B at every scale (PI 2026-09-27); 95% intervals for figures; frozen gate verdicts carried as provenance only",
   "delta_convention": "delta_A = V(pi_A,A) - V(pi_B,A); delta_B = V(pi_B,B) - V(pi_A,B)",
   "bootstrap": "eval_hog_psp_v3._mean_ci -- paired percentile over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
@@ -438,5 +438,170 @@
       "status": "PENDING",
       "reason": "6v6 is opened only after the previous scale locks (PI operating rule 2026-09-28); same frozen definitions as 2v2 (GENERALIST_DEFINITION_V1 for the Generalist)"
     }
-  ]
+  ],
+  "noise": {
+    "2v2": {
+      "spec": "STANDARDIZED_2V2_NOISE_SPEC.json",
+      "n_seeds": 128,
+      "seed_block": [
+        24600001,
+        24600128
+      ],
+      "conditions": [
+        {
+          "label": "STANDARDIZED_2V2_NOISE_NOMINAL",
+          "family": "nominal",
+          "stem": "TwoNoiseNom",
+          "perturbation": {
+            "family": "nominal"
+          },
+          "delta_A": {
+            "mean": 0.21875,
+            "lcb95": 0.09375,
+            "ucb95": 0.34375
+          },
+          "delta_B": {
+            "mean": 0.4921875,
+            "lcb95": 0.40625,
+            "ucb95": 0.578125
+          },
+          "own_pole_win": {
+            "pi_A+D@A": 0.6875,
+            "pi_B@B": 0.5234375
+          },
+          "record": "STANDARDIZED_2V2_NOISE_NOMINAL_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+          "rows_csv_sha256": "258e84d2afb275cdf7f0771bc0fcff567c013cd99518937792606253b731823a"
+        },
+        {
+          "label": "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM",
+          "family": "localization_noise",
+          "stem": "TwoNoiseLoc",
+          "perturbation": {
+            "family": "localization_noise",
+            "severity": "medium",
+            "sensor_noise": 0.06,
+            "drift": 0.0,
+            "delay_ticks": 0,
+            "entity_noise": true,
+            "allocator_noise": true,
+            "tiers": "DEPLOYMENT_ROBUSTNESS_SPEC.json"
+          },
+          "delta_A": {
+            "mean": 0.203125,
+            "lcb95": 0.09375,
+            "ucb95": 0.3125
+          },
+          "delta_B": {
+            "mean": 0.53125,
+            "lcb95": 0.4296875,
+            "ucb95": 0.625
+          },
+          "own_pole_win": {
+            "pi_A+D@A": 0.7265625,
+            "pi_B@B": 0.59375
+          },
+          "record": "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+          "rows_csv_sha256": "b4867f8cb947bb99ca02840e263d5a1a41feb2e473af357390ab97d64978b628",
+          "paired_change_vs_nominal": {
+            "delta_A": {
+              "mean": -0.015625,
+              "lcb95": -0.140625,
+              "ucb95": 0.1015625
+            },
+            "delta_B": {
+              "mean": 0.0390625,
+              "lcb95": -0.0625,
+              "ucb95": 0.140625
+            }
+          }
+        },
+        {
+          "label": "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM",
+          "family": "motion_error",
+          "stem": "TwoNoiseMot",
+          "perturbation": {
+            "family": "motion_error",
+            "severity": "medium",
+            "sensor_noise": 0.0,
+            "drift": 0.06,
+            "delay_ticks": 0,
+            "entity_noise": false,
+            "allocator_noise": false,
+            "tiers": "DEPLOYMENT_ROBUSTNESS_SPEC.json"
+          },
+          "delta_A": {
+            "mean": 0.234375,
+            "lcb95": 0.109375,
+            "ucb95": 0.3515625
+          },
+          "delta_B": {
+            "mean": 0.5390625,
+            "lcb95": 0.4453125,
+            "ucb95": 0.6328125
+          },
+          "own_pole_win": {
+            "pi_A+D@A": 0.65625,
+            "pi_B@B": 0.6015625
+          },
+          "record": "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+          "rows_csv_sha256": "06b4814477ddd6588f4cf25a316bbab185c191ecbc6f3e8218a212c28b580203",
+          "paired_change_vs_nominal": {
+            "delta_A": {
+              "mean": 0.015625,
+              "lcb95": -0.1484375,
+              "ucb95": 0.1796875
+            },
+            "delta_B": {
+              "mean": 0.046875,
+              "lcb95": -0.078125,
+              "ucb95": 0.171875
+            }
+          }
+        },
+        {
+          "label": "STANDARDIZED_2V2_NOISE_DELAY_MEDIUM",
+          "family": "control_delay",
+          "stem": "TwoNoiseDel",
+          "perturbation": {
+            "family": "control_delay",
+            "severity": "medium",
+            "sensor_noise": 0.0,
+            "drift": 0.0,
+            "delay_ticks": 2,
+            "entity_noise": false,
+            "allocator_noise": false,
+            "tiers": "DEPLOYMENT_ROBUSTNESS_SPEC.json"
+          },
+          "delta_A": {
+            "mean": 0.2578125,
+            "lcb95": 0.1484375,
+            "ucb95": 0.375
+          },
+          "delta_B": {
+            "mean": 0.4765625,
+            "lcb95": 0.375,
+            "ucb95": 0.578125
+          },
+          "own_pole_win": {
+            "pi_A+D@A": 0.609375,
+            "pi_B@B": 0.6171875
+          },
+          "record": "STANDARDIZED_2V2_NOISE_DELAY_MEDIUM_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+          "rows_csv_sha256": "0fb9e7b2fa445418b2df7cd664d9cbb50e3a826d061ace7bfb07542b612506ba",
+          "paired_change_vs_nominal": {
+            "delta_A": {
+              "mean": 0.0390625,
+              "lcb95": -0.1171875,
+              "ucb95": 0.1875
+            },
+            "delta_B": {
+              "mean": -0.015625,
+              "lcb95": -0.140625,
+              "ucb95": 0.109375
+            }
+          }
+        }
+      ]
+    }
+  }
 }

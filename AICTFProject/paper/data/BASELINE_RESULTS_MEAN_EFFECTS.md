@@ -33,3 +33,12 @@ Notes:
 - **4v4 Specialists**: no RESULT json (the eval wrote INTEGRITY_REQUIRED on the delta_B reversal); the reading rests on the row-level TIE_REVERSAL audit and pi_B3's live pole attestation against certified B3-3
 
 Frozen gate verdicts (lower bound above zero on both Δ) are kept in the records as provenance and are not the headline: 2v2 Specialists = FAIL; 2v2 Separated = FAIL; 2v2 Separated, paired with no-role Specialists = PASS; 2v2 Share-Encoder = FAIL; 2v2 Fully Shared+z = FAIL; 4v4 Specialists = FAIL; 4v4 Separated = PASS.
+
+## Deployment noise, 2v2 (final system, 128 matched seeds, `STANDARDIZED_2V2_NOISE_SPEC.json`)
+
+| Condition | Mean Δ_A / Δ_B | 95% CI | Own-pole win π_A+D@A, π_B@B | Paired change vs nominal Δ_A / Δ_B |
+|---|---|---|---|---|
+| nominal | **+0.219 / +0.492** | [+0.094, +0.344] / [+0.406, +0.578] | 0.688, 0.523 | — |
+| localization_noise | **+0.203 / +0.531** | [+0.094, +0.312] / [+0.430, +0.625] | 0.727, 0.594 | -0.016 / +0.039 |
+| motion_error | **+0.234 / +0.539** | [+0.109, +0.352] / [+0.445, +0.633] | 0.656, 0.602 | +0.016 / +0.047 |
+| control_delay | **+0.258 / +0.477** | [+0.148, +0.375] / [+0.375, +0.578] | 0.609, 0.617 | +0.039 / -0.016 |

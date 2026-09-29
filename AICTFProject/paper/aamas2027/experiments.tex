@@ -208,7 +208,8 @@ allocator produces ($\Delta_B \approx +0.5$). Against the Generalist on the same
 system wins more often on Pole~A ($\Delta_G = +0.195$) and about equally often on Pole~B
 ($-0.023$; Table~\ref{tab:generalist}): its advantage over a single policy fitted to both teachers
 is on Pole~A. Differences in $\Delta_A$ of about $0.1$ between methods should be read with care:
-our own $\Delta_A$ is $+0.117$, $+0.180$ and $+0.320$ on three disjoint sets of 128 seeds.
+our own $\Delta_A$ is $+0.117$, $+0.180$, $+0.219$ and $+0.320$ on four disjoint sets of 128 seeds
+(and $\Delta_B$ is $+0.49$ to $+0.54$ on all four).
 % STANDARDIZED_2V2_SEPARATED_GENERALIST_REF (the Generalist's seeds): Delta_A +0.320 +- 0.675, Delta_B +0.508 +- 0.561.
 % 4v4 opens after 2v2 locks (STANDARDIZED_4V4_SHARING_SPEC.json is a draft); 6v6 after 4v4.
 
@@ -235,10 +236,10 @@ families. These levels are not assumed to represent equivalent behavioral diffic
 \toprule
 Scale & Condition & $\Delta_A$ & $\Delta_B$ & Change in $\Delta_A$ & Change in $\Delta_B$ \\
 \midrule
-$2$v$2$ & Nominal      & \pend & \pend & ---   & ---   \\
-        & Localization & \pend & \pend & \pend & \pend \\
-        & Motion       & \pend & \pend & \pend & \pend \\
-        & Delay        & \pend & \pend & \pend & \pend \\
+$2$v$2$ & Nominal      & \ms{+0.219}{0.709} & \ms{+0.492}{0.517} & --- & --- \\ % STANDARDIZED_2V2_NOISE_NOMINAL
+        & Localization & \ms{+0.203}{0.644} & \ms{+0.531}{0.560} & \ms{-0.016}{0.699} & \ms{+0.039}{0.594} \\ % STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM
+        & Motion       & \ms{+0.234}{0.693} & \ms{+0.539}{0.546} & \ms{+0.016}{0.947} & \ms{+0.047}{0.741} \\ % STANDARDIZED_2V2_NOISE_MOTION_MEDIUM
+        & Delay        & \ms{+0.258}{0.655} & \ms{+0.477}{0.601} & \ms{+0.039}{0.891} & \ms{-0.016}{0.742} \\ % STANDARDIZED_2V2_NOISE_DELAY_MEDIUM
 \midrule
 $4$v$4$ & Nominal      & \pend & \pend & ---   & ---   \\
         & Localization & \pend & \pend & \pend & \pend \\
@@ -254,6 +255,16 @@ $6$v$6$ & Nominal      & \pend & \pend & ---   & ---   \\
 \end{table*}
 
 \paragraph{Results.}
-% TODO when sealed (2v2: STANDARDIZED_2V2_NOISE_SPEC.json, 128 matched seeds; runs after the
-% 2v2 baselines seal). The nominal row is the noise reference on its own seeds; the headline
-% value of each team size stays the one in Table~\ref{tab:ours}.
+At $2$v$2$ none of the three disturbances changes the crossover measurably
+(Table~\ref{tab:noise}). Paired by seed against the nominal run, the mean change is at most
+$0.05$ in either direction under localization noise ($-0.016$ on $\Delta_A$, $+0.039$ on
+$\Delta_B$), motion error ($+0.016$, $+0.047$) and control delay ($+0.039$, $-0.016$), and every
+95\% interval includes zero (widest: $[-0.148, +0.180]$). Both crossovers stay positive under all
+three: $\Delta_B$ between $+0.48$ and $+0.54$, $\Delta_A$ between $+0.20$ and $+0.26$. The largest
+shift in the underlying win rates is under control delay, where the Pole-A strategy wins less
+often on Pole~A ($0.688 \to 0.609$) and the Pole-B specialist wins less often there as well
+($0.469 \to 0.352$), leaving $\Delta_A$ unchanged. The nominal row is the noise reference on its
+own seeds; the headline value of each team size stays the one in Table~\ref{tab:ours}.
+% 95% paired-bootstrap intervals of the change vs nominal (baseline_results_mean_effects.json):
+%   localization dA [-0.141,+0.102] dB [-0.063,+0.141]; motion dA [-0.148,+0.180] dB [-0.078,+0.172];
+%   delay dA [-0.117,+0.188] dB [-0.141,+0.109].

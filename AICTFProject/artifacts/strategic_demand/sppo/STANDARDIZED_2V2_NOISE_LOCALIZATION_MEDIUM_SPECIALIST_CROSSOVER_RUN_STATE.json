@@ -1,0 +1,49 @@
+{
+  "label": "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM_SPECIALIST_CROSSOVER",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-29T03:11:31Z",
+      "pid": 39244,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "4733422c84ea0c657326db9a8a9df21b9f260d73",
+      "seed_base": 24600001,
+      "n_seeds": 128,
+      "team_size": 2,
+      "pi_a": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_split_defend_k1\\ckpts\\final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+      "pi_b": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_std_entity_repair\\ckpts\\final_pi_B_specialist_2v2_std_entity_repair.zip"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-29T10:37:17Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-29T10:37:17Z",
+      "audit": "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 14
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-29T10:37:17Z",
+      "result": "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-29T10:37:17Z",
+  "pid": 39244,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "4733422c84ea0c657326db9a8a9df21b9f260d73",
+  "seed_base": 24600001,
+  "n_seeds": 128,
+  "team_size": 2,
+  "pi_a": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_split_defend_k1\\ckpts\\final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+  "pi_b": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_std_entity_repair\\ckpts\\final_pi_B_specialist_2v2_std_entity_repair.zip",
+  "reason": "all episodes written",
+  "audit": "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 14,
+  "result": "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+}

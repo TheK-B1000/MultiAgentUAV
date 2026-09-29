@@ -1,0 +1,153 @@
+{
+  "record": "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM specialist crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-09-29T10:33:46Z",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "STANDARDIZED_2V2_NOISE_SPEC.json#EVALUATION",
+  "team_size": 2,
+  "device": "cuda",
+  "perturbation": {
+    "family": "motion_error",
+    "severity": "medium",
+    "sensor_noise": 0.0,
+    "drift": 0.06,
+    "delay_ticks": 0,
+    "entity_noise": false,
+    "allocator_noise": false,
+    "tiers": "DEPLOYMENT_ROBUSTNESS_SPEC.json"
+  },
+  "role_fixed_for_episode": true,
+  "seeds": {
+    "block": [
+      24600001,
+      24600128
+    ],
+    "n": 128,
+    "shared_across_policies": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_2V2_NOISE_EVAL",
+    "shared_by_labels": [
+      "STANDARDIZED_2V2_NOISE_NOMINAL",
+      "STANDARDIZED_2V2_NOISE_LOCALIZATION_MEDIUM",
+      "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM",
+      "STANDARDIZED_2V2_NOISE_DELAY_MEDIUM"
+    ]
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "candidate_genome_id": null
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {},
+      "candidate_genome_id": null
+    }
+  },
+  "pole_identity": {
+    "A": {
+      "policy": "A",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 2
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS_PARENT_OP7",
+      "base_opponent": "OP7",
+      "overlay": {},
+      "opening_hold_steps": 0,
+      "pole_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": null
+    }
+  },
+  "pole_attestations": {
+    "A": {
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS2_A_payoff_INIT_3",
+      "certified_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "live_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "certified_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "live_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "hashes_match": true
+    },
+    "B": {
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS_PARENT_OP7",
+      "certified_overlay": {},
+      "live_overlay": {},
+      "certified_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "live_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "hashes_match": true
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.234375,
+      "lcb95": 0.109375,
+      "ucb95": 0.3515625,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.5390625,
+      "lcb95": 0.4453125,
+      "ucb95": 0.6328125,
+      "passes": true
+    },
+    "passes": true
+  },
+  "checkpoints": {
+    "pi_A": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97",
+    "pi_B": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"
+  },
+  "split_policy_pi_A": {
+    "pi_D_path": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_split_defend_k1\\ckpts\\final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+    "frozen_attack_path": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_entity_repair\\ckpts\\final_pi_A_specialist_2v2_std_entity_repair.zip",
+    "frozen_attack_sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 512,
+  "integrity_flag": null,
+  "status": "SEALED",
+  "sealed_utc": "2026-09-29T10:33:47Z",
+  "git_sha": "4733422c84ea0c657326db9a8a9df21b9f260d73",
+  "AUDIT": {
+    "path": "STANDARDIZED_2V2_NOISE_MOTION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 14,
+    "n_gating": 12,
+    "failed_checks": [],
+    "rows_sha256": "06b4814477ddd6588f4cf25a316bbab185c191ecbc6f3e8218a212c28b580203"
+  }
+}
