@@ -2034,10 +2034,17 @@
       "lo": 24700001,
       "hi": 24700002,
       "n": 2,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_4V4_SHARING_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-29T10:43:50Z"
+      "allocated_utc": "2026-09-29T10:43:50Z",
+      "spent_utc": "2026-09-29T10:49:45Z",
+      "notes": [
+        {
+          "utc": "2026-09-29T10:49:45Z",
+          "note": "STUDENT_FROZEN.json written (share_encoder 4v4)"
+        }
+      ]
     },
     {
       "experiment_id": "STANDARDIZED_4V4_FULLY_SHARED_Z_TRAINING",
@@ -2046,10 +2053,17 @@
       "lo": 24800001,
       "hi": 24800001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_4V4_SHARING_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-29T10:43:50Z"
+      "allocated_utc": "2026-09-29T10:43:50Z",
+      "spent_utc": "2026-09-29T10:53:07Z",
+      "notes": [
+        {
+          "utc": "2026-09-29T10:53:07Z",
+          "note": "STUDENT_FROZEN.json written (fully_shared 4v4)"
+        }
+      ]
     },
     {
       "experiment_id": "STANDARDIZED_4V4_GENERALIST_TRAINING",
@@ -2058,10 +2072,17 @@
       "lo": 24900001,
       "hi": 24900001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_4V4_SHARING_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-29T10:43:50Z"
+      "allocated_utc": "2026-09-29T10:43:50Z",
+      "spent_utc": "2026-09-29T10:56:24Z",
+      "notes": [
+        {
+          "utc": "2026-09-29T10:56:24Z",
+          "note": "STUDENT_FROZEN.json written (generalist 4v4)"
+        }
+      ]
     },
     {
       "experiment_id": "STANDARDIZED_4V4_SHARING_EVAL",
@@ -2082,7 +2103,7 @@
       ]
     }
   ],
-  "updated_utc": "2026-09-29T10:43:50Z",
+  "updated_utc": "2026-09-29T10:56:24Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
