@@ -1,0 +1,97 @@
+{
+  "record": "STANDARDIZED_2V2_FULLY_SHARED_Z crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-09-29T02:50:14Z",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "STANDARDIZED_2V2_SHARING_EVAL_SPEC.json#EVALUATION",
+  "suite_arm": "fully_shared",
+  "team_size": 2,
+  "device": "cuda",
+  "checkpoint": "artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2\\fully_shared_z\\ckpts\\final_fully_shared_z_2v2.pt",
+  "checkpoint_sha256": "cbd7fee0098cd0a0e5276ff68faf816a1bc7e18597935d9b55471e8807a6572b",
+  "seeds": {
+    "block": [
+      24500001,
+      24500128
+    ],
+    "n": 128,
+    "shared_across_z_and_poles": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_2V2_SHARING_EVAL",
+    "shared_by_labels": [
+      "STANDARDIZED_2V2_SHARE_ENCODER",
+      "STANDARDIZED_2V2_FULLY_SHARED_Z",
+      "STANDARDIZED_2V2_GENERALIST",
+      "STANDARDIZED_2V2_SEPARATED_GENERALIST_REF"
+    ]
+  },
+  "poles": {
+    "A": {
+      "policy": "A",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 2
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS_PARENT_OP7",
+      "base_opponent": "OP7",
+      "overlay": {},
+      "opening_hold_steps": 0,
+      "pole_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": null
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.078125,
+      "lcb95": -0.03125,
+      "ucb95": 0.1875,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": 0.0625,
+      "lcb95": -0.0546875,
+      "ucb95": 0.1796875,
+      "passes": false
+    },
+    "passes": false
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 512,
+  "claim_boundary": "2v2 sharing baselines, n=128 matched seeds (sealed_confirmatory block shared by all arms); mean effects are the headline, 95% intervals for figures; not PAPER-FAITHFUL",
+  "integrity_flag": null,
+  "status": "SEALED",
+  "sealed_utc": "2026-09-29T02:50:14Z",
+  "git_sha": "d2e70861db187cbe9dfc9e84efafe355e7caf2be",
+  "AUDIT": {
+    "path": "STANDARDIZED_2V2_FULLY_SHARED_Z_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 13,
+    "n_gating": 11,
+    "failed_checks": [],
+    "rows_sha256": "af7ed90a0a46f8920cf1d51e76e345e0ec0c75095d962c4e0f54051815646bae"
+  }
+}

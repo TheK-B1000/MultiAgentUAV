@@ -1972,7 +1972,7 @@
       "lo": 24500001,
       "hi": 24500128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_2V2_SHARING_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-28T18:52:53Z",
@@ -1981,10 +1981,17 @@
         "STANDARDIZED_2V2_FULLY_SHARED_Z",
         "STANDARDIZED_2V2_GENERALIST",
         "STANDARDIZED_2V2_SEPARATED_GENERALIST_REF"
+      ],
+      "spent_utc": "2026-09-29T02:57:31Z",
+      "notes": [
+        {
+          "utc": "2026-09-29T02:57:31Z",
+          "note": "all shared labels sealed (last: STANDARDIZED_2V2_SEPARATED_GENERALIST_REF)"
+        }
       ]
     }
   ],
-  "updated_utc": "2026-09-28T19:02:43Z",
+  "updated_utc": "2026-09-29T02:57:31Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

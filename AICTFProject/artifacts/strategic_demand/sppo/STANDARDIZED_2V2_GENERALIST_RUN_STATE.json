@@ -1,0 +1,49 @@
+{
+  "label": "STANDARDIZED_2V2_GENERALIST",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-28T19:10:57Z",
+      "pid": 16480,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "b8013460000c536736d980c361abcff453c84cb6",
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2\\generalist\\ckpts\\final_generalist_2v2.pt",
+      "seed_base": 24500001,
+      "n_seeds": 128,
+      "team_size": 2,
+      "arm": "generalist"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-28T23:55:50Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-28T23:55:50Z",
+      "audit": "STANDARDIZED_2V2_GENERALIST_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 13
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-28T23:55:50Z",
+      "result": "STANDARDIZED_2V2_GENERALIST_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-28T23:55:50Z",
+  "pid": 16480,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "b8013460000c536736d980c361abcff453c84cb6",
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2\\generalist\\ckpts\\final_generalist_2v2.pt",
+  "seed_base": 24500001,
+  "n_seeds": 128,
+  "team_size": 2,
+  "arm": "generalist",
+  "reason": "all episodes written",
+  "audit": "STANDARDIZED_2V2_GENERALIST_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 13,
+  "result": "STANDARDIZED_2V2_GENERALIST_CROSSOVER_EVAL_RESULT.json"
+}

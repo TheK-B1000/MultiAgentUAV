@@ -1,6 +1,6 @@
 {
   "record_id": "BASELINE_RESULTS_MEAN_EFFECTS",
-  "utc": "2026-09-28T18:42:54Z",
+  "utc": "2026-09-29T03:01:54Z",
   "reporting_rule": "headline = mean delta_A / delta_B at every scale (PI 2026-09-27); 95% intervals for figures; frozen gate verdicts carried as provenance only",
   "delta_convention": "delta_A = V(pi_A,A) - V(pi_B,A); delta_B = V(pi_B,B) - V(pi_A,B)",
   "bootstrap": "eval_hog_psp_v3._mean_ci -- paired percentile over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
@@ -148,6 +148,155 @@
       "note": "role-allocation comparison only: evaluated on exactly the no-role Specialists' seeds, so the difference between the two rows is the effect of role allocation on matched seeds; the main 2v2 Separated value is the confirmatory row"
     },
     {
+      "scale": "2v2",
+      "row": "Share-Encoder (shared CNN encoder; private per-z body and heads)",
+      "table_role": "main",
+      "label": "STANDARDIZED_2V2_SHARE_ENCODER",
+      "status": "FILLED",
+      "n_seeds": 128,
+      "seed_block": [
+        24500001,
+        24500128
+      ],
+      "win_rates": {
+        "pi_A@A": 0.5546875,
+        "pi_A@B": 0.5703125,
+        "pi_B@A": 0.4296875,
+        "pi_B@B": 0.640625
+      },
+      "delta_A": {
+        "mean": 0.125,
+        "lcb95": 0.015625,
+        "ucb95": 0.234375
+      },
+      "delta_B": {
+        "mean": 0.0703125,
+        "lcb95": -0.046875,
+        "ucb95": 0.1875
+      },
+      "provenance": {
+        "record": "STANDARDIZED_2V2_SHARE_ENCODER_CROSSOVER_EVAL_RESULT.json",
+        "record_status": "SEALED",
+        "seed_class": "sealed_confirmatory",
+        "checkpoint_sha256": "5d12f5c7cc83424d0c7d98ea6a65aa488685618a2cf70bcfa4c2cdd44953edff",
+        "rows_csv": "standardized_2v2_share_encoder_crossover_eval_rows.csv",
+        "rows_csv_sha256": "697d19aa3eba1680e4cb27ee0313e36b5382d69850ef96a87c3d2626823595b2",
+        "unique_actor_params": 3636592,
+        "holdout_fidelity": {
+          "holdout_agree_z0_vs_piA": 0.9257139885331702,
+          "holdout_agree_z1_vs_piB": 0.9154622467108599
+        },
+        "pole_config_hash": {
+          "A": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+          "B": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+        },
+        "frozen_gate_verdict_provenance_only": "FAIL"
+      }
+    },
+    {
+      "scale": "2v2",
+      "row": "Fully Shared+z (one network, concat strategy ID)",
+      "table_role": "main",
+      "label": "STANDARDIZED_2V2_FULLY_SHARED_Z",
+      "status": "FILLED",
+      "n_seeds": 128,
+      "seed_block": [
+        24500001,
+        24500128
+      ],
+      "win_rates": {
+        "pi_A@A": 0.4765625,
+        "pi_A@B": 0.5234375,
+        "pi_B@A": 0.3984375,
+        "pi_B@B": 0.5859375
+      },
+      "delta_A": {
+        "mean": 0.078125,
+        "lcb95": -0.03125,
+        "ucb95": 0.1875
+      },
+      "delta_B": {
+        "mean": 0.0625,
+        "lcb95": -0.0546875,
+        "ucb95": 0.1796875
+      },
+      "provenance": {
+        "record": "STANDARDIZED_2V2_FULLY_SHARED_Z_CROSSOVER_EVAL_RESULT.json",
+        "record_status": "SEALED",
+        "seed_class": "sealed_confirmatory",
+        "checkpoint_sha256": "cbd7fee0098cd0a0e5276ff68faf816a1bc7e18597935d9b55471e8807a6572b",
+        "rows_csv": "standardized_2v2_fully_shared_z_crossover_eval_rows.csv",
+        "rows_csv_sha256": "af7ed90a0a46f8920cf1d51e76e345e0ec0c75095d962c4e0f54051815646bae",
+        "unique_actor_params": 3468503,
+        "holdout_fidelity": {
+          "holdout_agree_z0_vs_piA": 0.9080084745714984,
+          "holdout_agree_z1_vs_piB": 0.8955196494755783
+        },
+        "pole_config_hash": {
+          "A": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+          "B": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+        },
+        "frozen_gate_verdict_provenance_only": "FAIL"
+      }
+    },
+    {
+      "scale": "2v2",
+      "row": "Generalist (one network, no strategy ID)",
+      "table_role": "main",
+      "label": "STANDARDIZED_2V2_GENERALIST",
+      "status": "FILLED",
+      "n_seeds": 128,
+      "seed_block": [
+        24500001,
+        24500128
+      ],
+      "V_pole_A": {
+        "mean": 0.5078125,
+        "lcb95": 0.421875,
+        "ucb95": 0.59375
+      },
+      "V_pole_B": {
+        "mean": 0.59375,
+        "lcb95": 0.5078125,
+        "ucb95": 0.6796875
+      },
+      "ours_win_rates": {
+        "pi_A+D@A": 0.703125,
+        "pi_B@B": 0.5703125
+      },
+      "delta_G_A": {
+        "mean": 0.1953125,
+        "lcb95": 0.0703125,
+        "ucb95": 0.3203125
+      },
+      "delta_G_B": {
+        "mean": -0.0234375,
+        "lcb95": -0.140625,
+        "ucb95": 0.09375
+      },
+      "provenance": {
+        "record": "STANDARDIZED_2V2_GENERALIST_CROSSOVER_EVAL_RESULT.json",
+        "record_status": "SEALED",
+        "seed_class": "sealed_confirmatory",
+        "checkpoint_sha256": "c60b4efff14e38fa350efc91a7bd7ad726bfafe8df6e29fa9c9b34ceb3f3756e",
+        "rows_csv": "standardized_2v2_generalist_crossover_eval_rows.csv",
+        "rows_csv_sha256": "1257fd6bf609a1a3dd602be774f62d38ad80b78eab40f5ff708eb5d4b2e62595",
+        "unique_actor_params": 3464375,
+        "holdout_fidelity": {
+          "holdout_agree_z0_vs_piA": 0.7096693259149086,
+          "holdout_agree_z1_vs_piB": 0.6164081494826971
+        },
+        "pole_config_hash": {
+          "A": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+          "B": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+        },
+        "reference_record": "STANDARDIZED_2V2_SEPARATED_GENERALIST_REF_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+        "reference_status": "SEALED",
+        "reference_rows_csv_sha256": "ec5ca6290f1608b0a0cb623c53a634bcdd9f60d124283bbd0103d4267c9c1249"
+      },
+      "note": "GENERALIST_DEFINITION_V1: a single policy has no crossover Delta; reported as V(pi_G, A), V(pi_G, B) and Delta_G = V(ours) - V(pi_G), paired by seed against the Separated system re-scored on the same 128 seeds"
+    },
+    {
       "scale": "4v4",
       "row": "Specialists (repaired pi_A3 vs repaired pi_B3-corrected, no roles)",
       "table_role": "main",
@@ -248,18 +397,46 @@
       "reason": "the 6v6 split pi_D (split_defend_k1_v1) is produced on the school PC; not on this machine"
     },
     {
-      "scale": "all",
+      "scale": "4v4",
+      "row": "Share-Encoder",
+      "table_role": "main",
+      "status": "PENDING",
+      "reason": "4v4 is opened only after the previous scale locks (PI operating rule 2026-09-28); same frozen definitions as 2v2 (GENERALIST_DEFINITION_V1 for the Generalist)"
+    },
+    {
+      "scale": "4v4",
+      "row": "Fully Shared+z",
+      "table_role": "main",
+      "status": "PENDING",
+      "reason": "4v4 is opened only after the previous scale locks (PI operating rule 2026-09-28); same frozen definitions as 2v2 (GENERALIST_DEFINITION_V1 for the Generalist)"
+    },
+    {
+      "scale": "4v4",
       "row": "Generalist",
       "table_role": "main",
       "status": "PENDING",
-      "reason": "no standardized generalist checkpoint exists at any scale; needs a design decision"
+      "reason": "4v4 is opened only after the previous scale locks (PI operating rule 2026-09-28); same frozen definitions as 2v2 (GENERALIST_DEFINITION_V1 for the Generalist)"
     },
     {
-      "scale": "all",
-      "row": "Distilled / sharing arms",
+      "scale": "6v6",
+      "row": "Share-Encoder",
       "table_role": "main",
       "status": "PENDING",
-      "reason": "2v2 + 4v4 V2 standardized CLOSEST_DEFENDS datasets are FROZEN and the cross-scale audit is GREEN (2026-09-28); the distilled/sharing students are not yet trained (the old 4v4 student rows stay invalidated)"
+      "reason": "6v6 is opened only after the previous scale locks (PI operating rule 2026-09-28); same frozen definitions as 2v2 (GENERALIST_DEFINITION_V1 for the Generalist)"
+    },
+    {
+      "scale": "6v6",
+      "row": "Fully Shared+z",
+      "table_role": "main",
+      "status": "PENDING",
+      "reason": "6v6 is opened only after the previous scale locks (PI operating rule 2026-09-28); same frozen definitions as 2v2 (GENERALIST_DEFINITION_V1 for the Generalist)"
+    },
+    {
+      "scale": "6v6",
+      "row": "Generalist",
+      "table_role": "main",
+      "status": "PENDING",
+      "reason": "6v6 is opened only after the previous scale locks (PI operating rule 2026-09-28); same frozen definitions as 2v2 (GENERALIST_DEFINITION_V1 for the Generalist)"
     }
   ]
 }
