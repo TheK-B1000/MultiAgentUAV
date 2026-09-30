@@ -1,0 +1,41 @@
+{
+  "record_id": "STANDARDIZED_4V4_CLOSED",
+  "status": "CLOSED",
+  "utc": "2026-09-30T13:30:00Z",
+  "decided_by": "PI operating rule 2026-09-28: finish one team size completely (ours -> baselines -> noise), put its numbers in experiments.tex, and do not reopen it unless there is an actual bug.",
+  "reopen_only_for": "an actual bug in the code or records that produced these numbers",
+  "paper": "paper/aamas2027/experiments.tex (mean +- std over seeds, record named beside every number)",
+
+  "OURS": {
+    "value": "Delta_A +0.156 +- 0.657, Delta_B +0.406 +- 0.620 (n=128, sealed_confirmatory)",
+    "record": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+  },
+  "BASELINES": {
+    "specialists_no_roles": {"value": "+0.273 +- 0.611 / -0.156 +- 0.620 (n=128, different seeds from ours)", "record": "4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING.json"},
+    "share_encoder": {"value": "+0.281 +- 0.627 / -0.156 +- 0.633 (n=128)", "record": "STANDARDIZED_4V4_SHARE_ENCODER_CROSSOVER_EVAL_RESULT.json"},
+    "fully_shared_z": {"value": "+0.367 +- 0.545 / -0.109 +- 0.655 (n=128)", "record": "STANDARDIZED_4V4_FULLY_SHARED_Z_CROSSOVER_EVAL_RESULT.json"},
+    "generalist": {"value": "V(pi_G,A)=0.758, V(pi_G,B)=0.695; Delta_G = ours - pi_G: -0.070 +- 0.654 (A), -0.070 +- 0.604 (B), paired on 128 seeds (ours 0.688 / 0.625)",
+                   "records": ["STANDARDIZED_4V4_GENERALIST_CROSSOVER_EVAL_RESULT.json", "STANDARDIZED_4V4_SEPARATED_GENERALIST_REF_SPECIALIST_CROSSOVER_EVAL_RESULT.json"],
+                   "definition": "GENERALIST_DEFINITION_V1.json"}
+  },
+  "NOISE_medium_tier_128_matched_seeds": {
+    "nominal":      {"value": "+0.234 +- 0.670 / +0.484 +- 0.588", "record": "STANDARDIZED_4V4_NOISE_NOMINAL_SPECIALIST_CROSSOVER_EVAL_RESULT.json"},
+    "localization": {"value": "+0.219 / +0.438; change vs nominal -0.016 [-0.156, +0.125] / -0.047 [-0.164, +0.070]", "record": "STANDARDIZED_4V4_NOISE_LOCALIZATION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_RESULT.json"},
+    "motion":       {"value": "+0.258 / +0.367; change vs nominal +0.023 [-0.141, +0.188] / -0.117 [-0.258, +0.031]", "record": "STANDARDIZED_4V4_NOISE_MOTION_MEDIUM_SPECIALIST_CROSSOVER_EVAL_RESULT.json"},
+    "delay":        {"value": "+0.141 / +0.375; change vs nominal -0.094 [-0.242, +0.055] / -0.109 [-0.250, +0.031]", "record": "STANDARDIZED_4V4_NOISE_DELAY_MEDIUM_SPECIALIST_CROSSOVER_EVAL_RESULT.json"},
+    "spec": "STANDARDIZED_4V4_NOISE_SPEC.json"
+  },
+  "PROVENANCE": {
+    "specs": ["STANDARDIZED_4V4_SHARING_SPEC.json", "STANDARDIZED_4V4_SHARING_EVAL_SPEC.json", "STANDARDIZED_4V4_NOISE_SPEC.json", "GENERALIST_DEFINITION_V1.json"],
+    "commits": {"sharing_spec": "542a7923", "students_and_eval_spec": "a427a70f", "baselines_sealed": "221a619f", "noise_launch": "4a674f99"},
+    "seed_blocks_spent": ["STANDARDIZED_4V4_SHARE_ENCODER_TRAINING", "STANDARDIZED_4V4_FULLY_SHARED_Z_TRAINING", "STANDARDIZED_4V4_GENERALIST_TRAINING", "STANDARDIZED_4V4_SHARING_EVAL", "STANDARDIZED_4V4_NOISE_EVAL"]
+  },
+  "READING_NOTES": [
+    "the distilled students reproduce their no-role teachers (large Delta_A, negative Delta_B): sharing does not remove specialization, the teachers had no Pole-B specialization to keep",
+    "only ours has a positive Delta_B, from role allocation making the Pole-A strategy specific to Pole A (0.07-0.14 on Pole B)",
+    "the Generalist wins slightly more often than ours on both poles (Delta_G -0.070 each): ours' 4v4 advantage is specialization, not absolute win rate",
+    "noise: all paired changes include zero, but Pole-B point estimates lean down (-0.05 to -0.12), more than at 2v2",
+    "ours' Delta_A on three 128-seed sets: +0.156 (confirmatory), +0.242 (Generalist block), +0.234 (noise nominal); Delta_B +0.41 to +0.50"
+  ],
+  "NEXT": "6v6, run by chain stage 2 (artifacts/strategic_demand/sppo/chain/run_chain_6v6.py)"
+}

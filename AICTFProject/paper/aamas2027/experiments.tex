@@ -315,7 +315,8 @@ decisions). Entries are mean $\pm$ standard deviation across evaluation seeds.
 Noise is applied only at evaluation time; localization noise also reaches the
 role allocator. All conditions of a team size share one seed block with a
 nominal run (2v2 nominal: $\Delta_A = +0.219 \pm 0.709$,
-$\Delta_B = +0.492 \pm 0.517$). For localization and motion perturbations, we
+$\Delta_B = +0.492 \pm 0.517$; 4v4 nominal: $\Delta_A = +0.234 \pm 0.670$,
+$\Delta_B = +0.484 \pm 0.588$). For localization and motion perturbations, we
 use a matched numeric severity schedule of 0.03, 0.06, and 0.12 cells to enable
 controlled comparison across perturbation families. These levels are not
 assumed to represent equivalent behavioral difficulty.}
@@ -336,9 +337,9 @@ Team size
 & $+0.258 \pm 0.655$ & $+0.477 \pm 0.601$ \\ % STANDARDIZED_2V2_NOISE_{LOCALIZATION,MOTION,DELAY}_MEDIUM (128 seeds, one block)
 
 4v4
-& Pending & Pending
-& Pending & Pending
-& Pending & Pending \\
+& $+0.219 \pm 0.614$ & $+0.438 \pm 0.612$
+& $+0.258 \pm 0.631$ & $+0.367 \pm 0.626$
+& $+0.141 \pm 0.661$ & $+0.375 \pm 0.652$ \\ % STANDARDIZED_4V4_NOISE_{LOCALIZATION,MOTION,DELAY}_MEDIUM (128 seeds, one block)
 
 6v6
 & Pending & Pending
@@ -364,3 +365,14 @@ positive throughout: $\Delta_A$ between $+0.20$ and $+0.26$, $\Delta_B$ between
 $+0.48$ and $+0.54$.
 % STANDARDIZED_2V2_NOISE_NOMINAL; change CIs: loc [-0.141,+0.102]/[-0.063,+0.141],
 % motion [-0.148,+0.180]/[-0.078,+0.172], delay [-0.117,+0.188]/[-0.141,+0.109].
+
+At 4v4 both effects also stay positive under every disturbance ($\Delta_A$
+between $+0.14$ and $+0.26$, $\Delta_B$ between $+0.37$ and $+0.44$), and every
+95\% interval of the paired change from nominal again includes zero. The point
+estimates, however, lean downward on Pole~B: the mean change in $\Delta_B$ is
+$-0.047$ under localization noise, $-0.117$ under motion error and $-0.109$
+under control delay, and control delay also lowers $\Delta_A$ by $0.094$. With
+128 seeds these declines are not distinguishable from zero, but they are larger
+than at 2v2.
+% STANDARDIZED_4V4_NOISE_NOMINAL; change CIs: loc [-0.156,+0.125]/[-0.164,+0.070],
+% motion [-0.141,+0.188]/[-0.258,+0.031], delay [-0.242,+0.055]/[-0.250,+0.031].
