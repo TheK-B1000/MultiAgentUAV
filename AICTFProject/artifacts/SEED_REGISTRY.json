@@ -2167,10 +2167,17 @@
       "lo": 25200001,
       "hi": 25200096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SUITE_DISTILLATION_6V6_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-30T06:48:03Z"
+      "allocated_utc": "2026-09-30T06:48:03Z",
+      "spent_utc": "2026-09-30T09:14:11Z",
+      "notes": [
+        {
+          "utc": "2026-09-30T09:14:11Z",
+          "note": "SUITE_DISTILLATION_6V6_DATASET.json written (collection_A)"
+        }
+      ]
     },
     {
       "experiment_id": "STANDARDIZED_6V6_SUITE_DATASET_POLE_B",
@@ -2179,13 +2186,20 @@
       "lo": 25300001,
       "hi": 25300096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SUITE_DISTILLATION_6V6_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-30T06:48:03Z"
+      "allocated_utc": "2026-09-30T06:48:03Z",
+      "spent_utc": "2026-09-30T09:14:11Z",
+      "notes": [
+        {
+          "utc": "2026-09-30T09:14:11Z",
+          "note": "SUITE_DISTILLATION_6V6_DATASET.json written (collection_B)"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-30T06:48:03Z",
+  "updated_utc": "2026-09-30T09:14:11Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
