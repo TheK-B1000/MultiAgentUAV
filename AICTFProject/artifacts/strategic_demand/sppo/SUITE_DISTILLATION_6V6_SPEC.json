@@ -1,7 +1,7 @@
 {
   "record_id": "SUITE_DISTILLATION_6V6_SPEC",
-  "status": "DRAFT_UNTIL_4V4_CLOSES",
-  "utc": "2026-09-29T21:00:00Z",
+  "status": "FROZEN_BEFORE_COLLECTION",
+  "utc": "2026-09-30T06:48:03Z",
   "classification": "EXPERIMENTAL PROTOCOL dataset (collection only). Not PAPER-FAITHFUL. Not a new PPO variant.",
   "authorized_by": "PI, 2026-09-29: after 4v4 closes, 6v6 starts automatically with the same recipe; derived from SUITE_DISTILLATION_4V4_V2_SPEC.json.",
   "parent": [
@@ -73,8 +73,8 @@
     "entities_required": "entity-repair teachers fail closed without teammates/enemies tensors at distillation time"
   },
   "SEEDS": {
-    "collection_A": "RESERVED_AT_FREEZE (96)",
-    "collection_B": "RESERVED_AT_FREEZE (96)",
+    "collection_A": "25200001..25200096",
+    "collection_B": "25300001..25300096",
     "registry_experiment_ids": {
       "collection_A": "STANDARDIZED_6V6_SUITE_DATASET_POLE_A",
       "collection_B": "STANDARDIZED_6V6_SUITE_DATASET_POLE_B"

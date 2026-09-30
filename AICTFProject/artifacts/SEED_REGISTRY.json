@@ -2159,9 +2159,33 @@
         }
       ],
       "spent_utc": "2026-09-30T06:45:38Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_6V6_SUITE_DATASET_POLE_A",
+      "purpose": "6v6 suite distillation dataset, Pole A",
+      "seed_class": "exploratory",
+      "lo": 25200001,
+      "hi": 25200096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_6V6_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-30T06:48:03Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_6V6_SUITE_DATASET_POLE_B",
+      "purpose": "6v6 suite distillation dataset, Pole B",
+      "seed_class": "exploratory",
+      "lo": 25300001,
+      "hi": 25300096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "SUITE_DISTILLATION_6V6_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-30T06:48:03Z"
     }
   ],
-  "updated_utc": "2026-09-30T06:48:02Z",
+  "updated_utc": "2026-09-30T06:48:03Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
