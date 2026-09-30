@@ -1,0 +1,40 @@
+{
+  "record": "suite generalist 6v6 preflight",
+  "utc": "2026-09-30T09:15:46Z",
+  "spec": "STANDARDIZED_6V6_SHARING_SPEC.json",
+  "spec_sha256": "0f730d6a822fbc37bb86d151e3ccedb50465d8b2425a6db00aebf2223d3500fc",
+  "seed_block": "STANDARDIZED_6V6_GENERALIST_TRAINING",
+  "init_seeds": [
+    25600001
+  ],
+  "checks": {
+    "spec:dataset_is_the_spec_manifest": true,
+    "spec:dataset_not_forbidden": true,
+    "spec:dataset_FROZEN": true,
+    "spec:dataset_manifest_sha256": true,
+    "spec:dataset_content_sha256": true,
+    "spec:audit_record_GREEN": true,
+    "spec:live_dataset_audit_all_pass": true,
+    "spec:pole_hashes_equal_spec": true,
+    "spec:teachers_equal_spec_and_manifest": true,
+    "spec:N_and_k": true,
+    "spec:recipe_equals_spec": true,
+    "spec:split_rows_equal_spec": true,
+    "spec:scientific_tree_clean": true,
+    "spec:seed_blocks_RESERVED": true,
+    "spec:generalist_definition_sha256": true,
+    "dataset_both_poles": true,
+    "teacher_self_kl_zero": true,
+    "z_has_no_pathway": true,
+    "single_actor_no_second_branch": true,
+    "loss_finite_positive": true,
+    "grad_actor_not_critic": true,
+    "roundtrip": true
+  },
+  "passed": "22/22",
+  "initial_loss": 2.337067127227783,
+  "unique_actor_params": 3464375,
+  "branch_seeds": null,
+  "rung": null,
+  "VERDICT": "PASS"
+}

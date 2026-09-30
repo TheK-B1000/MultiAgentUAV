@@ -1,0 +1,37 @@
+{
+  "record": "suite generalist 6v6",
+  "utc": "2026-09-30T09:28:15Z",
+  "status": "FROZEN_STUDENT",
+  "checkpoint": "artifacts\\strategic_demand\\sppo\\suite_sharing_std\\6v6\\generalist\\ckpts\\final_generalist_6v6.pt",
+  "sha256": "87ff337f632467474b327f67c3750df8dcfcbcfe4f052e7b1bb685b69a61173c",
+  "unique_actor_params": 3464375,
+  "branch_seeds": null,
+  "rung": null,
+  "final_holdout": {
+    "epoch": 20,
+    "train_kl_A": 0.45936970036439223,
+    "train_kl_B": 0.5019391726965856,
+    "holdout_agree_z0_vs_piA": 0.6207578240424266,
+    "holdout_agree_z1_vs_piB": 0.7093346096631984,
+    "holdout_teacher_argmax_disagreement": 0.6573207694069119,
+    "holdout_kl_A": 0.4972293742718739,
+    "holdout_kl_B": 0.5783246046105429,
+    "holdout_student_z0_z1_jsd": 0.0,
+    "holdout_teacher_A_B_jsd": 0.45481613715410785
+  },
+  "recipe": {
+    "epochs": 20,
+    "batch": 256,
+    "lr": 0.0003,
+    "clip": 1.0,
+    "weight_decay": 0.0
+  },
+  "dataset": "artifacts\\strategic_demand\\sppo\\SUITE_DISTILLATION_6V6_DATASET.json",
+  "dataset_manifest_sha256": "43e3d9a131921dfa1c26e1729bae832202a57ac3576ea7d42948e065d19459fd",
+  "spec": "STANDARDIZED_6V6_SHARING_SPEC.json",
+  "spec_sha256": "0f730d6a822fbc37bb86d151e3ccedb50465d8b2425a6db00aebf2223d3500fc",
+  "seed_block": "STANDARDIZED_6V6_GENERALIST_TRAINING",
+  "init_seeds": [
+    25600001
+  ]
+}
