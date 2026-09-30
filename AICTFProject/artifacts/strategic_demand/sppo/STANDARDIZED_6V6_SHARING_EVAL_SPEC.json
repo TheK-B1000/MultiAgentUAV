@@ -1,0 +1,108 @@
+{
+  "record_id": "STANDARDIZED_6V6_SHARING_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-30T09:28:16Z",
+  "classification": "EXPERIMENTAL PROTOCOL (evaluation only). Not PAPER-FAITHFUL.",
+  "decided_by": "PI, 2026-09-28/29: 2v2 closed; 4v4 with the same frozen definitions. Derived from STANDARDIZED_2V2_SHARING_EVAL_SPEC.json.",
+  "parent": [
+    "STANDARDIZED_6V6_SHARING_SPEC.json (training)",
+    "GENERALIST_DEFINITION_V1.json#SCORING_locked"
+  ],
+  "claim_boundary": "6v6 sharing baselines, n=128 matched seeds (sealed_confirmatory block shared by all arms); mean effects are the headline, 95% intervals for figures; not PAPER-FAITHFUL",
+  "ARMS": {
+    "share_encoder": {
+      "label": "STANDARDIZED_6V6_SHARE_ENCODER",
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/6v6/share_encoder/ckpts/final_share_encoder_6v6.pt",
+      "sha256": "4412ea3314c35f262a56d4174dd0acc53895b612dc38e13597e1d603139adffe",
+      "format": "sharing_ladder_rung1_v1"
+    },
+    "fully_shared_z": {
+      "label": "STANDARDIZED_6V6_FULLY_SHARED_Z",
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/6v6/fully_shared_z/ckpts/final_fully_shared_z_6v6.pt",
+      "sha256": "adbb8ac561f44057a8cf614aa8b5340073d7d2be0685804119874757647d07e7",
+      "format": "suite_fully_shared_z_v1"
+    },
+    "generalist": {
+      "label": "STANDARDIZED_6V6_GENERALIST",
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/6v6/generalist/ckpts/final_generalist_6v6.pt",
+      "sha256": "87ff337f632467474b327f67c3750df8dcfcbcfe4f052e7b1bb685b69a61173c",
+      "format": "suite_generalist_v1"
+    }
+  },
+  "SEPARATED_REFERENCE": {
+    "label": "STANDARDIZED_6V6_SEPARATED_GENERALIST_REF",
+    "why": "Delta_G = V(ours) - V(pi_G) must be paired by seed (GENERALIST_DEFINITION_V1#SCORING_locked); ours is re-scored on this block for that pairing only. The 6v6 main Separated value is STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY.",
+    "system": "6v6 split composite (SCHOOL_PC_6V6_LOCKED_PIPELINE): split k1 pi_D on DEFEND + c2 pi_A frozen on ATTACK, roles fixed for the episode, CLOSEST_DEFENDS k=1; pi_B the c2 pi_B",
+    "checkpoints": {
+      "pi_D": {
+        "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/final_pi_A_specialist_6v6_split_defend_k1_v1.zip",
+        "sha256": "77261f919009ff96ca81cb5a7c8e8b2346b77c16566775cf72570d9e73bc5ecc"
+      },
+      "pi_A_frozen_attack": {
+        "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip",
+        "sha256": "3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e"
+      },
+      "pi_B": {
+        "path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip",
+        "sha256": "fc0043235d3abc23f87f5157a46920921f5eced0e9aa252347084d2b500258b5"
+      }
+    },
+    "delta_G": {
+      "Delta_G_A": "V(split pi_A+D, A) from this reference minus V(pi_G, A), paired by seed",
+      "Delta_G_B": "V(pi_B, B) from this reference minus V(pi_G, B), paired by seed",
+      "bootstrap": "eval_hog_psp_v3._mean_ci on the per-seed differences"
+    }
+  },
+  "SEEDS": {
+    "registry_experiment_id": "STANDARDIZED_6V6_SHARING_EVAL",
+    "block": "25700001..25700128",
+    "n": 128,
+    "seed_class": "sealed_confirmatory",
+    "shared_by_labels": [
+      "STANDARDIZED_6V6_SHARE_ENCODER",
+      "STANDARDIZED_6V6_FULLY_SHARED_Z",
+      "STANDARDIZED_6V6_GENERALIST",
+      "STANDARDIZED_6V6_SEPARATED_GENERALIST_REF"
+    ],
+    "spent_when": "all four labels have sealed"
+  },
+  "POLES": {
+    "A": {
+      "pole_config_hash": "1c17c67afb2ad130a4576202ee3afe160171f093b051fa90f507ceccfd7ac11a"
+    },
+    "B": {
+      "pole_config_hash": "765cf7dc353a7942de0fb0feb8ea0219c2e43c686838e2cb4743abdd420458ad"
+    },
+    "source": "resolved from the certification at run time (experiments/pole_attestation.py); must equal these hashes (the ones the dataset was collected on)"
+  },
+  "EVALUATION": {
+    "sharing_arms": "forced z, no router, deterministic; Delta_A = V(z0,A) - V(z1,A), Delta_B = V(z1,B) - V(z0,B); every z x pole cell on all 128 seeds",
+    "generalist": "no z; V(pi_G,A), V(pi_G,B) on all 128 seeds",
+    "bootstrap": {
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "procedure": "paired percentile over seeds"
+    },
+    "tie_or_reversal": "a sharing arm with a Delta mean <= 0 writes its integrity flag and still seals; a row-level audit precedes any interpretation",
+    "crash_safety": "every finished episode is appended to a fingerprinted PARTIAL file; launches pass --resume"
+  },
+  "LAUNCH": {
+    "share_encoder": ".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py --team-size 6 --arm share_encoder --device cuda --resume",
+    "fully_shared_z": ".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py --team-size 6 --arm fully_shared --device cuda --resume",
+    "generalist": ".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py --team-size 6 --arm generalist --device cuda --resume",
+    "separated_reference": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 6 --pi-a-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/final_pi_A_specialist_6v6_split_defend_k1_v1.zip --pi-b-path artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip --device cuda --role-fixed-for-episode --frozen-attack-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip --frozen-attack-path-sha256 3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e --role-k-defend 1 --spec artifacts/strategic_demand/sppo/STANDARDIZED_6V6_SHARING_EVAL_SPEC.json --seed-base 25700001 --n-seeds 128 --label STANDARDIZED_6V6_SEPARATED_GENERALIST_REF --registry-experiment-id STANDARDIZED_6V6_SHARING_EVAL --resume",
+    "preflight": "every command with --dry-run passes; this spec and the evaluators committed; scientific tree clean",
+    "concurrency": "the four labels are independent (fresh env per episode, deterministic actions) and may run in parallel"
+  },
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "re-running any label (one-shot by label)",
+    "replacing the 6v6 main Separated value with the reference run",
+    "any 8v8 evaluation",
+    "the deployment-noise cases",
+    "claiming PAPER-FAITHFUL"
+  ],
+  "derived_from": "STANDARDIZED_4V4_SHARING_EVAL_SPEC.json"
+}

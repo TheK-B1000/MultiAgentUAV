@@ -2272,9 +2272,25 @@
         "STANDARDIZED_6V6_GENERALIST",
         "STANDARDIZED_6V6_SEPARATED_GENERALIST_REF"
       ]
+    },
+    {
+      "experiment_id": "STANDARDIZED_6V6_SEPARATED_EVAL",
+      "purpose": "6v6 main Separated confirmatory (paper parity) + no-role specialists, paired",
+      "seed_class": "sealed_confirmatory",
+      "lo": 25800001,
+      "hi": 25800128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_6V6_SEPARATED_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-30T09:28:16Z",
+      "shared_by_labels": [
+        "STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY",
+        "STANDARDIZED_6V6_NOROLE"
+      ]
     }
   ],
-  "updated_utc": "2026-09-30T09:28:15Z",
+  "updated_utc": "2026-09-30T09:28:16Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
