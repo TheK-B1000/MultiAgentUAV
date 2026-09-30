@@ -43,8 +43,14 @@ SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 DATASETS = {
     "2v2": ("SUITE_DISTILLATION_2V2_SPEC.json", "SUITE_DISTILLATION_2V2_DATASET.json"),
     "4v4": ("SUITE_DISTILLATION_4V4_V2_SPEC.json", "SUITE_DISTILLATION_4V4_V2_DATASET.json"),
+    "6v6": ("SUITE_DISTILLATION_6V6_SPEC.json", "SUITE_DISTILLATION_6V6_DATASET.json"),
 }
+#: The CLOSEST_DEFENDS scale knob (CROSS_SCALE_CANONICAL_RECIPE_V1 ALLOWED_TO_DIFFER).
+K_BY_SCALE = {"2v2": 1, "4v4": 2, "6v6": 1}
 OUT = SD / "SUITE_DATASETS_CROSS_SCALE_AUDIT.json"
+#: Reviewed changes to files the collector executes, allowed between the reference (2v2) collection
+#: and a later one (PI 2026-09-29: identity = the executed code). Each entry pins exact blobs.
+EXECUTED_CODE_ATTESTATION = SD / "COLLECTOR_EXECUTED_CODE_ATTESTATION.json"
 
 
 def _sha(p: Path) -> str:
@@ -158,53 +164,79 @@ def audit_one(scale: str, spec_name: str, man_name: str, checks: list) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--scales", default="2v2,4v4",
+                    help="datasets to audit; 2v2 is the reference every other scale is compared with. "
+                         "Default 2v2,4v4 reproduces the original audit exactly.")
+    ap.add_argument("--out", default=None, help="record path (default: the original 2v2/4v4 record)")
     a = ap.parse_args()
+    scales = [s.strip() for s in a.scales.split(",") if s.strip()]
+    if scales[0] != "2v2" or any(s not in DATASETS for s in scales):
+        raise SystemExit(f"--scales must start with 2v2 and name only {list(DATASETS)}")
+    out_path = Path(a.out) if a.out else OUT
     checks: list = []
-    got = {sc: audit_one(sc, s, m, checks) for sc, (s, m) in DATASETS.items()}
+    got = {sc: audit_one(sc, *DATASETS[sc], checks) for sc in scales}
 
-    def cross(name, ok, detail=None):
-        checks.append({"scale": "cross", "check": name, "ok": bool(ok), "detail": detail})
+    def cross(tag, name, ok, detail=None):
+        checks.append({"scale": tag, "check": name, "ok": bool(ok), "detail": detail})
 
     if all(got.values()):
-        m2, m4 = got["2v2"]["manifest"], got["4v4"]["manifest"]
-        s2, s4 = got["2v2"]["spec"], got["4v4"]["spec"]
-        # Identity is the executed code, not HEAD: an artifact-only commit between the two collections
-        # changes the sha but not one executed instruction. Both real shas are reported, never rewritten.
-        sha2, sha4 = m2["collector"]["git_sha"], m4["collector"]["git_sha"]
-        try:
-            eq = CI.code_equivalence(sha2, sha4)
-        except RuntimeError as exc:
-            eq = {"equivalent": False, "error": str(exc)}
-        cross("same_scientific_implementation", eq["equivalent"],
-              {"git_sha_2v2": sha2, "git_sha_4v4": sha4, "collector_identical": eq.get("collector_identical"),
-               "scientific_changed_files": eq.get("scientific_changed_files"), "error": eq.get("error")})
-        if sha2 != sha4:
-            att_p = SD / CI.attestation_name(sha2, sha4)
-            att = json.loads(att_p.read_text(encoding="utf-8")) if att_p.is_file() else {}
-            cross("differing_shas_have_frozen_equivalence_attestation",
-                  att.get("status") == "FROZEN" and att.get("equivalence") == eq, att_p.name)
-        cross("same_manifest_keys", set(m2) == set(m4), sorted(set(m2) ^ set(m4)))
-        cross("same_fingerprint_keys", set(m2["fingerprint"]) == set(m4["fingerprint"]))
-        a2 = {kk: v for kk, v in m2["allocator"].items() if kk != "k_defend"}
-        a4 = {kk: v for kk, v in m4["allocator"].items() if kk != "k_defend"}
-        cross("same_allocator_except_k", a2 == a4, [a2, a4])
-        cross("same_stored_keys", s2["DATASET"]["stored_obs_keys"] == s4["DATASET"]["stored_obs_keys"])
-        cross("same_n_per_pole", s2["DATASET"]["n_per_pole"] == s4["DATASET"]["n_per_pole"])
-        cross("k_is_the_scale_knob", (got["2v2"]["k"], got["4v4"]["k"]) == (1, 2))
+        ref_m, ref_s = got["2v2"]["manifest"], got["2v2"]["spec"]
+        sha_ref = ref_m["collector"]["git_sha"]
+        for sc in scales[1:]:
+            tag = f"x{sc}"
+            m, s = got[sc]["manifest"], got[sc]["spec"]
+            sha = m["collector"]["git_sha"]
+            # Identity is the executed code, not HEAD. Both real shas are reported, never rewritten.
+            if sc == "4v4":
+                # 2v2 and 4v4 were collected by the same code; the original whole-tree rule applies.
+                try:
+                    eq = CI.code_equivalence(sha_ref, sha)
+                except RuntimeError as exc:
+                    eq = {"equivalent": False, "error": str(exc)}
+                cross(tag, "same_scientific_implementation", eq["equivalent"],
+                      {"git_sha_2v2": sha_ref, f"git_sha_{sc}": sha, "collector_identical": eq.get("collector_identical"),
+                       "scientific_changed_files": eq.get("scientific_changed_files"), "error": eq.get("error")})
+                if sha_ref != sha:
+                    att_p = SD / CI.attestation_name(sha_ref, sha)
+                    att = json.loads(att_p.read_text(encoding="utf-8")) if att_p.is_file() else {}
+                    cross(tag, "differing_shas_have_frozen_equivalence_attestation",
+                          att.get("status") == "FROZEN" and att.get("equivalence") == eq, att_p.name)
+            else:
+                # Later scales: the collector's executed import closure must be identical, or differ only
+                # by reviewed, blob-pinned changes (EXECUTED_CODE_ATTESTATION).
+                att = (json.loads(EXECUTED_CODE_ATTESTATION.read_text(encoding="utf-8"))
+                       if EXECUTED_CODE_ATTESTATION.is_file() else {})
+                try:
+                    eq = CI.executed_code_equivalence(sha_ref, sha, att.get("reviewed_changes", [])
+                                                      if att.get("status") == "FROZEN" else [])
+                except RuntimeError as exc:
+                    eq = {"equivalent": False, "error": str(exc)}
+                cross(tag, "same_executed_collector_code", eq["equivalent"],
+                      {"git_sha_2v2": sha_ref, f"git_sha_{sc}": sha, "closure_files": eq.get("n_closure_files"),
+                       "differing": [d["file"] for d in eq.get("differing", [])],
+                       "unreviewed": eq.get("unreviewed"), "error": eq.get("error")})
+            cross(tag, "same_manifest_keys", set(ref_m) == set(m), sorted(set(ref_m) ^ set(m)))
+            cross(tag, "same_fingerprint_keys", set(ref_m["fingerprint"]) == set(m["fingerprint"]))
+            ar = {kk: v for kk, v in ref_m["allocator"].items() if kk != "k_defend"}
+            am = {kk: v for kk, v in m["allocator"].items() if kk != "k_defend"}
+            cross(tag, "same_allocator_except_k", ar == am, [ar, am])
+            cross(tag, "same_stored_keys", ref_s["DATASET"]["stored_obs_keys"] == s["DATASET"]["stored_obs_keys"])
+            cross(tag, "same_n_per_pole", ref_s["DATASET"]["n_per_pole"] == s["DATASET"]["n_per_pole"])
+            cross(tag, "k_is_the_scale_knob", (got["2v2"]["k"], got[sc]["k"]) == (K_BY_SCALE["2v2"], K_BY_SCALE[sc]))
     green = bool(checks) and all(c["ok"] for c in checks)
     for c in checks:
         print(f"  [{'OK' if c['ok'] else 'FAIL'}] {c['scale']:5s} {c['check']:44s} {'' if c['detail'] is None else str(c['detail'])[:110]}")
     print(f"\n{sum(c['ok'] for c in checks)}/{len(checks)} -> {'GREEN' if green else 'RED'}")
     if a.write:
-        OUT.write_text(json.dumps({
-            "record_id": "SUITE_DATASETS_CROSS_SCALE_AUDIT",
+        out_path.write_text(json.dumps({
+            "record_id": out_path.stem,
             "utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "verdict": "GREEN" if green else "RED",
-            "datasets": {sc: DATASETS[sc][1] for sc in DATASETS},
+            "datasets": {sc: DATASETS[sc][1] for sc in scales},
             "rows": {sc: (g or {}).get("rows") for sc, g in got.items()},
             "checks": checks,
         }, indent=2) + "\n", encoding="utf-8")
-        print(f"-> {OUT}")
+        print(f"-> {out_path}")
     return 0 if green else 1
 
 
