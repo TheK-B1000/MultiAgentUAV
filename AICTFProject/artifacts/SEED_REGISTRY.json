@@ -2116,7 +2116,7 @@
       "lo": 25100001,
       "hi": 25100128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_4V4_NOISE_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-29T20:09:45Z",
@@ -2125,10 +2125,29 @@
         "STANDARDIZED_4V4_NOISE_LOCALIZATION_MEDIUM",
         "STANDARDIZED_4V4_NOISE_MOTION_MEDIUM",
         "STANDARDIZED_4V4_NOISE_DELAY_MEDIUM"
-      ]
+      ],
+      "notes": [
+        {
+          "utc": "2026-09-30T05:27:09Z",
+          "note": "label STANDARDIZED_4V4_NOISE_MOTION_MEDIUM sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-09-30T06:38:20Z",
+          "note": "label STANDARDIZED_4V4_NOISE_NOMINAL sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-09-30T06:41:55Z",
+          "note": "label STANDARDIZED_4V4_NOISE_DELAY_MEDIUM sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-09-30T06:45:38Z",
+          "note": "all shared labels sealed (last: STANDARDIZED_4V4_NOISE_LOCALIZATION_MEDIUM)"
+        }
+      ],
+      "spent_utc": "2026-09-30T06:45:38Z"
     }
   ],
-  "updated_utc": "2026-09-29T20:09:45Z",
+  "updated_utc": "2026-09-30T06:45:38Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
