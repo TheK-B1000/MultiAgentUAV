@@ -196,8 +196,8 @@ separation between the two strategic behaviors.
 \caption{Standardized parameter-sharing baselines. Share-Encoder and Fully
 Shared+$z$ are evaluated using the same specialization quantities as the
 proposed system. Values are mean $\pm$ standard deviation across evaluation
-seeds. The 2v2 rows are sealed confirmatory evaluations ($n=128$). The 4v4
-and 6v6 rows will be filled after their sealed evaluations complete.}
+seeds. The 2v2 and 4v4 rows are sealed confirmatory evaluations ($n=128$); the
+6v6 rows will be filled after their sealed evaluations complete.}
 \label{tab:sharing_baselines}
 \begin{tabular}{c|l|cc}
 \hline
@@ -211,8 +211,13 @@ Team size & Method & $\Delta_A$ & $\Delta_B$ \\
 & $+0.078 \pm 0.635$
 & $+0.062 \pm 0.661$ \\ % STANDARDIZED_2V2_FULLY_SHARED_Z
 \hline
-4v4 & Share-Encoder & Pending & Pending \\
-4v4 & Fully Shared+$z$ & Pending & Pending \\
+4v4 & Share-Encoder
+& $+0.281 \pm 0.627$
+& $-0.156 \pm 0.633$ \\ % STANDARDIZED_4V4_SHARE_ENCODER
+
+4v4 & Fully Shared+$z$
+& $+0.367 \pm 0.545$
+& $-0.109 \pm 0.655$ \\ % STANDARDIZED_4V4_FULLY_SHARED_Z
 \hline
 6v6 & Share-Encoder & Pending & Pending \\
 6v6 & Fully Shared+$z$ & Pending & Pending \\
@@ -228,6 +233,15 @@ reaches $\Delta_A=+0.078$ and $\Delta_B=+0.062$. Relative to the separated
 system, the main loss is on Pole~B: sharing preserves a weak intended-direction
 signal, but does not recover the large $\Delta_B$ of the role-allocated
 specialists.
+
+At 4v4 the distilled students reproduce their teachers, the no-role specialists
+($\Delta_A=+0.273$, $\Delta_B=-0.156$): Share-Encoder reaches $+0.281$ /
+$-0.156$ and Fully Shared+$z$ $+0.367$ / $-0.109$. As with the teachers, the
+strategy distilled from the Pole-A specialist wins more often on both poles
+($0.805$ and $0.680$ for Share-Encoder), so $\Delta_B$ is negative. Sharing
+parameters therefore does not remove the specialization the teachers had; at
+4v4 the teachers had no Pole-B specialization to preserve, and only the
+role-allocated system shows a positive $\Delta_B$.
 
 Because the Generalist uses a single policy without a strategy variable, its
 comparison is reported using absolute win rates on each pole and the
@@ -258,8 +272,8 @@ Team size
 4v4
 & $0.758$
 & $0.695$
-& Pending
-& Pending \\ % STANDARDIZED_4V4_GENERALIST (WR sealed; gaps await Separated ref)
+& $-0.070 \pm 0.654$
+& $-0.070 \pm 0.604$ \\ % STANDARDIZED_4V4_GENERALIST + STANDARDIZED_4V4_SEPARATED_GENERALIST_REF
 6v6
 & Pending & Pending & Pending & Pending \\
 \hline
@@ -268,9 +282,15 @@ Team size
 
 At 2v2, the role-allocated system beats the Generalist on Pole~A by
 $+0.195$ in mean win rate on matched seeds, but is essentially tied on Pole~B
-($-0.023$). The 4v4 Generalist wins more often than the 2v2 Generalist
-($0.758$ / $0.695$ vs.\ $0.508$ / $0.594$); the matched gap to our 4v4 system
-is pending until the Separated reference on the same seeds seals.
+($-0.023$). At 4v4 the Generalist wins slightly more often than the
+role-allocated system on both poles: on the same 128 seeds it wins $0.758$ and
+$0.695$ against $0.688$ and $0.625$, a gap of $-0.070$ on each pole (with a
+per-seed standard deviation above $0.6$). The advantage of the role-allocated
+system at 4v4 is therefore specialization (a positive $\Delta_B$, which no
+baseline shows), not a higher absolute win rate than a single policy fitted to
+both specialists.
+% On the Generalist's seeds our system's crossover is Delta_A +0.242 +- 0.661, Delta_B +0.500 +- 0.575
+% (STANDARDIZED_4V4_SEPARATED_GENERALIST_REF); confirmatory value +0.156 / +0.406.
 
 
 \subsection{Robustness to Deployment Noise}
