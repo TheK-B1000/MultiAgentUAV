@@ -347,7 +347,8 @@ Noise is applied only at evaluation time; localization noise also reaches the
 role allocator. All conditions of a team size share one seed block with a
 nominal run (2v2 nominal: $\Delta_A = +0.219 \pm 0.709$,
 $\Delta_B = +0.492 \pm 0.517$; 4v4 nominal: $\Delta_A = +0.234 \pm 0.670$,
-$\Delta_B = +0.484 \pm 0.588$). For localization and motion perturbations, we
+$\Delta_B = +0.484 \pm 0.588$; 6v6 nominal: $\Delta_A = +0.031 \pm 0.434$,
+$\Delta_B = +0.094 \pm 0.424$). For localization and motion perturbations, we
 use a matched numeric severity schedule of 0.03, 0.06, and 0.12 cells to enable
 controlled comparison across perturbation families. These levels are not
 assumed to represent equivalent behavioral difficulty.}
@@ -407,18 +408,10 @@ Localization and motion keep both means positive
 (\(+0.039/+0.102\) and \(+0.039/+0.039\)).
 Control delay raises \(\Delta_A\) to \(+0.070\) but flips
 \(\Delta_B\) to \(-0.047\) (paired change vs nominal about
-\((+0.039,-0.141)\)).
+\((+0.039,-0.141)\); the \(\Delta_B\) change has 95\% interval
+\([-0.227,-0.055]\), the only paired change at any team size whose interval
+excludes zero). Under delay the Pole-A system wins more often on Pole~B
+(\(0.844 \to 0.945\)) and less often on Pole~A (\(0.914 \to 0.812\)).
 Thus specialization is broadly stable under localization/motion, while larger
 teams are more sensitive to delayed control on Pole~B.
 % STANDARDIZED_6V6_NOISE_*; sealed 2026-10-01 (CHAIN_6V6_DONE).
-
-\subsection{Sensitivity: seed-ID prefix of 50 (archived; not top-50)}
-\label{sec:seedid50}
-
-Superseded by the deployed-performance top-50 in
-\texttt{true\_top50\_tables.tex}. The sealed \(n=128\) tables remain primary.
-The old deterministic first-50-by-seed-ID check is archived as
-\texttt{seedid50\_prefix\_tables.tex} / \texttt{fig\_*\_seedid50} and is
-\emph{not} a performance-ranked top-50.
-
-% \input{seedid50_prefix_tables}

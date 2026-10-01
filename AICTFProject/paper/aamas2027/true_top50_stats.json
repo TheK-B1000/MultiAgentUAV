@@ -123,8 +123,16 @@
         "WR_B": 0.96,
         "delta_A_mean": 0.32,
         "delta_A_std": 0.6207303137828694,
+        "delta_A_ci95": [
+          0.14,
+          0.48
+        ],
         "delta_B_mean": 0.28,
         "delta_B_std": 0.4535573676110727,
+        "delta_B_ci95": [
+          0.16,
+          0.4
+        ],
         "min_delta": 0.28
       }
     },
@@ -246,8 +254,16 @@
         "WR_B": 0.94,
         "delta_A_mean": 0.44,
         "delta_A_std": 0.5405967979549858,
+        "delta_A_ci95": [
+          0.3,
+          0.58
+        ],
         "delta_B_mean": 0.36,
         "delta_B_std": 0.5627918743883488,
+        "delta_B_ci95": [
+          0.2,
+          0.52
+        ],
         "min_delta": 0.36
       }
     },
@@ -369,8 +385,16 @@
         "WR_B": 0.86,
         "delta_A_mean": 0.44,
         "delta_A_std": 0.6114552731152199,
+        "delta_A_ci95": [
+          0.26,
+          0.6
+        ],
         "delta_B_mean": 0.36,
         "delta_B_std": 0.6311634866964149,
+        "delta_B_ci95": [
+          0.18,
+          0.54
+        ],
         "min_delta": 0.36
       }
     },
@@ -492,8 +516,16 @@
         "WR_B": 1.0,
         "delta_A_mean": 0.56,
         "delta_A_std": 0.501426536422407,
+        "delta_A_ci95": [
+          0.42,
+          0.7
+        ],
         "delta_B_mean": 1.0,
         "delta_B_std": 0.0,
+        "delta_B_ci95": [
+          1.0,
+          1.0
+        ],
         "min_delta": 0.56
       }
     },
@@ -615,8 +647,16 @@
         "WR_B": 1.0,
         "delta_A_mean": 0.36,
         "delta_A_std": 0.4848732213850611,
+        "delta_A_ci95": [
+          0.24,
+          0.5
+        ],
         "delta_B_mean": 0.2,
         "delta_B_std": 0.4040610178208843,
+        "delta_B_ci95": [
+          0.1,
+          0.32
+        ],
         "min_delta": 0.2
       }
     },
@@ -738,8 +778,16 @@
         "WR_B": 1.0,
         "delta_A_mean": 0.56,
         "delta_A_std": 0.501426536422407,
+        "delta_A_ci95": [
+          0.42,
+          0.7
+        ],
         "delta_B_mean": 0.32,
         "delta_B_std": 0.47121207149916117,
+        "delta_B_ci95": [
+          0.2,
+          0.46
+        ],
         "min_delta": 0.32
       }
     },
@@ -861,8 +909,16 @@
         "WR_B": 1.0,
         "delta_A_mean": 0.42,
         "delta_A_std": 0.4985693819032899,
+        "delta_A_ci95": [
+          0.28,
+          0.56
+        ],
         "delta_B_mean": 0.3,
         "delta_B_std": 0.4629100498862757,
+        "delta_B_ci95": [
+          0.18,
+          0.42
+        ],
         "min_delta": 0.3
       }
     },
@@ -984,8 +1040,16 @@
         "WR_B": 0.86,
         "delta_A_mean": 0.44,
         "delta_A_std": 0.501426536422407,
+        "delta_A_ci95": [
+          0.3,
+          0.58
+        ],
         "delta_B_mean": 0.82,
         "delta_B_std": 0.38808793449160356,
+        "delta_B_ci95": [
+          0.7,
+          0.92
+        ],
         "min_delta": 0.44
       }
     },
@@ -1107,8 +1171,16 @@
         "WR_B": 1.0,
         "delta_A_mean": 0.08,
         "delta_A_std": 0.27404751561786966,
+        "delta_A_ci95": [
+          0.02,
+          0.16
+        ],
         "delta_B_mean": 0.0,
         "delta_B_std": 0.0,
+        "delta_B_ci95": [
+          0.0,
+          0.0
+        ],
         "min_delta": 0.0
       }
     },
@@ -1230,8 +1302,16 @@
         "WR_B": 1.0,
         "delta_A_mean": 0.1,
         "delta_A_std": 0.30304576336566325,
+        "delta_A_ci95": [
+          0.02,
+          0.18
+        ],
         "delta_B_mean": 0.08,
         "delta_B_std": 0.2740475156178697,
+        "delta_B_ci95": [
+          0.02,
+          0.16
+        ],
         "min_delta": 0.08
       }
     },
@@ -1353,8 +1433,16 @@
         "WR_B": 1.0,
         "delta_A_mean": 0.16,
         "delta_A_std": 0.3703280399090205,
+        "delta_A_ci95": [
+          0.06,
+          0.26
+        ],
         "delta_B_mean": 0.02,
         "delta_B_std": 0.14142135623730948,
+        "delta_B_ci95": [
+          0.0,
+          0.06
+        ],
         "min_delta": 0.02
       }
     },
@@ -1476,8 +1564,16 @@
         "WR_B": 1.0,
         "delta_A_mean": 0.1,
         "delta_A_std": 0.30304576336566325,
+        "delta_A_ci95": [
+          0.02,
+          0.18
+        ],
         "delta_B_mean": 0.12,
         "delta_B_std": 0.3282607226593159,
+        "delta_B_ci95": [
+          0.04,
+          0.22
+        ],
         "min_delta": 0.1
       }
     }
@@ -1552,8 +1648,16 @@
           "WR_B": 0.9,
           "delta_A_mean": 0.54,
           "delta_A_std": 0.5034574339058885,
+          "delta_A_ci95": [
+            0.4,
+            0.68
+          ],
           "delta_B_mean": 0.88,
           "delta_B_std": 0.3282607226593159,
+          "delta_B_ci95": [
+            0.78,
+            0.96
+          ],
           "min_delta": 0.54
         },
         "Localization": {
@@ -1562,8 +1666,16 @@
           "WR_B": 0.76,
           "delta_A_mean": 0.3,
           "delta_A_std": 0.5802884574739972,
+          "delta_A_ci95": [
+            0.14,
+            0.46
+          ],
           "delta_B_mean": 0.68,
           "delta_B_std": 0.5126959555693247,
+          "delta_B_ci95": [
+            0.54,
+            0.82
+          ],
           "min_delta": 0.3
         },
         "Motion": {
@@ -1572,8 +1684,16 @@
           "WR_B": 0.64,
           "delta_A_mean": 0.22,
           "delta_A_std": 0.7082603003566023,
+          "delta_A_ci95": [
+            0.02,
+            0.42
+          ],
           "delta_B_mean": 0.56,
           "delta_B_std": 0.5405967979549857,
+          "delta_B_ci95": [
+            0.42,
+            0.7
+          ],
           "min_delta": 0.22
         },
         "Delay": {
@@ -1582,8 +1702,16 @@
           "WR_B": 0.64,
           "delta_A_mean": 0.3,
           "delta_A_std": 0.614451804788759,
+          "delta_A_ci95": [
+            0.14,
+            0.46
+          ],
           "delta_B_mean": 0.44,
           "delta_B_std": 0.6114552731152199,
+          "delta_B_ci95": [
+            0.26,
+            0.6
+          ],
           "min_delta": 0.3
         }
       }
@@ -1657,8 +1785,16 @@
           "WR_B": 1.0,
           "delta_A_mean": 0.46,
           "delta_A_std": 0.5034574339058886,
+          "delta_A_ci95": [
+            0.32,
+            0.6
+          ],
           "delta_B_mean": 0.94,
           "delta_B_std": 0.23989793748209526,
+          "delta_B_ci95": [
+            0.86,
+            1.0
+          ],
           "min_delta": 0.46
         },
         "Localization": {
@@ -1667,8 +1803,16 @@
           "WR_B": 0.62,
           "delta_A_mean": 0.26,
           "delta_A_std": 0.5646020812962715,
+          "delta_A_ci95": [
+            0.1,
+            0.42
+          ],
           "delta_B_mean": 0.56,
           "delta_B_std": 0.5771145679064045,
+          "delta_B_ci95": [
+            0.4,
+            0.72
+          ],
           "min_delta": 0.26
         },
         "Motion": {
@@ -1677,8 +1821,16 @@
           "WR_B": 0.5,
           "delta_A_mean": 0.12,
           "delta_A_std": 0.6590035768383312,
+          "delta_A_ci95": [
+            -0.06,
+            0.3
+          ],
           "delta_B_mean": 0.38,
           "delta_B_std": 0.6023762469230862,
+          "delta_B_ci95": [
+            0.22,
+            0.54
+          ],
           "min_delta": 0.12
         },
         "Delay": {
@@ -1687,8 +1839,16 @@
           "WR_B": 0.5,
           "delta_A_mean": 0.1,
           "delta_A_std": 0.6468132241526726,
+          "delta_A_ci95": [
+            -0.08,
+            0.28
+          ],
           "delta_B_mean": 0.34,
           "delta_B_std": 0.6580738746446297,
+          "delta_B_ci95": [
+            0.16,
+            0.52
+          ],
           "min_delta": 0.1
         }
       }
@@ -1762,8 +1922,16 @@
           "WR_B": 1.0,
           "delta_A_mean": 0.12,
           "delta_A_std": 0.32826072265931594,
+          "delta_A_ci95": [
+            0.04,
+            0.22
+          ],
           "delta_B_mean": 0.16,
           "delta_B_std": 0.3703280399090206,
+          "delta_B_ci95": [
+            0.06,
+            0.26
+          ],
           "min_delta": 0.12
         },
         "Localization": {
@@ -1772,8 +1940,16 @@
           "WR_B": 1.0,
           "delta_A_mean": 0.12,
           "delta_A_std": 0.4351870346207948,
+          "delta_A_ci95": [
+            0.0,
+            0.24
+          ],
           "delta_B_mean": 0.18,
           "delta_B_std": 0.38808793449160356,
+          "delta_B_ci95": [
+            0.08,
+            0.3
+          ],
           "min_delta": 0.12
         },
         "Motion": {
@@ -1782,8 +1958,16 @@
           "WR_B": 0.96,
           "delta_A_mean": 0.06,
           "delta_A_std": 0.469910977239958,
+          "delta_A_ci95": [
+            -0.06,
+            0.18
+          ],
           "delta_B_mean": 0.16,
           "delta_B_std": 0.42185208743524,
+          "delta_B_ci95": [
+            0.04,
+            0.28
+          ],
           "min_delta": 0.06
         },
         "Delay": {
@@ -1792,8 +1976,16 @@
           "WR_B": 0.92,
           "delta_A_mean": 0.04,
           "delta_A_std": 0.5699982098074287,
+          "delta_A_ci95": [
+            -0.12,
+            0.2
+          ],
           "delta_B_mean": -0.02,
           "delta_B_std": 0.31879876577744853,
+          "delta_B_ci95": [
+            -0.1,
+            0.06
+          ],
           "min_delta": -0.02
         }
       }

@@ -125,6 +125,16 @@ seeds; figures report paired bootstrap 95\% intervals
 (\(20{,}000\) resamples). Comparisons labeled ``matched'' use identical seed
 blocks. Regime identities are verified at run time, and every run is sealed
 against a frozen specification, so no post-hoc seed or checkpoint selection
-is possible. Deployment noise (localization error, motion error, and
-two-decision control delay) is applied only at evaluation, on the final
-system, with a same-block nominal run for paired comparison.
+is possible for the primary \(n=128\) results. Deployment noise (localization
+error, motion error, and two-decision control delay) is applied only at
+evaluation, on the final system, with a same-block nominal run for paired
+comparison.
+
+\paragraph{Post-hoc top-50 subset (descriptive only).}
+As a secondary view, seeds may be ranked by deployed score
+\(\mathrm{outcome}(A{\to}A)+\mathrm{outcome}(B{\to}B)\) (ties by ascending
+seed ID) and the top 50 retained per method and team size. Noise uses the
+nominal top-50 seed IDs only, carried into the perturbed conditions so
+comparisons stay paired. This subset does not replace the sealed \(n=128\)
+tables; regenerators are \texttt{build\_true\_top50.py} (tables and plots
+\texttt{fig\_*\_true\_top50}).

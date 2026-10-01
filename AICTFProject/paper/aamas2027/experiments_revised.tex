@@ -46,15 +46,40 @@ Team size & $\Delta_A$ & $\Delta_B$ \\
 \end{tabular}
 \end{table}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_crossover.pdf}
+\caption{Crossover of the two strategies. Win rate of the Pole-A strategy
+(blue, solid) and the Pole-B strategy (vermillion, dashed) on each pole.
+Rows: Specialists (no roles), Share-Encoder, Fully Shared+$z$, and ours
+(shaded); columns: 2v2, 4v4, 6v6. Complementary strategies cross: each
+line is higher on its own pole. Without roles the Pole-A strategy stays
+above the Pole-B strategy on both poles at 4v4. Error bars: 95\% bootstrap
+intervals over 128 seeds.}
+\label{fig:crossover}
+\end{figure}
+
 Both effects are positive in mean at all three team sizes
-(Table~\ref{tab:main_specialization}). Separation is largest at 2v2 and 4v4.
+(Table~\ref{tab:main_specialization}, Figure~\ref{fig:crossover}).
+Separation is largest at 2v2 and 4v4.
 At 6v6 the binary effects are smaller (\(+0.062\), \(+0.117\)), largely
 because every evaluated system wins 0.86--0.98 of 6v6 games, which leaves
 little room for win/loss outcomes to differ. On score margin, which is not
 capped in this way, the 6v6 strategies separate clearly: the
 intended-direction margin advantage is \(+0.812\) on Pole~A and \(+0.734\)
-on Pole~B, with both bootstrap intervals above zero. An earlier sealed
+on Pole~B, with both bootstrap intervals above zero
+(Figure~\ref{fig:margin}). An earlier sealed
 \(n=64\) exploratory 6v6 evaluation showed the same pattern.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.85\columnwidth]{figures/fig_margin.pdf}
+\caption{Specialization of the role-allocated system measured on score
+margin (blue goals minus red goals) instead of win/loss, 128 seeds per team
+size, 95\% bootstrap intervals. Margin is not capped by the high 6v6 win
+rates, so the 6v6 strategies separate clearly on both poles.}
+\label{fig:margin}
+\end{figure}
 
 \subsection{Baseline Comparison}
 
@@ -88,9 +113,33 @@ Ours (heuristic roles) & $\mathbf{+0.117}$ & $\mathbf{+0.156}$ & $\mathbf{+0.062
 \end{tabular}
 \end{table}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_complementarity.pdf}
+\caption{Complementarity map. Each point is one system at one team size
+(marker shape), placed at its mean $(\Delta_A,\Delta_B)$ with 95\% bootstrap
+intervals over 128 seeds. Moving right means Strategy~A is increasingly
+preferred on Pole~A; moving up means Strategy~B is increasingly preferred
+on Pole~B. Only the upper-right quadrant $(\Delta_A>0,\Delta_B>0)$ is
+shaded: both strategies are then useful for their intended opponent.
+Ours (black) lies in that quadrant at every team size. The 4v4 baselines
+fall into the lower-right quadrant because their Pole-A strategy dominates
+on both poles ($\Delta_B<0$).}
+\label{fig:complementarity}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\columnwidth]{figures/fig_worst_pole.pdf}
+\caption{Worst-pole specialization $\min(\Delta_A,\Delta_B)$ by team size
+(the values of Table~\ref{tab:scorecard}).}
+\label{fig:worst_pole}
+\end{figure}
+
 The per-pole picture explains this. In every baseline the deficit is on
 Pole~B: \(\Delta_B\) is negative or close to zero
-(Table~\ref{tab:sharing_baselines}). The cause is visible in the raw win
+(Table~\ref{tab:sharing_baselines}, Figures~\ref{fig:complementarity}
+and~\ref{fig:baselines}). The cause is visible in the raw win
 rates. Without explicit roles, the Pole-A specialist is a strong all-round
 policy: at 4v4 it wins \(0.812\) on Pole~A and \(0.742\) on Pole~B, more
 than the Pole-B specialist wins on its own regime (\(0.586\)). There is then
@@ -166,9 +215,20 @@ Team & Method & $\Delta_A$ & $\Delta_B$ \\
 \end{tabular}
 \end{table}
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_baselines.pdf}
+\caption{Per-pole specialization of every two-strategy system
+(Table~\ref{tab:sharing_baselines}). Bars: mean $\Delta_A$ (blue) and
+$\Delta_B$ (vermillion) over 128 seeds with 95\% bootstrap intervals; ours
+is shaded. Only ours has $\Delta_B$ clearly above zero at 2v2 and 4v4.}
+\label{fig:baselines}
+\end{figure*}
+
 \paragraph{What specialization costs in raw win rate.}
 Specialization is not free, and its cost depends on team size.
-Table~\ref{tab:deployed_wr} reports the win rate each system obtains when
+Table~\ref{tab:deployed_wr} and Figure~\ref{fig:deployed_wr} report the win
+rate each system obtains when
 deployed as intended: its Pole-A strategy against Pole~A and its Pole-B
 strategy against Pole~B (the Generalist plays its single policy on both).
 At 2v2, ours has the highest Pole-A win rate (\(0.641\)) and is within
@@ -203,6 +263,18 @@ Ours (heuristic roles) & 0.641 & 0.586 & 0.648 & 0.508 & 0.922 & 0.977 \\
 \hline
 \end{tabular}
 \end{table}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_deployed_winrate.pdf}
+\caption{Intended-strategy win rate (Table~\ref{tab:deployed_wr}). Left:
+each two-strategy system's Pole-A strategy against Pole~A; right: its
+Pole-B strategy against Pole~B. The Generalist plays its single policy on
+both. Bars are means over 128 seeds; whiskers are 95\% paired percentile
+bootstrap intervals. High raw win rate (e.g.\ 4v4 baselines) need not imply
+complementary strategies; compare Figure~\ref{fig:complementarity}.}
+\label{fig:deployed_wr}
+\end{figure*}
 
 \paragraph{Generalist.}
 Because the Generalist has no strategy label, it has no \(\Delta_A\) or
@@ -249,6 +321,64 @@ selector or operator chooses the team's posture---and its cost in raw win
 rate is scale-dependent: a gain at 2v2, a loss at 4v4, and roughly even at
 6v6.
 
+\subsection{Behavior of the Two Strategies}
+
+To show what the two strategies do on the field, we replayed sealed
+role-allocated episodes and recorded every agent's position at each decision
+step. Each replay reproduces the final score of its sealed row exactly
+(148 of 148 episodes). Per team size we use the lowest-numbered seed with the
+full crossover outcome (the Pole-A strategy wins on Pole~A and loses on
+Pole~B, the Pole-B strategy the reverse) for the trajectory plot, and the
+first 12 seeds of the sealed block, each played by both strategies on both
+poles, for the aggregate plots.
+
+The two strategies move differently (Figures~\ref{fig:trajectories}
+and~\ref{fig:occupancy}). Under the Pole-A strategy the defend-role agents
+hold positions just in front of the own flag for the whole episode while the
+attack-role agents run lanes to the opponent flag. The Pole-B strategy has no
+fixed guard; its agents leave together at the start and later collapse onto
+the own flag. The difference is largest in the opening
+(Figure~\ref{fig:posture}). Over the first 30 decision steps the Pole-A
+strategy keeps on average 0.89, 0.90 and 0.72 of its active agents in its
+own half at 2v2, 4v4 and 6v6, against 0.53, 0.70 and 0.61 for the Pole-B
+strategy, whose early rush empties its own half almost completely. These
+replays are descriptive: they illustrate the behavior behind the crossover
+results and carry no separate statistical claim.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_trajectories.pdf}
+\caption{Blue-team paths during the first 80 decision steps of one matched
+seed per team size (rows: 2v2, 4v4, 6v6). Columns: Pole-A strategy on
+Pole~A, Pole-B strategy on Pole~A, Pole-A strategy on Pole~B, Pole-B
+strategy on Pole~B. Black dots mark spawn positions, colored dots the
+position at step 80; the square is the own flag and the triangle the
+opponent flag. Dark blue: agents assigned the defend role by
+CLOSEST\_DEFENDS.}
+\label{fig:trajectories}
+\end{figure*}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_occupancy.pdf}
+\caption{Where the blue agents spend their time (rows: 2v2, 4v4, 6v6),
+pooled over 12 sealed seeds and both poles. Columns: Pole-A strategy,
+Pole-B strategy, and their difference (blue: visited more by the Pole-A
+strategy; vermillion: more by the Pole-B strategy). Color intensity is
+the square root of the visit frequency per grid cell.}
+\label{fig:occupancy}
+\end{figure}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_posture.pdf}
+\caption{Fraction of active blue agents in their own half of the field over
+the episode (panels: 2v2, 4v4, 6v6), averaged over the episodes of
+Figure~\ref{fig:occupancy}; shading is $\pm1.96$ standard errors, and curves
+use a 5-step moving average.}
+\label{fig:posture}
+\end{figure*}
+
 \subsection{Robustness to Deployment Noise}
 
 We perturb only evaluation: localization noise, motion error, and a
@@ -286,6 +416,17 @@ Team & $\Delta_A$ & $\Delta_B$ & $\Delta_A$ & $\Delta_B$ & $\Delta_A$ & $\Delta_
 \end{tabular}
 \end{table*}
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_noise.pdf}
+\caption{Specialization of the role-allocated system under medium-severity
+deployment perturbations (Table~\ref{tab:noise_results}). Each team size
+uses one matched block of 128 seeds for the nominal condition (shaded) and
+the three perturbations. Bars: mean $\Delta_A$ (blue) and $\Delta_B$
+(vermillion) with 95\% bootstrap intervals.}
+\label{fig:noise}
+\end{figure*}
+
 At 2v2, all six paired changes from nominal are within \(0.05\) and every
 95\% interval of the change includes zero: localization
 \((-0.016,+0.039)\), motion \((+0.016,+0.047)\), delay
@@ -313,8 +454,28 @@ A separate post-hoc descriptive analysis ranks seeds by deployed performance
 \(\mathrm{outcome}(A{\to}A)+\mathrm{outcome}(B{\to}B)\) (tie-break: ascending
 seed ID), retains the top 50 per method/team size, and for noise selects that
 subset from the nominal condition only so perturbations stay paired
-(\texttt{true\_top50\_tables.tex},
-\texttt{fig\_*\_true\_top50}).
+(Tables~\ref{tab:true_top50_ours}--\ref{tab:true_top50_noise},
+Figures~\ref{fig:baselines_true_top50} and~\ref{fig:noise_true_top50}).
 That \(n=50\) view is secondary and must not replace the sealed \(n=128\)
-conclusions. An earlier seed-ID prefix of 50 is archived as
-\texttt{seedid50\_prefix\_*} and is not the requested top-50 analysis.
+conclusions.
+
+\input{true_top50_tables}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_baselines_true_top50.pdf}
+\caption{Same baseline comparison as Figure~\ref{fig:baselines}, restricted to
+the post-hoc top-50 seeds by deployed score
+$\mathrm{outcome}(A{\to}A)+\mathrm{outcome}(B{\to}B)$ per method and team
+size. Descriptive only; primary results remain the sealed $n=128$ tables.}
+\label{fig:baselines_true_top50}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_noise_true_top50.pdf}
+\caption{Same noise comparison as Figure~\ref{fig:noise}, on the top-50 seeds
+selected from the nominal condition and carried into each perturbation.
+Descriptive only; primary results remain the sealed $n=128$ tables.}
+\label{fig:noise_true_top50}
+\end{figure*}

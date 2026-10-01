@@ -1,0 +1,911 @@
+{
+  "cells": {
+    "pi_A_poleA_25800019.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800019,
+      "kind": "trajectory",
+      "ticks": 240,
+      "terminal": [
+        2,
+        0
+      ],
+      "sealed_terminal": [
+        2,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800019.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800019,
+      "kind": "trajectory",
+      "ticks": 240,
+      "terminal": [
+        0,
+        0
+      ],
+      "sealed_terminal": [
+        0,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800019.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800019,
+      "kind": "trajectory",
+      "ticks": 240,
+      "terminal": [
+        0,
+        0
+      ],
+      "sealed_terminal": [
+        0,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800019.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800019,
+      "kind": "trajectory",
+      "ticks": 111,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800001.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800001,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        2,
+        0
+      ],
+      "sealed_terminal": [
+        2,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800001.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800001,
+      "kind": "occupancy",
+      "ticks": 104,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800001.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800001,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800001.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800001,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800002.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800002,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        2,
+        0
+      ],
+      "sealed_terminal": [
+        2,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800002.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800002,
+      "kind": "occupancy",
+      "ticks": 150,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800002.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800002,
+      "kind": "occupancy",
+      "ticks": 116,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800002.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800002,
+      "kind": "occupancy",
+      "ticks": 117,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800003.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800003,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        2,
+        0
+      ],
+      "sealed_terminal": [
+        2,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800003.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800003,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        1
+      ],
+      "sealed_terminal": [
+        1,
+        1
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800003.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800003,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800003.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800003,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800004.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800004,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800004.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800004,
+      "kind": "occupancy",
+      "ticks": 230,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800004.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800004,
+      "kind": "occupancy",
+      "ticks": 95,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800004.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800004,
+      "kind": "occupancy",
+      "ticks": 112,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800005.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800005,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        2,
+        0
+      ],
+      "sealed_terminal": [
+        2,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800005.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800005,
+      "kind": "occupancy",
+      "ticks": 237,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800005.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800005,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800005.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800005,
+      "kind": "occupancy",
+      "ticks": 145,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800006.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800006,
+      "kind": "occupancy",
+      "ticks": 102,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800006.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800006,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800006.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800006,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800006.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800006,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        2,
+        0
+      ],
+      "sealed_terminal": [
+        2,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800007.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800007,
+      "kind": "occupancy",
+      "ticks": 98,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800007.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800007,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800007.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800007,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800007.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800007,
+      "kind": "occupancy",
+      "ticks": 88,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800008.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800008,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800008.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800008,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        0,
+        0
+      ],
+      "sealed_terminal": [
+        0,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800008.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800008,
+      "kind": "occupancy",
+      "ticks": 114,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800008.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800008,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        0,
+        0
+      ],
+      "sealed_terminal": [
+        0,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800009.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800009,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        2,
+        0
+      ],
+      "sealed_terminal": [
+        2,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800009.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800009,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        0,
+        0
+      ],
+      "sealed_terminal": [
+        0,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800009.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800009,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800009.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800009,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800010.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800010,
+      "kind": "occupancy",
+      "ticks": 169,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800010.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800010,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800010.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800010,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800010.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800010,
+      "kind": "occupancy",
+      "ticks": 118,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800011.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800011,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800011.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800011,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800011.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800011,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800011.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800011,
+      "kind": "occupancy",
+      "ticks": 101,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleA_25800012.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 25800012,
+      "kind": "occupancy",
+      "ticks": 94,
+      "terminal": [
+        3,
+        0
+      ],
+      "sealed_terminal": [
+        3,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_A_poleB_25800012.npz": {
+      "team_size": 6,
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 25800012,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        2,
+        0
+      ],
+      "sealed_terminal": [
+        2,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleA_25800012.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 25800012,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        0,
+        0
+      ],
+      "sealed_terminal": [
+        0,
+        0
+      ],
+      "fidelity": "MATCH"
+    },
+    "pi_B_poleB_25800012.npz": {
+      "team_size": 6,
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 25800012,
+      "kind": "occupancy",
+      "ticks": 240,
+      "terminal": [
+        1,
+        0
+      ],
+      "sealed_terminal": [
+        1,
+        0
+      ],
+      "fidelity": "MATCH"
+    }
+  },
+  "record": "Paper agent-movement replays of sealed role-allocated (Ours) crossover episodes",
+  "descriptive_only": true,
+  "device": "cuda",
+  "updated_utc": "2026-10-01T16:00:28Z",
+  "trajectory_seed": 25800019,
+  "trajectory_rule": "full_crossover_lowest_id",
+  "occupancy_seeds": [
+    25800001,
+    25800002,
+    25800003,
+    25800004,
+    25800005,
+    25800006,
+    25800007,
+    25800008,
+    25800009,
+    25800010,
+    25800011,
+    25800012
+  ],
+  "sealed_rows": "standardized_6v6_split_k1_confirmatory_specialist_crossover_eval_rows.csv",
+  "k_defend": 1,
+  "loop": "experiments/eval_specialist_crossover_scaled.py run_cell (nominal), reproduced verbatim"
+}

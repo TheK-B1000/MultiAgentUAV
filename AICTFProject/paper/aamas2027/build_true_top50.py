@@ -19,10 +19,14 @@ from __future__ import annotations
 
 import csv
 import json
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import paper_figures as PF  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
@@ -36,11 +40,6 @@ RANK_RULE = (
     "rank descending; tie-break ascending seed ID; take top 50. "
     "Post-hoc descriptive subset; primary results remain sealed n=128."
 )
-
-C_A, C_B = "#0072B2", "#D55E00"
-INK, GRID, BAND = "#333333", "#E6E6E6", "#F3F3F3"
-FIG_W = 7.16
-
 
 def _load_rows(name: str) -> list[dict]:
     with (SD / name).open(newline="", encoding="utf-8") as f:
@@ -132,8 +131,10 @@ def metrics_on_seeds(by: dict, kind: str, seeds: list[int]) -> dict:
         "WR_B": float(wb.mean()),
         "delta_A_mean": float(da.mean()),
         "delta_A_std": float(da.std(ddof=1)),
+        "delta_A_ci95": list(PF.boot_ci(da)[1:]),
         "delta_B_mean": float(db.mean()),
         "delta_B_std": float(db.std(ddof=1)),
+        "delta_B_ci95": list(PF.boot_ci(db)[1:]),
         "min_delta": float(min(da.mean(), db.mean())),
     }
 
@@ -183,82 +184,14 @@ NOISE = {
 }
 
 
-def _style() -> None:
-    plt.rcParams.update({
-        "font.family": "serif",
-        "font.serif": ["Times New Roman", "STIX Two Text", "DejaVu Serif"],
-        "mathtext.fontset": "stix",
-        "font.size": 8.5,
-        "axes.edgecolor": INK,
-        "axes.linewidth": 0.7,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "xtick.color": INK,
-        "ytick.color": INK,
-        "xtick.major.size": 0,
-        "ytick.major.size": 2.5,
-        "ytick.major.width": 0.6,
-        "pdf.fonttype": 42,
-        "savefig.facecolor": "white",
-    })
-
-
-def _ylim(*series) -> tuple[float, float]:
-    vals = np.concatenate([np.asarray(s, dtype=float) for s in series])
-    lo = min(0.0, float(vals.min()))
-    hi = max(0.0, float(vals.max()))
-    pad = 0.06 * max(hi - lo, 0.1)
-    return (lo - pad if lo < 0 else 0.0), hi + pad
-
-
-def _panel(ax, labels, da, db, *, title, highlight=None, first=False, ylim=None):
-    x = np.arange(len(labels))
-    w = 0.34
-    if highlight is not None:
-        ax.axvspan(highlight - 0.5, highlight + 0.5, color=BAND, zorder=0, lw=0)
-    ax.bar(x - w / 2, da, w, color=C_A, zorder=2, lw=0)
-    ax.bar(x + w / 2, db, w, color=C_B, zorder=2, lw=0)
-    ax.axhline(0.0, color=INK, lw=0.8, zorder=3)
-    ax.spines["bottom"].set_visible(False)
-    ax.yaxis.grid(True, color=GRID, lw=0.6, zorder=1)
-    ax.set_axisbelow(True)
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels, linespacing=0.95)
-    ax.set_xlim(-0.55, len(labels) - 0.45)
-    if ylim is not None:
-        ax.set_ylim(*ylim)
-        ax.yaxis.set_major_locator(plt.MultipleLocator(0.2))
-    ax.set_title(title, loc="left", fontsize=9, fontweight="bold", pad=3, color=INK)
-    if first:
-        ax.set_ylabel(r"Mean $\Delta$")
-    else:
-        ax.spines["left"].set_visible(False)
-        ax.tick_params(axis="y", length=0)
-
-
-def _figure(title: str, ncols: int, height: float = 2.25, width: float = FIG_W):
-    fig, axes = plt.subplots(1, ncols, figsize=(width, height), sharey=True,
-                             gridspec_kw={"wspace": 0.08} if ncols > 1 else None)
-    if ncols == 1:
-        axes = [axes]
-    handles = [plt.Rectangle((0, 0), 1, 1, color=C_A), plt.Rectangle((0, 0), 1, 1, color=C_B)]
-    fig.legend(handles, [r"$\Delta_A$", r"$\Delta_B$"], loc="upper right",
-               bbox_to_anchor=(0.995, 1.04), ncol=2, frameon=False,
-               handlelength=1.0, handleheight=0.8, columnspacing=1.0, fontsize=8.5)
-    fig.suptitle(title, x=0.01, y=1.04, ha="left", fontsize=10, fontweight="bold", color=INK)
-    return fig, axes
-
-
-def _export(fig, stem: str) -> None:
-    fig.savefig(FIG / f"{stem}.pdf", bbox_inches="tight", pad_inches=0.03)
-    fig.savefig(FIG / f"{stem}.png", dpi=300, bbox_inches="tight", pad_inches=0.03)
-    plt.close(fig)
+def _ci_stats(st: dict) -> dict:
+    return {"A": (st["delta_A_mean"], *st["delta_A_ci95"]), "B": (st["delta_B_mean"], *st["delta_B_ci95"])}
 
 
 def main() -> int:
     FIG.mkdir(parents=True, exist_ok=True)
     PROV.mkdir(parents=True, exist_ok=True)
-    _style()
+    PF.apply_style()
 
     catalog: dict = {
         "record": "TRUE_TOP50_DEPLOYED_PERFORMANCE",
@@ -451,39 +384,23 @@ def main() -> int:
 
     (OUT / "true_top50_tables.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    # ---- Plots (baselines + noise + ours specialization) ----
-    short = {
-        "Specialists (no roles)": "No\nroles",
-        "Share-Encoder": "Share-\nEncoder",
-        "Fully Shared+$z$": "Fully\nShared+$z$",
-        "Ours (heuristic roles)": "Ours",
-    }
-    data = {s: ([results[(s, m)]["delta_A_mean"] for m in methods],
-                [results[(s, m)]["delta_B_mean"] for m in methods]) for s in scales}
-    yl = _ylim(*[v for pair in data.values() for v in pair])
-    fig, axes = _figure("Baseline comparison (top-50 deployed)", 3, height=2.4)
-    for i, (ax, s) in enumerate(zip(axes, scales)):
-        _panel(ax, [short[m] for m in methods], *data[s],
-               title=s, highlight=methods.index("Ours (heuristic roles)"), first=(i == 0), ylim=yl)
-    _export(fig, "fig_baselines_true_top50")
-
-    # specialization ours only: could show min_delta or both deltas across scales
-    da = [results[(s, "Ours (heuristic roles)")]["delta_A_mean"] for s in scales]
-    db = [results[(s, "Ours (heuristic roles)")]["delta_B_mean"] for s in scales]
-    yl = _ylim(da, db)
-    fig, axes = _figure("Specialization (top-50 deployed)", 1, height=2.1, width=3.6)
-    _panel(axes[0], scales, da, db, title="Ours", first=True, ylim=yl)
-    _export(fig, "fig_specialization_true_top50")
+    # ---- Plots: same layout as the n=128 fig_baselines / fig_noise ----
+    two_line = {"Specialists (no roles)": "No\nroles", "Share-Encoder": "Share-\nEnc.",
+                "Fully Shared+$z$": "Shared\n+$z$", "Ours (heuristic roles)": "Ours"}
+    fig, ax = plt.subplots(figsize=(PF.TWO_COL, 2.2))
+    PF.delta_bars(ax, scales, methods, {(s, m): _ci_stats(results[(s, m)]) for s in scales for m in methods},
+                  highlight="Ours (heuristic roles)")
+    ax.set_xticklabels([two_line[m] for _ in scales for m in methods])
+    PF.delta_legend(ax, loc="upper right", bbox_to_anchor=(1.0, 1.08))
+    PF.export(fig, "fig_baselines_true_top50")
 
     conds = ["Nominal", "Localization", "Motion", "Delay"]
-    labels = ["Nominal", "Local.", "Motion", "Delay"]
-    data = {s: ([noise_res[(s, c)]["delta_A_mean"] for c in conds],
-                [noise_res[(s, c)]["delta_B_mean"] for c in conds]) for s in scales}
-    yl = _ylim(*[v for pair in data.values() for v in pair])
-    fig, axes = _figure("Robustness (top-50 from nominal)", 3)
-    for i, (ax, s) in enumerate(zip(axes, scales)):
-        _panel(ax, labels, *data[s], title=s, highlight=0, first=(i == 0), ylim=yl)
-    _export(fig, "fig_noise_true_top50")
+    fig, ax = plt.subplots(figsize=(PF.TWO_COL, 2.1))
+    PF.delta_bars(ax, scales, conds, {(s, c): _ci_stats(noise_res[(s, c)]) for s in scales for c in conds},
+                  highlight="Nominal")
+    ax.set_xticklabels(["Nominal", "Local.", "Motion", "Delay"] * len(scales))
+    PF.delta_legend(ax, loc="upper right", bbox_to_anchor=(1.0, 1.08))
+    PF.export(fig, "fig_noise_true_top50")
 
     # verify all subsets
     for e in catalog["rows"] + catalog["generalist"]:
