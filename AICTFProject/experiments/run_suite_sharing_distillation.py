@@ -64,14 +64,23 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-def spec_path(n: int) -> Path:
-    return SD / f"STANDARDIZED_{n}V{n}_SHARING_SPEC.json"
+#: --spec-tag SYM selects the symmetric-role family at any scale: its own sharing spec, its own
+#: dataset (named by that spec), its own output folder and its own audit entry. Naming only.
+SPEC_TAGS = ("", "SYM")
 
 
-def load_spec(n: int, arm: str) -> dict:
+def _family(n: int, tag: str = "") -> str:
+    return f"{n}v{n}" + (f"_{tag.lower()}" if tag else "")
+
+
+def spec_path(n: int, tag: str = "") -> Path:
+    return SD / f"STANDARDIZED_{n}V{n}{'_' + tag if tag else ''}_SHARING_SPEC.json"
+
+
+def load_spec(n: int, arm: str, tag: str = "") -> dict:
     """The scale's frozen sharing spec. The dataset path comes from here, never from N: an
     N-derived name resolved 4v4 to the invalidated SUITE_DISTILLATION_4V4_DATASET.json."""
-    p = spec_path(n)
+    p = spec_path(n, tag)
     if not p.is_file():
         raise SystemExit(f"FAIL-CLOSED: {p.name} missing; every scale needs its own frozen sharing spec")
     spec = json.loads(p.read_text(encoding="utf-8"))
@@ -102,7 +111,7 @@ def arm_seeds(spec: dict, arm: str) -> tuple[str, list[int]]:
     return eid, seeds
 
 
-def spec_checks(spec: dict, arm: str, n: int, dataset: Path, man: dict, n_rows: dict) -> dict:
+def spec_checks(spec: dict, arm: str, n: int, dataset: Path, man: dict, n_rows: dict, tag: str = "") -> dict:
     """PREFLIGHT_REQUIRED items that do not need the model. A real launch re-runs these."""
     from experiments import audit_suite_datasets_cross_scale as AU
     from experiments import code_identity as CI
@@ -115,7 +124,7 @@ def spec_checks(spec: dict, arm: str, n: int, dataset: Path, man: dict, n_rows: 
     c["dataset_content_sha256"] = dataset_content_sha256(man) == ds["content_sha256"]
     audit = json.loads((ROOT / ds["audit_record"]).read_text(encoding="utf-8"))
     c["audit_record_GREEN"] = audit.get("verdict") == "GREEN"
-    scale = f"{n}v{n}"
+    scale = _family(n, tag)
     live: list = []
     AU.audit_one(scale, *AU.DATASETS[scale], live)
     c["live_dataset_audit_all_pass"] = (AU.DATASETS[scale][1] == dataset.name
@@ -145,9 +154,9 @@ def spec_checks(spec: dict, arm: str, n: int, dataset: Path, man: dict, n_rows: 
     return c
 
 
-def _paths(arm: str, n: int):
+def _paths(arm: str, n: int, spec_tag: str = ""):
     tag = ARM_TAG[arm]
-    out = SD / "suite_sharing_std" / f"{n}v{n}" / tag
+    out = SD / "suite_sharing_std" / _family(n, spec_tag) / tag
     return {
         "out": out,
         "ckpt": out / "ckpts" / f"final_{tag}_{n}v{n}.pt",
@@ -167,23 +176,26 @@ def main() -> int:
     ap.add_argument("--team-size", type=int, required=True, choices=(2, 4, 6))
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--preflight", action="store_true")
+    ap.add_argument("--spec-tag", default="", choices=SPEC_TAGS,
+                    help="SYM = the symmetric-role family (STANDARDIZED_<N>V<N>_SYM_SHARING_SPEC.json)")
     args = ap.parse_args()
+    stag = str(args.spec_tag)
     n = int(args.team_size)
     arm = str(args.arm)
     device = args.device
-    paths = _paths(arm, n)
+    paths = _paths(arm, n, stag)
     is_ladder = arm in LADDER_RUNG
 
     # Which arms exist at a scale, their order, seeds and dataset are the scale's frozen spec --
     # not tables here. A scale or arm the spec does not name refuses.
-    spec = load_spec(n, arm)
+    spec = load_spec(n, arm, stag)
     seed_block, init_seeds = arm_seeds(spec, arm)
     dataset = ROOT / spec["DATASET_locked"]["manifest"]
     if not dataset.is_file():
         raise SystemExit(f"FAIL-CLOSED: {dataset.name} (the spec's dataset) is missing")
     if not args.preflight:
         order = spec["ARM_ORDER"]
-        missing = [a for a in order[:order.index(arm)] if not _paths(a, n)["frozen"].is_file()]
+        missing = [a for a in order[:order.index(arm)] if not _paths(a, n, stag)["frozen"].is_file()]
         if missing:
             raise SystemExit(f"REFUSING: arm order {order}; freeze {missing} before {arm}")
 
@@ -206,7 +218,7 @@ def main() -> int:
 
     n_rows = {"train_pole_A": int((arr["pole"][train_idx] == 0).sum()),
               "train_pole_B": int((arr["pole"][train_idx] == 1).sum()), "holdout": int(hold_idx.size)}
-    gate = spec_checks(spec, arm, n, dataset, man, n_rows)
+    gate = spec_checks(spec, arm, n, dataset, man, n_rows, stag)
     if not args.preflight and not all(gate.values()):
         raise SystemExit(f"REFUSING: spec checks fail at launch: {[k for k, v in gate.items() if not v]}")
 
@@ -452,7 +464,7 @@ def main() -> int:
             print(f"  [{'PASS' if v else 'FAIL'}] {k}")
         paths["preflight"].write_text(json.dumps({
             "record": f"suite {arm} {n}v{n} preflight",
-            "utc": _now(), "spec": spec_path(n).name, "spec_sha256": _sha(spec_path(n)),
+            "utc": _now(), "spec": spec_path(n, stag).name, "spec_sha256": _sha(spec_path(n, stag)),
             "seed_block": seed_block, "init_seeds": init_seeds,
             "checks": checks, "passed": f"{n_pass}/{len(checks)}",
             "initial_loss": float(loss.detach()), "unique_actor_params": n_unique,
@@ -537,7 +549,7 @@ def main() -> int:
         "recipe": {"epochs": EPOCHS, "batch": BATCH, "lr": LR, "clip": CLIP, "weight_decay": WEIGHT_DECAY},
         "dataset": str(dataset.relative_to(ROOT)),
         "dataset_manifest_sha256": _sha(dataset),
-        "spec": spec_path(n).name, "spec_sha256": _sha(spec_path(n)),
+        "spec": spec_path(n, stag).name, "spec_sha256": _sha(spec_path(n, stag)),
         "seed_block": seed_block, "init_seeds": init_seeds,
     }, indent=2), encoding="utf-8")
     from experiments import seed_registry as SR

@@ -1,24 +1,35 @@
-r"""6v6 symmetric-role diagnostic, school PC: one command, everything into one folder.
+r"""6v6 symmetric-role pipeline, school PC: one launcher, two independent bundles.
 
-    cd K:\...\MultiAgentUAV
-    git pull
-    cd AICTFProject
+    cd <repo>; git pull; cd AICTFProject
     .venv\Scripts\python.exe 6v6\run_symmetric_6v6.py --check      (no side effects; must print ALL CHECKS PASS)
     powershell -ExecutionPolicy Bypass -File 6v6\run_symmetric_6v6.ps1   (detached; safe to close the window)
 
-What it runs (SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json, PI 2026-10-01; k = ceil(6/3) = 2 for A and B):
-  1. smoke   short B-side run (2,048 steps) -- fails fast before ~a day of training
-  2. train   pi_DA <- repaired pi_A, 200k steps, k=2   (seed 26100001)   } in parallel,
-             pi_DB <- repaired pi_B, 200k steps, k=2   (seed 26200001)   } identical recipe
-             (resumes from the latest periodic checkpoint if interrupted)
-  3. eval    TOP50_6V6_SYMMETRIC_OURS on the frozen 50 seeds:
-             A: ATTACK -> frozen pi_A, DEFEND -> pi_DA     B: ATTACK -> frozen pi_B, DEFEND -> pi_DB
-             (crash-safe, resumes from its PARTIAL file)
-  4. readout old asymmetric Ours vs no-role vs new symmetric, same 50 seeds, paired
-  5. bundle  everything into 6v6\symmetric_results\ and 6v6\symmetric_results.zip
+PHASE 1 -- symmetric_core (SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json; k = ceil(6/3) = 2 on BOTH sides)
+   1 check     everything below, no side effects
+   2 smoke     2,048-step B-side defender run; fails fast
+   3 train     pi_DA <- repaired pi_A and pi_DB <- repaired pi_B, 200k steps each, identical recipe
+               (seeds 26100001 / 26200001; resume from the latest periodic checkpoint)
+   4 crossover TOP50_6V6_SYMMETRIC_OURS on the frozen 50 seeds
+               A: ATTACK -> frozen pi_A, DEFEND -> pi_DA     B: ATTACK -> frozen pi_B, DEFEND -> pi_DB
+   5 seal      READOUT (no-role vs old asymmetric k=1 vs new symmetric k=2) + SEALED.json
+               -> 6v6\symmetric_core\ and 6v6\symmetric_results.zip
+   Phase 1 never waits for Phase 2: its zip exists as soon as stage 5 finishes.
 
-Re-running the same command after a restart continues from the last finished step.
-Does NOT touch: specialists, the old 6v6 defender, students, the Generalist, any sealed result.
+PHASE 2 -- symmetric_baseline_suite (experiments/symmetric_baseline_suite.py; the same code runs 2v2/4v4)
+   gate: symmetric_core\SEALED.json exists, names the defenders the sealed crossover used, crossover completed
+   6 dataset   symmetric 6v6 teacher-state set (Pole A: pi_A + pi_DA, Pole B: pi_B + pi_DB, 96 episodes/pole),
+               KL teachers stay repaired pi_A / pi_B; audit GREEN
+   7 students  Generalist (no z), Share-Encoder, Fully Shared+z on that dataset, frozen recipe
+   8 evals     the three students on the same frozen 50 seeds
+   9 crossovers Delta_A / Delta_B for specialists (no role), old asymmetric Ours, symmetric Ours, the students;
+               Delta_G for the Generalist
+  10 robustness symmetric Ours under localization / motion / delay (medium tier)
+  11 margin     paired score-margin crossovers
+  12 bundle     6v6\symmetric_baseline_suite\ and 6v6\symmetric_baselines.zip
+
+Re-running the same command after a restart continues from the last finished stage.
+Phases run one after the other, never in parallel on one GPU.
+Does NOT touch: specialists, the old 6v6 defender or students, any sealed result.
 """
 from __future__ import annotations
 
@@ -39,7 +50,10 @@ PROJ = Path(__file__).resolve().parents[1]                 # AICTFProject
 REPO = PROJ.parent
 SD = PROJ / "artifacts" / "strategic_demand" / "sppo"
 TOP = SD / "symmetric_role_top50"
-OUTDIR = PROJ / "6v6" / "symmetric_results"
+OUTDIR = PROJ / "6v6" / "symmetric_core"
+CORE_ZIP = PROJ / "6v6" / "symmetric_results.zip"
+SEALED = OUTDIR / "SEALED.json"
+SUITE_OUT, SUITE_ZIP = "6v6/symmetric_baseline_suite", "6v6/symmetric_baselines.zip"
 STATE = PROJ / "6v6" / "symmetric_6v6_state.json"
 LOG = PROJ / "6v6" / "symmetric_6v6.log"
 PY = str(PROJ / ".venv" / "Scripts" / "python.exe")
@@ -177,6 +191,17 @@ def check() -> list[str]:
                 p.append(f"seed block {r['eid']} is {b['status']} but its final checkpoint is missing")
         if reg.get(EVAL_REG, {}).get("status") != "SPENT":
             p.append(f"{EVAL_REG} must be SPENT (post-hoc reuse)")
+        # Phase 2 prerequisites: the generic suite, its pre-registered seed blocks, the parent specs it derives from
+        from experiments import prepare_symmetric_baselines as PSB
+        from experiments import symmetric_baseline_suite  # noqa: F401  (importable = Phase 2 code present)
+        for _k, (eid, lo, hi) in PSB.blocks(6).items():
+            b = reg.get(eid)
+            if b is None or (b["lo"], b["hi"]) != (lo, hi):
+                p.append(f"Phase 2 seed block {eid} not registered at {lo}..{hi} -- run `git pull`")
+        for f in (PSB.COLLECTION_PARENT[6], "STANDARDIZED_6V6_SHARING_SPEC.json", "STANDARDIZED_6V6_SHARING_EVAL_SPEC.json",
+                  "GENERALIST_DEFINITION_V1.json", "DEPLOYMENT_ROBUSTNESS_SPEC.json"):
+            if not (SD / f).is_file():
+                p.append(f"Phase 2 needs {f} -- run `git pull`")
     except Exception as exc:                              # noqa: BLE001
         p.append(f"registry unreadable: {exc}")
     for f in OLD_ROWS.values():
@@ -267,47 +292,78 @@ def readout() -> dict:
 
 
 def bundle(ro: dict) -> None:
+    """Phase 1 output: 6v6/symmetric_core/ (sealed by SEALED.json, written last) + symmetric_results.zip."""
+    if SEALED.is_file():
+        return
     if OUTDIR.exists():
         shutil.rmtree(OUTDIR)
-    (OUTDIR / "checkpoints").mkdir(parents=True)
-    for pol, r in RUNS.items():                          # final weights + every training record
-        shutil.copy2(PROJ / r["final"], OUTDIR / "checkpoints" / Path(r["final"]).name)
-        dst = OUTDIR / "training" / Path(r["run_dir"]).name
-        dst.mkdir(parents=True)
-        for f in (PROJ / r["run_dir"]).iterdir():
-            if f.is_file():
-                shutil.copy2(f, dst / f.name)
+    defenders = {}
+    for pol, name in (("A", "pi_DA_k2"), ("B", "pi_DB_k2")):     # final weights + every training record
+        r = RUNS[pol]
+        dst = OUTDIR / "checkpoints" / name
+        shutil.copytree(PROJ / r["run_dir"], dst / "training_run", ignore=shutil.ignore_patterns("ckpt_*.zip"))
+        shutil.copy2(PROJ / r["final"], dst / Path(r["final"]).name)
+        defenders[f"pi_D{pol}"] = sha(r["final"])
     ev = OUTDIR / "evaluation"
-    ev.mkdir()
+    ev.mkdir(parents=True)
     for f in SD.glob(f"{EVAL_LABEL}_*.json"):
         shutil.copy2(f, ev / f.name)
-    shutil.copy2(SD / f"{EVAL_LABEL.lower()}_specialist_crossover_eval_rows.csv", ev)
-    cmp = OUTDIR / "comparison_inputs"
-    cmp.mkdir()
-    for f in OLD_ROWS.values():
-        shutil.copy2(f, cmp / f.name)
-    shutil.copy2(PROJ / SEEDS_FILE, cmp / Path(SEEDS_FILE).name)
+    new_rows = SD / f"{EVAL_LABEL.lower()}_specialist_crossover_eval_rows.csv"
+    shutil.copy2(new_rows, ev)
+    for name, f in (("no_role", OLD_ROWS["no_role"]), ("old_asymmetric", OLD_ROWS["old_asymmetric_ours"]),
+                    ("new_symmetric", new_rows)):
+        (OUTDIR / "comparison" / name).mkdir(parents=True)
+        shutil.copy2(f, OUTDIR / "comparison" / name / f.name)
     (OUTDIR / "READOUT.json").write_text(json.dumps(ro, indent=2) + "\n", encoding="utf-8")
     (OUTDIR / "READOUT.md").write_text("# 6v6 symmetric-role diagnostic (top-50, post-hoc)\n\n" + ro["table_markdown"] + "\n\n" + ro["caveat"] + "\n", encoding="utf-8")
     prov = OUTDIR / "provenance"
-    prov.mkdir()
-    for f in (PROJ / SPEC, PROJ / "artifacts" / "SEED_REGISTRY.json", STATE, LOG):
-        shutil.copy2(f, prov / f.name)
-    for f in (PROJ / "6v6").glob("symmetric_*.log"):
-        shutil.copy2(f, prov / f.name)
-    (prov / "MACHINE.json").write_text(json.dumps({"git_head": git("rev-parse", "HEAD"), "git_status_short": git("status", "--short", "--", "AICTFProject/experiments"),
+    for sub, files in (("frozen_spec", [PROJ / SPEC, PROJ / "artifacts" / "SEED_REGISTRY.json"]),
+                       ("seed_list", [PROJ / SEEDS_FILE]), ("logs", [STATE, LOG, *(PROJ / "6v6").glob("symmetric_*.log")])):
+        (prov / sub).mkdir(parents=True, exist_ok=True)
+        for f in files:
+            if f.is_file():
+                shutil.copy2(f, prov / sub / f.name)
+    (prov / "commands").mkdir()
+    (prov / "commands" / "commands.json").write_text(json.dumps({
+        "smoke_B": train_args("B", 2048, 99902002, None, RUNS["B"]["suffix"], smoke=True),
+        "train_A": train_args("A", 200_000, RUNS["A"]["seed"], RUNS["A"]["eid"], RUNS["A"]["suffix"], smoke=False),
+        "train_B": train_args("B", 200_000, RUNS["B"]["seed"], RUNS["B"]["eid"], RUNS["B"]["suffix"], smoke=False),
+        "crossover": eval_args() + ["--resume"]}, indent=2) + "\n", encoding="utf-8")
+    (prov / "git_commit").mkdir()
+    (prov / "git_commit" / "MACHINE.json").write_text(json.dumps({"git_head": git("rev-parse", "HEAD"), "git_status_short": git("status", "--short", "--", "AICTFProject/experiments", "AICTFProject/rl", "AICTFProject/gpu_env"),
                                                    "host": platform.node(), "python": sys.version.split()[0], "utc": now()}, indent=2) + "\n", encoding="utf-8")
     (OUTDIR / "README.txt").write_text(
-        "6v6 symmetric-role diagnostic -- everything from the school-PC run.\n\n"
-        "READOUT.md / READOUT.json   the comparison table (no-role vs old asymmetric vs new symmetric, same 50 seeds)\n"
-        "checkpoints/                final pi_DA (k=2) and pi_DB (k=2)\n"
-        "training/                   each defender run's configs, manifests, metrics, episode rows\n"
+        "6v6 symmetric-role core result (Phase 1) -- everything from the school-PC run.\n\n"
+        "READOUT.md / READOUT.json   no-role vs old asymmetric (k=1) vs new symmetric (k=2), same 50 seeds, paired\n"
+        "SEALED.json                 seal: defender hashes + the sealed crossover result\n"
+        "checkpoints/pi_DA_k2, pi_DB_k2   final weights + each run's configs, manifests, metrics, episode rows\n"
         "evaluation/                 sealed TOP50_6V6_SYMMETRIC_OURS result, audit, run state, per-seed rows\n"
-        "comparison_inputs/          the old per-seed rows and the frozen seed list used for the readout\n"
-        "provenance/                 spec, seed registry snapshot, pipeline state and logs, git HEAD\n\n"
-        "Send the zip (6v6/symmetric_results.zip) as one file.\n", encoding="utf-8")
-    zp = shutil.make_archive(str(OUTDIR), "zip", OUTDIR)
-    log(f"bundle: {OUTDIR} and {zp} ({Path(zp).stat().st_size / 1e6:.0f} MB)")
+        "comparison/                 the per-seed rows of each system in the readout\n"
+        "provenance/                 frozen spec, seed list, seed registry snapshot, commands, logs, git HEAD\n\n"
+        "Send 6v6/symmetric_results.zip as one file.\n", encoding="utf-8")
+    res = SD / f"{EVAL_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    rec = json.loads(res.read_text(encoding="utf-8"))
+    sealed = {"record": "SYMMETRIC_CORE_6V6_SEALED", "status": "SEALED", "utc": now(),
+              "defenders_sha256": {"pi_DA": defenders["pi_DA"], "pi_DB": defenders["pi_DB"]},
+              "crossover_completed": rec.get("status") == "SEALED"
+                                     and rec["checkpoints"] == {"pi_A": defenders["pi_DA"], "pi_B": defenders["pi_DB"]},
+              "crossover_result": res.name, "crossover_result_sha256": sha(str(res.relative_to(PROJ))),
+              "k_defend": K, "seeds": SEEDS_FILE}
+    if not sealed["crossover_completed"]:
+        fail("the sealed crossover does not match the trained defenders; not sealing")
+    SEALED.write_text(json.dumps(sealed, indent=2) + "\n", encoding="utf-8")      # last: the seal
+    if CORE_ZIP.exists():
+        CORE_ZIP.unlink()
+    zp = shutil.make_archive(str(CORE_ZIP.with_suffix("")), "zip", OUTDIR)
+    log(f"Phase 1 sealed: {OUTDIR} and {zp} ({Path(zp).stat().st_size / 1e6:.0f} MB)")
+
+
+def phase2() -> int:
+    """Stages 6-12: the generic symmetric baseline suite, gated on SEALED.json (checked again inside)."""
+    args = ["experiments/symmetric_baseline_suite.py", "--team-size", "6", "--out", SUITE_OUT, "--zip", SUITE_ZIP,
+            "--core-sealed", str(SEALED.relative_to(PROJ))]
+    log("Phase 2 (symmetric_baseline_suite) starting; progress also in 6v6/symmetric_baseline_suite/provenance/logs/suite.log")
+    return subprocess.run([PY, *args], cwd=PROJ, env=env()).returncode
 
 
 def main() -> int:
@@ -345,11 +401,19 @@ def main() -> int:
         if not (SD / f"{EVAL_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json").is_file():
             fail(f"evaluation exited {rc} without a sealed result (rerun this script to resume)")
         state(step="eval")
-    ro = readout()
-    log("\n" + ro["table_markdown"])
-    bundle(ro)
-    state(step="bundle", status="DONE")
-    log("DONE -- send 6v6/symmetric_results.zip")
+    if not done("core_sealed"):
+        ro = readout()
+        log("\n" + ro["table_markdown"])
+        bundle(ro)
+        state(step="core_sealed", status="PHASE1_SEALED")
+        log("PHASE 1 DONE -- 6v6/symmetric_results.zip is ready to send; starting Phase 2")
+    if not done("baselines"):
+        rc = phase2()
+        if rc != 0:
+            fail(f"Phase 2 stopped (exit {rc}); Phase 1 stays sealed. See 6v6/symmetric_baseline_suite/STATE.json "
+                 f"and provenance/logs/suite.log; rerun this script to continue")
+        state(step="baselines", status="DONE")
+    log("DONE -- send 6v6/symmetric_results.zip and 6v6/symmetric_baselines.zip")
     return 0
 
 

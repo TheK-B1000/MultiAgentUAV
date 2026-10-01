@@ -12,5 +12,6 @@ $p = Start-Process -FilePath $py -ArgumentList '6v6\run_symmetric_6v6.py' -Worki
      -RedirectStandardOutput '6v6\symmetric_6v6.stdout' -RedirectStandardError '6v6\symmetric_6v6.stderr'
 Write-Host "Started (pid $($p.Id)). Progress:"
 Write-Host "  Get-Content $proj\6v6\symmetric_6v6.log -Wait -Tail 20"
-Write-Host "When it says DONE, send: $proj\6v6\symmetric_results.zip"
+Write-Host "Phase 1 (core) zip, ready first:      $proj\6v6\symmetric_results.zip"
+Write-Host "Phase 2 (baselines) zip, at the end: $proj\6v6\symmetric_baselines.zip"
 Write-Host "If the PC restarts, run this same command again -- it continues where it stopped."

@@ -44,9 +44,14 @@ DATASETS = {
     "2v2": ("SUITE_DISTILLATION_2V2_SPEC.json", "SUITE_DISTILLATION_2V2_DATASET.json"),
     "4v4": ("SUITE_DISTILLATION_4V4_V2_SPEC.json", "SUITE_DISTILLATION_4V4_V2_DATASET.json"),
     "6v6": ("SUITE_DISTILLATION_6V6_SPEC.json", "SUITE_DISTILLATION_6V6_DATASET.json"),
+    # Symmetric role construction (SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json): both poles act with a
+    # split composite (pi_DA + frozen pi_A on A, pi_DB + frozen pi_B on B), k = ceil(N/3). Audited as
+    # their own family with 2v2_sym as the reference; never mixed with the asymmetric datasets.
+    **{f"{n}v{n}_sym": (f"SUITE_DISTILLATION_{n}V{n}_SYM_SPEC.json", f"SUITE_DISTILLATION_{n}V{n}_SYM_DATASET.json")
+       for n in (2, 4, 6)},
 }
 #: The CLOSEST_DEFENDS scale knob (CROSS_SCALE_CANONICAL_RECIPE_V1 ALLOWED_TO_DIFFER).
-K_BY_SCALE = {"2v2": 1, "4v4": 2, "6v6": 1}
+K_BY_SCALE = {"2v2": 1, "4v4": 2, "6v6": 1, "2v2_sym": 1, "4v4_sym": 2, "6v6_sym": 2}
 OUT = SD / "SUITE_DATASETS_CROSS_SCALE_AUDIT.json"
 #: Reviewed changes to files the collector executes, allowed between the reference (2v2) collection
 #: and a later one (PI 2026-09-29: identity = the executed code). Each entry pins exact blobs.
@@ -78,7 +83,13 @@ def audit_one(scale: str, spec_name: str, man_name: str, checks: list) -> dict:
         return {}
     spec, man = json.loads(sp.read_text(encoding="utf-8")), json.loads(mp.read_text(encoding="utf-8"))
     n = int(man.get("team_size", -1))
-    k = K_DEFEND_BY_SCALE.get(n)
+    symmetric = scale.endswith("_sym")
+    k = K_BY_SCALE[scale] if symmetric else K_DEFEND_BY_SCALE.get(n)
+    check("construction_matches_family",
+          (spec.get("ACTING_DEPLOYMENT_locked") or {}).get("construction", "asymmetric")
+          == (man.get("acting") or {}).get("construction", "asymmetric")
+          == ("symmetric" if symmetric else "asymmetric"),
+          (man.get("acting") or {}).get("construction"))
     check("manifest_FROZEN_DATASET", man.get("status") == "FROZEN_DATASET", man.get("status"))
     check("spec_FROZEN", str(spec.get("status", "")).startswith("FROZEN"), spec.get("status"))
     col = man.get("collector") or {}
@@ -103,10 +114,13 @@ def audit_one(scale: str, spec_name: str, man_name: str, checks: list) -> dict:
 
     act, kl = spec["ACTING_DEPLOYMENT_locked"], spec["KL_TEACHERS_locked"]
     pins = {"pi_D": act["Pole_A"]["pi_D"], "frozen_attack": act["Pole_A"]["frozen_attack_pi_A"],
-            "pi_B_act": act["Pole_B"], "pi_A_kl": kl["pi_A"], "pi_B_kl": kl["pi_B"]}
+            "pi_B_act": act["Pole_B"]["frozen_attack_pi_B"] if symmetric else act["Pole_B"],
+            "pi_A_kl": kl["pi_A"], "pi_B_kl": kl["pi_B"]}
     mact, mteach = man.get("acting") or {}, man.get("teachers") or {}
     mpins = {"pi_D": mact.get("pi_D"), "frozen_attack": mact.get("frozen_attack"), "pi_B_act": mact.get("pi_B"),
              "pi_A_kl": mteach.get("pi_A"), "pi_B_kl": mteach.get("pi_B")}
+    if symmetric:
+        pins["pi_DB"], mpins["pi_DB"] = act["Pole_B"]["pi_D"], mact.get("pi_DB")
     for name, pin in pins.items():
         f = ROOT / pin["path"]
         check(f"pin_{name}_file_sha", f.is_file() and _sha(f) == pin["sha256"], pin["sha256"][:16])
@@ -170,8 +184,13 @@ def main() -> int:
     ap.add_argument("--out", default=None, help="record path (default: the original 2v2/4v4 record)")
     a = ap.parse_args()
     scales = [s.strip() for s in a.scales.split(",") if s.strip()]
-    if scales[0] != "2v2" or any(s not in DATASETS for s in scales):
-        raise SystemExit(f"--scales must start with 2v2 and name only {list(DATASETS)}")
+    ref = scales[0]
+    # A single symmetric dataset may be audited on its own (per-dataset checks only): the school PC
+    # collects 6v6_sym without the 2v2_sym shards on disk.
+    single_sym = len(scales) == 1 and ref.endswith("_sym")
+    if ((ref not in ("2v2", "2v2_sym") and not single_sym) or any(s not in DATASETS for s in scales)
+            or any(s.endswith("_sym") != ref.endswith("_sym") for s in scales)):
+        raise SystemExit(f"--scales must start with 2v2 (or 2v2_sym), stay in one family, and name only {list(DATASETS)}")
     out_path = Path(a.out) if a.out else OUT
     checks: list = []
     got = {sc: audit_one(sc, *DATASETS[sc], checks) for sc in scales}
@@ -180,7 +199,7 @@ def main() -> int:
         checks.append({"scale": tag, "check": name, "ok": bool(ok), "detail": detail})
 
     if all(got.values()):
-        ref_m, ref_s = got["2v2"]["manifest"], got["2v2"]["spec"]
+        ref_m, ref_s = got[ref]["manifest"], got[ref]["spec"]
         sha_ref = ref_m["collector"]["git_sha"]
         for sc in scales[1:]:
             tag = f"x{sc}"
@@ -222,7 +241,7 @@ def main() -> int:
             cross(tag, "same_allocator_except_k", ar == am, [ar, am])
             cross(tag, "same_stored_keys", ref_s["DATASET"]["stored_obs_keys"] == s["DATASET"]["stored_obs_keys"])
             cross(tag, "same_n_per_pole", ref_s["DATASET"]["n_per_pole"] == s["DATASET"]["n_per_pole"])
-            cross(tag, "k_is_the_scale_knob", (got["2v2"]["k"], got[sc]["k"]) == (K_BY_SCALE["2v2"], K_BY_SCALE[sc]))
+            cross(tag, "k_is_the_scale_knob", (got[ref]["k"], got[sc]["k"]) == (K_BY_SCALE[ref], K_BY_SCALE[sc]))
     green = bool(checks) and all(c["ok"] for c in checks)
     for c in checks:
         print(f"  [{'OK' if c['ok'] else 'FAIL'}] {c['scale']:5s} {c['check']:44s} {'' if c['detail'] is None else str(c['detail'])[:110]}")

@@ -42,7 +42,7 @@ from experiments import run_state as rs  # noqa: E402
 from experiments import seed_registry as sr  # noqa: E402
 from experiments.eval_hog_psp_v3 import _mean_ci  # noqa: E402
 from experiments.eval_specialist_crossover_scaled import (  # noqa: E402
-    shared_block_all_sealed, shared_block_owner,
+    post_hoc_block, shared_block_all_sealed, shared_block_owner,
 )
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
@@ -58,8 +58,37 @@ ARM_KEY = {
 }
 
 
-def _spec_path(n: int) -> Path:
-    return SD / f"STANDARDIZED_{n}V{n}_SHARING_EVAL_SPEC.json"
+def _spec_path(n: int, tag: str = "") -> Path:
+    return SD / f"STANDARDIZED_{n}V{n}{'_' + tag if tag else ''}_SHARING_EVAL_SPEC.json"
+
+
+def _family(n: int, tag: str = "") -> str:
+    return f"{n}v{n}" + (f"_{tag.lower()}" if tag else "")
+
+
+def resolve_seeds(spec: dict, label: str) -> dict:
+    """The evaluation seeds. Default: a RESERVED shared block (lo..hi). When SEEDS names a frozen
+    seed_ids_file, a POST-HOC evaluation on exactly those seeds of an already-SPENT block, authorized
+    by the spec's POST_HOC_MATCHED_ROLE_ABLATIONS entry for this label (the same rule as the
+    specialist evaluator); no seed is spent and the block status never changes."""
+    S = spec["SEEDS"]
+    reg_id = str(S["registry_experiment_id"])
+    lo, hi = (int(x) for x in str(S["block"]).split(".."))
+    if not S.get("seed_ids_file"):
+        seeds = list(range(lo, hi + 1))
+        if len(seeds) != int(S["n"]):
+            raise SystemExit(f"FAIL-CLOSED: spec block {lo}..{hi} is not n={S['n']}")
+        return {"post_hoc": None, "seeds": seeds, "lo": lo, "hi": hi, "reg_id": reg_id,
+                "seed_class": str(S["seed_class"])}
+    f = ROOT / S["seed_ids_file"]
+    if not f.is_file() or _sha(f) != S.get("seed_ids_sha256"):
+        raise SystemExit(f"FAIL-CLOSED: {S['seed_ids_file']} missing or sha != SEEDS.seed_ids_sha256")
+    seeds = sorted({int(x) for x in json.loads(f.read_text(encoding="utf-8"))})
+    if len(seeds) != int(S["n"]):
+        raise SystemExit(f"FAIL-CLOSED: {f.name} holds {len(seeds)} seeds, spec n={S['n']}")
+    ph = post_hoc_block(spec, label, reg_id, lo, hi, SD, seeds=seeds)
+    return {"post_hoc": ph, "seeds": seeds, "lo": lo, "hi": hi, "reg_id": reg_id,
+            "seed_class": ph["seed_class"]}
 
 
 def _now() -> str:
@@ -107,10 +136,13 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true",
                     help="continue an interrupted run of this arm from its PARTIAL rows file "
                          "(fingerprint must match); with no PARTIAL file it starts fresh")
+    ap.add_argument("--spec-tag", default="", choices=("", "SYM"),
+                    help="SYM = the symmetric-role family (STANDARDIZED_<N>V<N>_SYM_SHARING_EVAL_SPEC.json)")
     args = ap.parse_args()
 
     N_AGENTS = int(args.team_size)
-    SPEC_PATH = _spec_path(N_AGENTS)
+    STAG = str(args.spec_tag)
+    SPEC_PATH = _spec_path(N_AGENTS, STAG)
     if not SPEC_PATH.is_file():
         raise SystemExit(
             f"FAIL-CLOSED: {SPEC_PATH.name} not found. Each scale needs its own frozen "
@@ -126,19 +158,15 @@ def main() -> int:
     arm = spec["ARMS"][arm_key]
     is_generalist = args.arm == "generalist"
     label = str(arm["label"])
-    SEEDS = spec["SEEDS"]
-    REG_ID = str(SEEDS["registry_experiment_id"])
-    seed_class = str(SEEDS["seed_class"])
-    lo, hi = (int(x) for x in str(SEEDS["block"]).split(".."))
-    seeds = list(range(lo, hi + 1))
-    if len(seeds) != int(SEEDS["n"]):
-        raise SystemExit(f"FAIL-CLOSED: spec block {lo}..{hi} is not n={SEEDS['n']}")
+    rsd = resolve_seeds(spec, label)
+    REG_ID, seed_class, lo, hi, seeds = rsd["reg_id"], rsd["seed_class"], rsd["lo"], rsd["hi"], rsd["seeds"]
+    posthoc = rsd["post_hoc"]
 
     OUT = SD / f"{label}_CROSSOVER_EVAL_RESULT.json"
     ROWS_CSV = SD / f"{label.lower()}_crossover_eval_rows.csv"
     PARTIAL = SD / f"{label.lower()}_crossover_eval_rows.PARTIAL.jsonl"
     PREAUDIT_FLAG = SD / f"{label}_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json"
-    LOG = SD / "suite_sharing_std" / f"{N_AGENTS}v{N_AGENTS}" / ARM_KEY[args.arm] / "crossover_eval.log"
+    LOG = SD / "suite_sharing_std" / _family(N_AGENTS, STAG) / ARM_KEY[args.arm] / "crossover_eval.log"
     EXP_ID = label
 
     ck = ROOT / arm["checkpoint"]
@@ -148,9 +176,14 @@ def main() -> int:
     if ck_sha != arm["sha256"]:
         raise SystemExit(f"REFUSING: checkpoint sha mismatch vs SPEC pin")
 
-    shared_block = shared_block_owner(REG_ID, label, lo, hi, seed_class)
-    print(f"  Rule 9: shared block {REG_ID} {lo}..{hi} [{seed_class}/RESERVED], "
-          f"label {label} declared among {shared_block.get('shared_by_labels')}")
+    if posthoc is not None:
+        shared_block = {}
+        print(f"  Rule 9: POST-HOC on SPENT block {REG_ID} {lo}..{hi} ({len(seeds)} frozen seeds; "
+              f"matched to {posthoc['primary_record']}); no seeds spent, block status unchanged")
+    else:
+        shared_block = shared_block_owner(REG_ID, label, lo, hi, seed_class)
+        print(f"  Rule 9: shared block {REG_ID} {lo}..{hi} [{seed_class}/RESERVED], "
+              f"label {label} declared among {shared_block.get('shared_by_labels')}")
 
     if OUT.is_file() or ROWS_CSV.is_file() or PREAUDIT_FLAG.is_file():
         raise SystemExit(f"REFUSING: an output for label {label!r} already exists; one-shot")
@@ -350,6 +383,8 @@ def main() -> int:
     fingerprint = {"label": label, "arm": args.arm, "team_size": N_AGENTS, "checkpoint_sha256": ck_sha,
                    "seeds": [lo, hi], "spec_sha256": _sha(SPEC_PATH),
                    "poles": {p: POLE_IDENTITY[p]["pole_config_hash"] for p in ("A", "B")}}
+    if posthoc is not None:          # only present when used, so earlier PARTIAL files still resume
+        fingerprint["seed_ids"] = seeds
     done = load_partial(PARTIAL, fingerprint) if PARTIAL.is_file() else {}
     if done:
         print(f"  RESUME: {len(done)} finished episode(s) read from {PARTIAL.name}", flush=True)
@@ -429,6 +464,7 @@ def main() -> int:
         checkpoints={"student": (ck, ck_sha)}, spec_path=SPEC_PATH, claims=claims,
         n_boot=N_BOOT, alpha=ALPHA, rng_seed=BOOTSTRAP_SEED,
         seed_class=seed_class, experiment_id=REG_ID,
+        registry_block=((lo, hi) if posthoc is not None else None),
     )
     # status is owned by seal(); do not set it here. Sealed != gate PASS.
     payload = {
@@ -444,10 +480,13 @@ def main() -> int:
         "checkpoint": str(ck.relative_to(ROOT)),
         "checkpoint_sha256": ck_sha,
         "seeds": {
-            "block": [seeds[0], seeds[-1]], "n": len(seeds),
+            "block": [lo, hi], "n": len(seeds),
             "shared_across_z_and_poles": True,
             "seed_class": seed_class, "registry_experiment_id": REG_ID,
             "shared_by_labels": shared_block.get("shared_by_labels"),
+            "seed_ids": (seeds if posthoc is not None else None),
+            "post_hoc": (None if posthoc is None else
+                         {"primary_record": posthoc["primary_record"], "block_status_unchanged": True}),
         },
         # The resolved experimental object each pole was evaluated on (Layer 3 reads this).
         "poles": POLE_IDENTITY,
@@ -464,7 +503,7 @@ def main() -> int:
     rs.seal(out_path=OUT, payload=payload, plan=plan, state=state, strict=False)
     sealed = json.loads(OUT.read_text(encoding="utf-8"))
     PARTIAL.unlink(missing_ok=True)       # the sealed rows CSV is now the record
-    if shared_block_all_sealed(shared_block, SD):
+    if posthoc is None and shared_block_all_sealed(shared_block, SD):
         sr.set_status(REG_ID, "SPENT", note=f"all shared labels sealed (last: {label})")
     print(f"\n  -> {OUT} ({sealed.get('status')})")
     return 0

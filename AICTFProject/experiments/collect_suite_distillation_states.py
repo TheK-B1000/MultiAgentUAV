@@ -2,8 +2,11 @@
 
 Pole A acts with the sealed DEFEND_ATTACK_SPLIT composite (pi_D + frozen attack)
 so the CLOSEST_DEFENDS allocator is live in the state distribution. Pole B acts
-with entity-repair pi_B. Entity tensors and roles are stored so entity-repair
-KL teachers can be queried at distillation time.
+with entity-repair pi_B -- or, when the spec declares
+ACTING_DEPLOYMENT_locked.construction == "symmetric", with the same split composite
+built from pi_B (pi_DB + frozen pi_B), and k_defend is the spec's own
+(SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json). Entity tensors and roles are stored so
+entity-repair KL teachers can be queried at distillation time.
 
 Implements SUITE_DISTILLATION_<N>V<N>_SPEC.json. One-shot: refuses if the dataset
 manifest already exists.
@@ -47,7 +50,14 @@ def _spec_path(n: int, tag: str = "") -> Path:
     return SD / f"SUITE_DISTILLATION_{n}V{n}{_tag(tag)}_SPEC.json"
 
 
+#: The symmetric-role family's tag. Its shards live in their own tree, never beside an asymmetric set.
+SYMMETRIC_TAG = "SYM"
+SYMMETRIC_ROOT = SD / "suite_distillation_symmetric"
+
+
 def _out_dir(n: int, smoke: bool, tag: str = "") -> Path:
+    if tag == SYMMETRIC_TAG:
+        return SYMMETRIC_ROOT / (f"{n}v{n}" + ("_SMOKE" if smoke else "")) / "states"
     stem = f"suite_distillation_{n}v{n}{_tag(tag).lower()}" + ("_SMOKE" if smoke else "")
     return SD / stem / "states"
 
@@ -127,6 +137,67 @@ def shard_is_resumable(shard: Path, fingerprint: str) -> dict | None:
         return None
 
 
+def spec_is_symmetric(spec: dict) -> bool:
+    """True when the spec builds Pole B the same way as Pole A (pi_DB + frozen pi_B)."""
+    c = (spec.get("ACTING_DEPLOYMENT_locked") or {}).get("construction", "asymmetric")
+    if c not in ("asymmetric", "symmetric"):
+        raise SystemExit(f"REFUSING: unknown ACTING_DEPLOYMENT_locked.construction {c!r}")
+    return c == "symmetric"
+
+
+def check_symmetric_acting(act: dict, kl: dict) -> None:
+    """Fail closed unless a symmetric spec names both composites and keeps the defenders out of the
+    teacher set: Pole_A = {pi_D, frozen_attack_pi_A}, Pole_B = {pi_D, frozen_attack_pi_B}, each pin a
+    {path, sha256}; the attackers are the KL teachers; a defender is never a teacher."""
+    need = {"Pole_A": ("pi_D", "frozen_attack_pi_A"), "Pole_B": ("pi_D", "frozen_attack_pi_B")}
+    for pole, keys in need.items():
+        blk = act.get(pole)
+        for k in keys:
+            pin = blk.get(k) if isinstance(blk, dict) else None
+            if not (isinstance(pin, dict) and pin.get("path") and len(str(pin.get("sha256", ""))) == 64):
+                raise SystemExit(f"REFUSING: symmetric spec needs ACTING_DEPLOYMENT_locked.{pole}.{k} "
+                                 f"as {{path, sha256}}")
+    if act["Pole_A"]["frozen_attack_pi_A"]["sha256"] != kl["pi_A"]["sha256"]:
+        raise SystemExit("REFUSING: symmetric Pole A attacker != KL teacher pi_A")
+    if act["Pole_B"]["frozen_attack_pi_B"]["sha256"] != kl["pi_B"]["sha256"]:
+        raise SystemExit("REFUSING: symmetric Pole B attacker != KL teacher pi_B")
+    teachers = {kl["pi_A"]["sha256"], kl["pi_B"]["sha256"]}
+    da, db = act["Pole_A"]["pi_D"]["sha256"], act["Pole_B"]["pi_D"]["sha256"]
+    if da in teachers or db in teachers or da == db:
+        raise SystemExit("REFUSING: a defender checkpoint equals a teacher or the other defender")
+
+
+def check_tag_matches_construction(spec: dict, tag: str) -> bool:
+    """The symmetric construction runs only under --dataset-tag SYM, and that tag only with it, so a
+    symmetric set can never land on an asymmetric path (or the reverse). Returns SYMMETRIC."""
+    sym = spec_is_symmetric(spec)
+    if sym != (tag == SYMMETRIC_TAG):
+        raise SystemExit(f"REFUSING: --dataset-tag {tag or '(none)'} with a "
+                         f"{'symmetric' if sym else 'asymmetric'} spec; the symmetric construction "
+                         f"runs only under --dataset-tag {SYMMETRIC_TAG}, and that tag only with it")
+    return sym
+
+
+def acting_action(pole: str, obs, pi_D, frozen_attack, pi_B, pi_DB):
+    """Pole A: split composite (pi_D on DEFEND, frozen pi_A on ATTACK). Pole B: plain pi_B, or -- in
+    the symmetric construction (pi_DB given) -- the same split composite built from pi_B."""
+    if pole == "A":
+        return _composite_predict(pi_D, frozen_attack, obs)
+    if pi_DB is not None:
+        return _composite_predict(pi_DB, pi_B, obs)
+    action, _ = pi_B.predict(obs, deterministic=True)
+    return action
+
+
+def symmetric_k_defend(spec: dict, n_agents: int) -> int:
+    """k for a symmetric spec: the spec's ALLOCATOR_locked.k_defend, which must be ceil(N/3)."""
+    k = int(spec["ALLOCATOR_locked"]["k_defend"])
+    want = -(-n_agents // 3)
+    if k != want:
+        raise SystemExit(f"REFUSING: symmetric k_defend={k} != ceil({n_agents}/3)={want}")
+    return k
+
+
 def _composite_predict(trained_policy, attack_policy, obs) -> np.ndarray:
     from rl.custom_ppo.split_attack_defend import splice_actions
     import torch
@@ -164,7 +235,6 @@ def main() -> int:
     device = args.device
     smoke = bool(args.smoke)
     N_AGENTS = int(args.team_size)
-    K_DEFEND = K_DEFEND_BY_SCALE[N_AGENTS]
     TAG = str(args.dataset_tag or "").strip().upper()
     if TAG and not TAG.isalnum():
         raise SystemExit(f"REFUSING: --dataset-tag must be alphanumeric, got {TAG!r}")
@@ -179,6 +249,8 @@ def main() -> int:
     if not str(spec.get("status", "")).startswith("FROZEN"):
         raise SystemExit(f"REFUSING: {SPEC_PATH.name} not frozen: {spec.get('status')!r}")
 
+    SYMMETRIC = check_tag_matches_construction(spec, TAG)
+    K_DEFEND = (symmetric_k_defend(spec, N_AGENTS) if SYMMETRIC else K_DEFEND_BY_SCALE[N_AGENTS])
     n_per_pole = int(args.n_per_pole) if args.n_per_pole else int(spec["DATASET"]["n_per_pole"])
     if smoke:
         n_per_pole = max(min(n_per_pole, 12), 10)
@@ -260,13 +332,17 @@ def main() -> int:
 
     act = spec["ACTING_DEPLOYMENT_locked"]
     kl = spec["KL_TEACHERS_locked"]
+    if SYMMETRIC:
+        check_symmetric_acting(act, kl)
     pins = {
         "pi_D": act["Pole_A"]["pi_D"],
         "frozen_attack": act["Pole_A"]["frozen_attack_pi_A"],
-        "pi_B_act": act["Pole_B"],
+        "pi_B_act": act["Pole_B"]["frozen_attack_pi_B"] if SYMMETRIC else act["Pole_B"],
         "pi_A_kl": kl["pi_A"],
         "pi_B_kl": kl["pi_B"],
     }
+    if SYMMETRIC:
+        pins["pi_DB"] = act["Pole_B"]["pi_D"]
     paths = {}
     for name, pin in pins.items():
         p = ROOT / pin["path"]
@@ -291,6 +367,17 @@ def main() -> int:
         str(paths["frozen_attack"]), obs_space, act_space, device=device
     )
     pi_B = load_custom_ppo_policy(str(paths["pi_B_act"]), obs_space, act_space, device=device)
+    pi_DB = (load_custom_ppo_policy(str(paths["pi_DB"]), obs_space, act_space, device=device)
+             if SYMMETRIC else None)
+    if pi_DB is not None:
+        if not bool(getattr(pi_DB.model, "role_conditioning_enabled", False)):
+            raise SystemExit("REFUSING: pi_DB must be role-conditioned")
+        if getattr(pi_DB.model, "entity_encoder", None) is None:
+            raise SystemExit("REFUSING: pi_DB expects entity repair")
+        if bool(getattr(pi_B.model, "role_conditioning_enabled", False)):
+            raise SystemExit("REFUSING: frozen pi_B (B-side attack) must NOT be role-conditioned")
+        if bool(getattr(pi_DB.model, "uses_latent_strategy", False)):
+            raise SystemExit("REFUSING: pi_DB is latent-conditioned")
 
     if not bool(getattr(pi_D.model, "role_conditioning_enabled", False)):
         raise SystemExit("REFUSING: pi_D must be role-conditioned")
@@ -380,6 +467,8 @@ def main() -> int:
                 pi_D.reset_strategy()
                 frozen_attack.reset_strategy()
                 pi_B.reset_strategy()
+                if pi_DB is not None:
+                    pi_DB.reset_strategy()
                 core._bt_profile_override = None
                 core._sds_opening_hold_steps = 0
                 genomes = (
@@ -425,10 +514,7 @@ def main() -> int:
                         rows["decision_mask"].append(d_np)
                         rows["step"].append(t)
 
-                    if pole == "A":
-                        action = _composite_predict(pi_D, frozen_attack, obs)
-                    else:
-                        action, _ = pi_B.predict(obs, deterministic=True)
+                    action = acting_action(pole, obs, pi_D, frozen_attack, pi_B, pi_DB)
                     env.step_async(action)
                     obs, _r, done, info = env.step_wait()
                     obs["global_state"] = env.state()
@@ -505,7 +591,11 @@ def main() -> int:
         },
         "acting": {
             "Pole_A": "DEFEND_ATTACK_SPLIT(pi_D + frozen_attack)",
-            "Pole_B": "pi_B entity-repair",
+            "Pole_B": ("DEFEND_ATTACK_SPLIT(pi_DB + frozen pi_B)" if SYMMETRIC
+                       else "pi_B entity-repair"),
+            "construction": "symmetric" if SYMMETRIC else "asymmetric",
+            **({"pi_DB": {"path": str(pins["pi_DB"]["path"]), "sha256": pins["pi_DB"]["sha256"]}}
+               if SYMMETRIC else {}),
             "pi_D": {"path": str(pins["pi_D"]["path"]), "sha256": pins["pi_D"]["sha256"]},
             "frozen_attack": {
                 "path": str(pins["frozen_attack"]["path"]),
@@ -523,6 +613,17 @@ def main() -> int:
         "collector": {"module": "experiments/collect_suite_distillation_states.py",
                       "spec": SPEC_PATH.name, "spec_sha256": _sha(SPEC_PATH), **ident},
         "fingerprint": json.loads(fingerprint),
+        # Self-description of the symmetric family: the defenders choose which states are visited;
+        # the KL teachers stay the repaired pi_A / pi_B.
+        **({"dataset_mode": "symmetric_roles", "symmetric_roles": {
+            "team_size": N_AGENTS, "k_defend": K_DEFEND,
+            "episodes_per_regime": n_per_pole,
+            "pole_A": {"attacker": pins["frozen_attack"], "defender": pins["pi_D"]},
+            "pole_B": {"attacker": pins["pi_B_act"], "defender": pins["pi_DB"]},
+            "teacher_A": pins["pi_A_kl"], "teacher_B": pins["pi_B_kl"],
+            "defenders_are_not_teachers": True,
+            "spec": SPEC_PATH.name, "spec_sha256": _sha(SPEC_PATH), "git_sha": ident["git_sha"],
+        }} if SYMMETRIC else {}),
         "resumed_shards": sum(1 for s_ in shards if s_.get("resumed")),
         "device": device,
         "decision_rows_only": True,
