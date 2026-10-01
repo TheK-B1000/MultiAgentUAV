@@ -58,6 +58,11 @@
     {
       "utc": "2026-10-01T17:00:00Z",
       "what": "4v4 registry id corrected to the id the block is actually registered under; no seed had been used"
+    },
+    {
+      "utc": "2026-10-01T20:05:00Z",
+      "what": "128-seed NOROLE_MATCHED launches for 2v2/4v4 are ABANDONED for the current diagnostic. Do not resume. Successor is SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json (frozen Ours top-50 seed_ids only). Preserve any PARTIAL/RESULT that later turns up as provenance only."
     }
-  ]
+  ],
+  "SUPERSEDED_FOR_TOP50_SYMMETRY_DIAGNOSTIC_BY": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json"
 }
