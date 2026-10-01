@@ -207,6 +207,32 @@ def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
                 pass
 
 
+def _require_symmetric_role_authorization(args, policy: str) -> None:
+    """Policy B (or any non-A policy) may get the role-allocated defender construction only when a
+    frozen symmetric spec lists exactly this run (PI 2026-10-01: A and B receive the same
+    construction). Fails closed on any mismatch; policy A's behaviour is unchanged."""
+    import hashlib
+    sp = str(getattr(args, "symmetric_role_spec", "") or "")
+    if not sp or not Path(sp).is_file():
+        raise SystemExit(f"FAIL-CLOSED: --policy {policy} with role/split/defend-teacher flags requires "
+                         f"--symmetric-role-spec (a frozen SYMMETRIC_ROLE_DIAGNOSTIC_SPEC.json)")
+    spec = json.loads(Path(sp).read_text(encoding="utf-8"))
+    if not str(spec.get("status", "")).startswith("FROZEN"):
+        raise SystemExit(f"FAIL-CLOSED: {Path(sp).name} is not frozen")
+    want = {"team_size": int(args.team_size), "policy": policy, "role_k_defend": int(args.role_k_defend or 0),
+            "run_label_suffix": str(args.run_label_suffix or "")}
+    entry = next((e for e in spec.get("TRAINING_AUTHORIZED", [])
+                  if all(e.get(k) == v for k, v in want.items())), None)
+    if entry is None:
+        raise SystemExit(f"FAIL-CLOSED: {Path(sp).name} does not authorize {want}")
+    frozen = Path(str(args.split_attack_defend_frozen_ckpt or ""))
+    if not frozen.is_file() or hashlib.sha256(frozen.read_bytes()).hexdigest() != entry["specialist_sha256"]:
+        raise SystemExit("FAIL-CLOSED: frozen ATTACK checkpoint is not the authorized repaired specialist")
+    if Path(str(args.load_path or "")).resolve() != frozen.resolve():
+        raise SystemExit("FAIL-CLOSED: the defender must be warm-started from the same repaired specialist "
+                         "that plays ATTACK (identical construction to pi_DA)")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Nominal 4v4/6v6 pole-specialist PPO launcher.")
     ap.add_argument("--team-size", type=int, required=True, choices=SUPPORTED_TEAM_SIZES)
@@ -348,6 +374,10 @@ def main() -> int:
                          "gated to DEFEND slots only. Requires role-conditioning-enabled and "
                          "role-fixed-for-episode. See "
                          "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json.")
+    ap.add_argument("--symmetric-role-spec", default="",
+                    help="frozen SYMMETRIC_ROLE_DIAGNOSTIC_SPEC.json authorizing a role-allocated "
+                         "defender for a policy other than A (PI 2026-10-01: B gets the identical "
+                         "construction). Required for --policy B with split/defend-teacher flags.")
     ap.add_argument("--split-attack-defend-frozen-ckpt", default="",
                     help="path to the frozen pi_A checkpoint used for ATTACK-role slots")
     ap.add_argument("--split-attack-defend-frozen-ckpt-sha256", default="",
@@ -759,11 +789,7 @@ def main() -> int:
                 "loss (SINGLE_AXIS_v1)"
             )
         if policy != "A":
-            raise SystemExit(
-                "FAIL-CLOSED: DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC authorizes "
-                "training pi_A only for this experiment; got --policy "
-                f"{policy}"
-            )
+            _require_symmetric_role_authorization(args, policy)
 
     if cfg.split_attack_defend_enabled:
         if not cfg.role_conditioning_enabled:
@@ -798,10 +824,7 @@ def main() -> int:
                 "loss (SINGLE_AXIS discipline)"
             )
         if policy != "A":
-            raise SystemExit(
-                "FAIL-CLOSED: DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC authorizes training "
-                f"pi_A only for this experiment; got --policy {policy}"
-            )
+            _require_symmetric_role_authorization(args, policy)
 
     if cfg.assignment_conditioning_enabled:
         if cfg.assignment_hold_ticks != 8:

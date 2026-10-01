@@ -134,7 +134,8 @@ def shared_block_all_sealed(block: dict, sd: Path) -> bool:
     return True
 
 
-def post_hoc_block(spec: dict, label: str, reg_id: str, lo: int, hi: int, sd: Path) -> dict:
+def post_hoc_block(spec: dict, label: str, reg_id: str, lo: int, hi: int, sd: Path,
+                   seeds: list[int] | None = None) -> dict:
     """Authorize a post-hoc matched ablation on an ALREADY-SPENT block (PI 2026-10-01).
 
     The only way this evaluator reuses seeds: the frozen spec lists the label under
@@ -142,10 +143,21 @@ def post_hoc_block(spec: dict, label: str, reg_id: str, lo: int, hi: int, sd: Pa
     exactly this range and is SPENT (never RESERVED -- this path cannot spend fresh seeds); and the
     primary record it is matched to was sealed on exactly this block. The block's status is never
     changed. Results are post-hoc ablations, not confirmatory evidence.
+
+    A frozen seed SUBSET (the symmetric-role top-50 diagnostic) is allowed only when the entry lists
+    ``seed_ids``: the evaluated seeds must equal that list exactly and lie inside the block; lo..hi
+    then refer to the block, not to the evaluated seeds.
     """
     entry = (spec.get("POST_HOC_MATCHED_ROLE_ABLATIONS") or {}).get(label)
     if not isinstance(entry, dict):
         raise SystemExit(f"REFUSING: {label} is not a post-hoc ablation of this spec")
+    if "seed_ids" in entry or seeds is not None:
+        frozen = sorted(int(s) for s in entry.get("seed_ids") or [])
+        if seeds is None or sorted(seeds) != frozen:
+            raise SystemExit(f"REFUSING: {label} must evaluate exactly its frozen seed_ids ({len(frozen)} seeds)")
+        lo, hi = (int(x) for x in str(entry.get("block", "0..-1")).split(".."))
+        if not frozen or not all(lo <= s <= hi for s in frozen):
+            raise SystemExit(f"REFUSING: {label} seed_ids are not inside its block {lo}..{hi}")
     if entry.get("registry_experiment_id") != reg_id or entry.get("block") != f"{lo}..{hi}":
         raise SystemExit(f"REFUSING: {label} is authorized on {entry.get('registry_experiment_id')} "
                          f"{entry.get('block')}, not {reg_id} {lo}..{hi}")
@@ -160,7 +172,7 @@ def post_hoc_block(spec: dict, label: str, reg_id: str, lo: int, hi: int, sd: Pa
     blk = (json.loads(prim.read_text(encoding="utf-8")).get("seeds") or {}).get("block")
     if list(blk or []) != [lo, hi]:
         raise SystemExit(f"REFUSING: {prim.name} was sealed on {blk}, not {lo}..{hi}")
-    return {**entry, "seed_class": b["seed_class"]}
+    return {**entry, "seed_class": b["seed_class"], "block_range": (lo, hi)}
 
 
 def resolve_perturbation(family: str, severity: str) -> dict | None:
@@ -203,8 +215,18 @@ def main() -> int:
     ap.add_argument("--spec", required=True, help="frozen spec governing this evaluation")
     ap.add_argument("--pi-a-path", required=True)
     ap.add_argument("--pi-b-path", required=True)
-    ap.add_argument("--seed-base", type=int, required=True)
+    ap.add_argument("--seed-base", type=int, default=None)
     ap.add_argument("--n-seeds", type=int, default=64)
+    ap.add_argument("--seed-list", default="",
+                    help="JSON file holding an explicit list of evaluation seeds (non-contiguous allowed); "
+                         "replaces --seed-base/--n-seeds. Only with --post-hoc-ablation-spec, whose entry "
+                         "must list exactly these seeds.")
+    ap.add_argument("--frozen-attack-path-b", default="",
+                    help="frozen checkpoint for ATTACK-role slots of the pi_B side (symmetric role "
+                         "construction, PI 2026-10-01): --pi-b-path is then pi_DB, spliced with this "
+                         "exactly as --frozen-attack-path is spliced with pi_DA")
+    ap.add_argument("--frozen-attack-path-b-sha256", default="",
+                    help="expected sha256 of --frozen-attack-path-b (fail-closed on mismatch)")
     ap.add_argument("--label", required=True,
                     help="output prefix, e.g. EXPLORATORY_4V4; never omitted so an exploratory "
                          "result cannot be written under a confirmatory name")
@@ -262,7 +284,16 @@ def main() -> int:
     N = int(args.team_size)
     label = str(args.label)
     pert = resolve_perturbation(args.perturbation, args.severity)
-    seeds = list(range(int(args.seed_base), int(args.seed_base) + int(args.n_seeds)))
+    if args.seed_list:
+        if args.seed_base is not None or not args.post_hoc_ablation_spec:
+            raise SystemExit("REFUSING: --seed-list replaces --seed-base and requires --post-hoc-ablation-spec")
+        seeds = sorted({int(s) for s in json.loads(Path(args.seed_list).read_text(encoding="utf-8"))})
+        if not seeds:
+            raise SystemExit("REFUSING: --seed-list is empty")
+    else:
+        if args.seed_base is None:
+            raise SystemExit("REFUSING: --seed-base (or --seed-list) is required")
+        seeds = list(range(int(args.seed_base), int(args.seed_base) + int(args.n_seeds)))
     EXP_ID = f"{label}_SPECIALIST_CROSSOVER"
     lo, hi = int(seeds[0]), int(seeds[-1])
 
@@ -288,10 +319,13 @@ def main() -> int:
     if args.post_hoc_ablation_spec:
         if Path(args.post_hoc_ablation_spec).resolve() != spec_path.resolve():
             raise SystemExit("REFUSING: --post-hoc-ablation-spec must be the --spec itself")
-        posthoc = post_hoc_block(spec, label, REG_ID, lo, hi, SD)
+        posthoc = post_hoc_block(spec, label, REG_ID, lo, hi, SD,
+                                 seeds=(seeds if args.seed_list else None))
         seed_class = posthoc["seed_class"]
+        lo, hi = posthoc["block_range"]          # the registered block (== the seeds unless a frozen subset)
         print(f"  Rule 9: POST-HOC matched ablation on SPENT block {REG_ID} {lo}..{hi} "
-              f"(matched to {posthoc['primary_record']}); no seeds spent, block status unchanged")
+              f"({len(seeds)} seeds; matched to {posthoc['primary_record']}); no seeds spent, "
+              f"block status unchanged")
     elif REG_ID != EXP_ID:
         shared_block = shared_block_owner(REG_ID, label, lo, hi, seed_class)
         print(f"  Rule 9: shared block {REG_ID} {lo}..{hi} [{seed_class}/RESERVED], "
@@ -341,6 +375,16 @@ def main() -> int:
                 f"REFUSING: frozen attack checkpoint hash mismatch for {frozen_attack_ckpt_path}: "
                 f"{actual_fap} != {expected_fap}"
             )
+    frozen_attack_b_ckpt_path: Path | None = None
+    if str(args.frozen_attack_path_b or ""):
+        if not args.role_fixed_for_episode:
+            raise SystemExit("REFUSING: --frozen-attack-path-b requires --role-fixed-for-episode")
+        frozen_attack_b_ckpt_path = Path(str(args.frozen_attack_path_b))
+        if not frozen_attack_b_ckpt_path.is_file():
+            raise SystemExit(f"REFUSING: frozen attack (B) checkpoint missing: {frozen_attack_b_ckpt_path}")
+        want_b = str(args.frozen_attack_path_b_sha256 or "").lower()
+        if not want_b or _sha(frozen_attack_b_ckpt_path) != want_b:
+            raise SystemExit("REFUSING: --frozen-attack-path-b needs a matching --frozen-attack-path-b-sha256")
 
     import torch
     from experiments.opponent_spec import (
@@ -442,6 +486,20 @@ def main() -> int:
             )
         if tuple(frozen_attack_policy.model.action_dims) != tuple(policies["pi_A"].model.action_dims):
             raise SystemExit("REFUSING: --frozen-attack-path action space differs from pi_A")
+
+    frozen_attack_policy_b = None
+    if frozen_attack_b_ckpt_path is not None:
+        # Symmetric role construction: pi_B side = pi_DB on DEFEND + frozen repaired pi_B on ATTACK,
+        # held to exactly the same checks as the pi_A side.
+        if not bool(getattr(policies["pi_B"].model, "role_conditioning_enabled", False)):
+            raise SystemExit("REFUSING: --frozen-attack-path-b requires --pi-b-path to be role-conditioned (pi_DB)")
+        frozen_attack_policy_b = load_custom_ppo_policy(str(frozen_attack_b_ckpt_path), obs_space, act_space,
+                                                        device=device)
+        if bool(getattr(frozen_attack_policy_b.model, "uses_latent_strategy", False)) or \
+                bool(getattr(frozen_attack_policy_b.model, "role_conditioning_enabled", False)):
+            raise SystemExit("REFUSING: --frozen-attack-path-b must be a non-latent, non-role specialist")
+        if tuple(frozen_attack_policy_b.model.action_dims) != tuple(policies["pi_B"].model.action_dims):
+            raise SystemExit("REFUSING: --frozen-attack-path-b action space differs from pi_B")
 
     # Rule-role policies require obs['roles'] at predict time (fail-closed in
     # CustomPPOInferencePolicy). Inject the same geometric RoleHoldState path
@@ -639,6 +697,10 @@ def main() -> int:
     }
     if pert is not None:            # absent for nominal, so pre-existing PARTIAL files still resume
         fingerprint["perturbation"] = pert
+    if args.seed_list:              # same rule: only present when used
+        fingerprint["seed_ids"] = seeds
+    if frozen_attack_b_ckpt_path is not None:
+        fingerprint["frozen_attack_b_sha256"] = _sha(frozen_attack_b_ckpt_path)
     done = load_partial(PARTIAL, fingerprint) if PARTIAL.is_file() else {}
     if done:
         print(f"  RESUME: {len(done)} finished episode(s) read from {PARTIAL.name}", flush=True)
@@ -654,7 +716,7 @@ def main() -> int:
         if (name, pole, seed) in done:
             rows.append(done[(name, pole, seed)])
         else:
-            cell_attack_policy = frozen_attack_policy if name == "pi_A" else None
+            cell_attack_policy = frozen_attack_policy if name == "pi_A" else frozen_attack_policy_b
             row = {"policy": name, "pole": pole, "seed": seed,
                    **run_cell(policies[name], pole, seed, attack_policy=cell_attack_policy)}
             with PARTIAL.open("a", encoding="utf-8") as fh:
@@ -719,6 +781,7 @@ def main() -> int:
         spec_path=spec_path, claims=claims,
         n_boot=N_BOOT, alpha=ALPHA, rng_seed=BOOTSTRAP_SEED,
         seed_class=seed_class, experiment_id=REG_ID,
+        registry_block=((lo, hi) if args.seed_list else None),
     )
     # status is owned by seal(); do not set it here. Sealed != gate PASS.
     payload = {
@@ -756,6 +819,12 @@ def main() -> int:
             "live_config_hash", "hashes_match")} for p in ("A", "B")},
         "PRIMARY_GATE": {"delta_A": delta_a, "delta_B": delta_b, "passes": gate_passes},
         "checkpoints": {n: _sha(paths[n]) for n in POLICIES},
+        "split_policy_pi_B": (
+            {"pi_D_path": str(paths["pi_B"]), "frozen_attack_path": str(frozen_attack_b_ckpt_path),
+             "frozen_attack_sha256": _sha(frozen_attack_b_ckpt_path)}
+            if frozen_attack_b_ckpt_path is not None else None
+        ),
+        "seed_ids": (seeds if args.seed_list else None),
         "split_policy_pi_A": (
             {"pi_D_path": str(paths["pi_A"]), "frozen_attack_path": str(frozen_attack_ckpt_path),
              "frozen_attack_sha256": _sha(frozen_attack_ckpt_path)}

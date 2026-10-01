@@ -192,6 +192,10 @@ class AuditPlan:
     tolerance: float = 1e-6                     # sealed values are rounded to 6 dp
     seed_class: str | None = None               # "sealed_confirmatory" | "exploratory" | "smoke"
     experiment_id: str | None = None            # registry owner of the seed block, if any
+    #: (lo, hi) of the registered block when the evaluated seeds are a SUBSET of it (a frozen seed
+    #: list on an already-spent block, post-hoc). The registry check then uses the block itself and
+    #: every evaluated seed must lie inside it. None = the seeds are the whole block (unchanged).
+    registry_block: tuple | None = None
 
 
 class CheckResult(NamedTuple):
@@ -401,8 +405,13 @@ def run_audit(plan: AuditPlan) -> dict:
             # run fails its own seal. check_block auto-allows ONLY an exact
             # same-experiment, same-range match, so passing the owner cannot wave
             # through a shifted or widened block.
-            ok, msg = check_block(min(want), max(want), plan.seed_class,
+            lo, hi = (plan.registry_block if plan.registry_block is not None else (min(want), max(want)))
+            ok, msg = check_block(int(lo), int(hi), plan.seed_class,
                                   experiment_id=plan.experiment_id)
+            if plan.registry_block is not None:
+                outside = [s for s in want if not (int(lo) <= int(s) <= int(hi))]
+                ok = ok and not outside
+                msg = f"{msg}; seed subset of {lo}..{hi}: {len(want)} seeds, {len(outside)} outside"
             add("seed_class", True, ok, msg, seed_class=plan.seed_class,
                 experiment_id=plan.experiment_id)
         except ImportError:
