@@ -29,17 +29,16 @@ figures. Standard deviations in the tables are computed across the per-seed
 paired win differences. Since each per-seed win difference takes values in
 \(\{-1,0,+1\}\), the standard deviation can be large relative to the mean.
 
-The 2v2 and 4v4 results are confirmatory evaluations with \(n=128\) seeds.
-The 6v6 result is the sealed exploratory evaluation with \(n=64\) seeds and
-is therefore reported separately as exploratory rather than confirmatory.
+All three results are confirmatory evaluations with \(n=128\) fresh seeds.
+(An earlier exploratory 6v6 evaluation with \(n=64\) seeds gave
+\(\Delta_A=+0.016\), \(\Delta_B=+0.078\); it remains on record.)
 
 \begin{table}[t]
 \centering
 \caption{Specialization effects of the proposed role-allocated system across
 team sizes. Values are mean $\pm$ standard deviation across evaluation seeds.
 Positive $\Delta_A$ and $\Delta_B$ indicate specialization in the intended
-direction. The 2v2 and 4v4 rows are confirmatory evaluations; the 6v6 row is
-exploratory.}
+direction. All rows are confirmatory evaluations on 128 fresh seeds.}
 \label{tab:main_specialization}
 \begin{tabular}{c|c|cc}
 \hline
@@ -53,30 +52,31 @@ Team size & Evaluation & $\Delta_A$ & $\Delta_B$ \\
 & $+0.156 \pm 0.657$
 & $+0.406 \pm 0.620$ \\ % DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1
 
-6v6 & Exploratory
-& $+0.016 \pm 0.418$
-& $+0.078 \pm 0.370$ \\ % EXPLORATORY_6V6_SPLIT_K1
+6v6 & Confirmatory
+& $+0.062 \pm 0.411$
+& $+0.117 \pm 0.346$ \\ % STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY (exploratory n=64: EXPLORATORY_6V6_SPLIT_K1 +0.016/+0.078)
 \hline
 \end{tabular}
 \end{table}
 
 The mean specialization effects are positive at all three team sizes. The
 separation is substantially larger at 2v2 and 4v4 than at 6v6. At 6v6,
-$\Delta_A=+0.016$ and $\Delta_B=+0.078$, indicating that specialization
+$\Delta_A=+0.062$ and $\Delta_B=+0.117$, indicating that specialization
 remains in the intended direction in mean, but the difference in binary win
 rate between the policies is small.
 
 One possible explanation is saturation of the binary win-rate metric at the
 larger team size. Both 6v6 policies achieve high absolute win rates against
 the evaluated opponents, leaving relatively little room for specialization to
-appear as a difference in final win/loss outcome. We therefore also examine
-the paired score margin obtained from the same sealed 64-seed exploratory
-evaluation.
+appear as a difference in final win/loss outcome (on the confirmatory seeds
+the two 6v6 policies win between $0.86$ and $0.98$ of games on each pole). We
+therefore also examine the paired score margin obtained from the same sealed
+128-seed confirmatory evaluation.
 
 \begin{table}[t]
 \centering
 \caption{Secondary 6v6 analysis using paired score-margin differences from the
-same 64 seeds as the exploratory win-rate evaluation. On Pole A, the advantage
+same 128 seeds as the confirmatory win-rate evaluation. On Pole A, the advantage
 is defined as the score margin of $\pi_A$ minus that of $\pi_B$; on Pole B,
 the direction is reversed. Bootstrap confidence intervals use 20,000
 resamples.}
@@ -85,16 +85,17 @@ resamples.}
 \hline
 Pole & Mean advantage & Std. dev. & 95\% bootstrap CI \\
 \hline
-A & $+0.750$ & $1.141$ & $[+0.469,\,+1.016]$ \\
-B & $+0.625$ & $1.351$ & $[+0.297,\,+0.953]$ \\
+A & $+0.812$ & $1.344$ & $[+0.578,\,+1.047]$ \\ % STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY margin column
+B & $+0.734$ & $1.187$ & $[+0.531,\,+0.938]$ \\ % (exploratory n=64: +0.750 [+0.469,+1.016] / +0.625 [+0.297,+0.953])
 \hline
 \end{tabular}
 \end{table}
 
 Although the 6v6 binary win-rate differences are small, the intended
 specialist has a larger score margin on its corresponding pole. The paired
-score-margin advantage is \(+0.750\) on Pole A and \(+0.625\) on Pole B, with
-both bootstrap intervals remaining above zero. This discrepancy between weak
+score-margin advantage is \(+0.812\) on Pole A and \(+0.734\) on Pole B, with
+both bootstrap intervals remaining above zero (the earlier 64-seed exploratory
+evaluation gave \(+0.750\) and \(+0.625\)). This discrepancy between weak
 binary win-rate separation and stronger score-margin separation is consistent
 with saturation of the binary win-rate metric at 6v6, although it does not by
 itself establish that saturation is the cause.
@@ -117,7 +118,9 @@ evaluated on the same seeds as the corresponding no-role specialist baseline.
 It is therefore distinct from the independent 2v2 confirmatory result reported
 in Table~\ref{tab:main_specialization}. For 4v4, the available no-role and
 role-allocated results come from separate sealed evaluations and should not be
-interpreted as a seed-by-seed paired comparison.
+interpreted as a seed-by-seed paired comparison. For 6v6, the no-role baseline
+and the confirmatory role-allocated evaluation share the same 128 seeds, so the
+comparison is paired.
 
 \begin{table}[t]
 \centering
@@ -155,12 +158,13 @@ Team size & Method & $\Delta_A$ & $\Delta_B$ \\
 
 6v6
 & Specialists, no heuristic roles
-& \multicolumn{2}{c}{Pending} \\
+& $+0.094 \pm 0.386$
+& $+0.031 \pm 0.215$ \\ % STANDARDIZED_6V6_NOROLE (same seeds as the next row)
 
 6v6
-& Heuristic roles, exploratory
-& $+0.016 \pm 0.418$
-& $+0.078 \pm 0.370$ \\ % EXPLORATORY_6V6_SPLIT_K1
+& Heuristic roles (confirmatory)
+& $+0.062 \pm 0.411$
+& $+0.117 \pm 0.346$ \\ % STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY
 \hline
 \end{tabular}
 \end{table}
@@ -191,13 +195,20 @@ to \(0.648\) in the role-allocated evaluation, indicating that the role
 decomposition trades some raw Pole-A performance for substantially greater
 separation between the two strategic behaviors.
 
+At 6v6, where the comparison is paired on the same 128 seeds, the role
+allocation raises $\Delta_B$ from $+0.031$ to $+0.117$, a paired change of
+$+0.086$ (95\% interval $[+0.023, +0.148]$), and changes $\Delta_A$ by
+$-0.031$ ($[-0.078, +0.016]$). The mechanism is the same as at the smaller
+team sizes: with a committed defender, the Pole-A strategy wins less often on
+Pole~B ($0.945 \to 0.859$), while the Pole-B specialist is unchanged
+($0.977$).
+
 \begin{table}[t]
 \centering
 \caption{Standardized parameter-sharing baselines. Share-Encoder and Fully
 Shared+$z$ are evaluated using the same specialization quantities as the
 proposed system. Values are mean $\pm$ standard deviation across evaluation
-seeds. The 2v2 and 4v4 rows are sealed confirmatory evaluations ($n=128$); the
-6v6 rows will be filled after their sealed evaluations complete.}
+seeds. All rows are sealed confirmatory evaluations ($n=128$).}
 \label{tab:sharing_baselines}
 \begin{tabular}{c|l|cc}
 \hline
@@ -219,8 +230,13 @@ Team size & Method & $\Delta_A$ & $\Delta_B$ \\
 & $+0.367 \pm 0.545$
 & $-0.109 \pm 0.655$ \\ % STANDARDIZED_4V4_FULLY_SHARED_Z
 \hline
-6v6 & Share-Encoder & Pending & Pending \\
-6v6 & Fully Shared+$z$ & Pending & Pending \\
+6v6 & Share-Encoder
+& $+0.039 \pm 0.341$
+& $+0.039 \pm 0.292$ \\ % STANDARDIZED_6V6_SHARE_ENCODER
+
+6v6 & Fully Shared+$z$
+& $+0.031 \pm 0.396$
+& $+0.008 \pm 0.235$ \\ % STANDARDIZED_6V6_FULLY_SHARED_Z
 \hline
 \end{tabular}
 \end{table}
@@ -242,6 +258,14 @@ strategy distilled from the Pole-A specialist wins more often on both poles
 parameters therefore does not remove the specialization the teachers had; at
 4v4 the teachers had no Pole-B specialization to preserve, and only the
 role-allocated system shows a positive $\Delta_B$.
+
+At 6v6 all policies win most games (0.86--0.98), and the distilled students
+show small effects in the intended direction (Share-Encoder $+0.039$ /
+$+0.039$, Fully Shared+$z$ $+0.031$ / $+0.008$), close to their no-role
+teachers ($+0.094$ / $+0.031$), with the highest held-out agreement with the
+teachers of any team size (0.99 / 0.94). As at 2v2 and 4v4, none of the
+parameter-sharing baselines reaches the Pole-B effect of the role-allocated
+system ($+0.117$).
 
 Because the Generalist uses a single policy without a strategy variable, its
 comparison is reported using absolute win rates on each pole and the
@@ -275,7 +299,10 @@ Team size
 & $-0.070 \pm 0.654$
 & $-0.070 \pm 0.604$ \\ % STANDARDIZED_4V4_GENERALIST + STANDARDIZED_4V4_SEPARATED_GENERALIST_REF
 6v6
-& Pending & Pending & Pending & Pending \\
+& $0.859$
+& $0.945$
+& $+0.039 \pm 0.442$
+& $+0.031 \pm 0.175$ \\ % STANDARDIZED_6V6_GENERALIST + STANDARDIZED_6V6_SEPARATED_GENERALIST_REF
 \hline
 \end{tabular}
 \end{table}
@@ -288,7 +315,11 @@ $0.695$ against $0.688$ and $0.625$, a gap of $-0.070$ on each pole (with a
 per-seed standard deviation above $0.6$). The advantage of the role-allocated
 system at 4v4 is therefore specialization (a positive $\Delta_B$, which no
 baseline shows), not a higher absolute win rate than a single policy fitted to
-both specialists.
+both specialists. At 6v6 the role-allocated system wins slightly more often
+than the Generalist on both poles ($0.898$ vs.\ $0.859$ on Pole~A, $0.977$
+vs.\ $0.945$ on Pole~B; gaps $+0.039$ and $+0.031$), with both systems close
+to the ceiling of the win-rate metric.
+% 6v6 Separated reference on the Generalist's seeds: Delta_A +0.078 +- 0.446, Delta_B +0.102 +- 0.351.
 % On the Generalist's seeds our system's crossover is Delta_A +0.242 +- 0.661, Delta_B +0.500 +- 0.575
 % (STANDARDIZED_4V4_SEPARATED_GENERALIST_REF); confirmatory value +0.156 / +0.406.
 
