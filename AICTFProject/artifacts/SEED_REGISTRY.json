@@ -2262,7 +2262,7 @@
       "lo": 25700001,
       "hi": 25700128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_6V6_SHARING_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-30T09:15:04Z",
@@ -2271,6 +2271,13 @@
         "STANDARDIZED_6V6_FULLY_SHARED_Z",
         "STANDARDIZED_6V6_GENERALIST",
         "STANDARDIZED_6V6_SEPARATED_GENERALIST_REF"
+      ],
+      "spent_utc": "2026-10-01T02:13:52Z",
+      "notes": [
+        {
+          "utc": "2026-10-01T02:13:52Z",
+          "note": "all shared labels sealed (last: STANDARDIZED_6V6_SEPARATED_GENERALIST_REF)"
+        }
       ]
     },
     {
@@ -2280,17 +2287,28 @@
       "lo": 25800001,
       "hi": 25800128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STANDARDIZED_6V6_SEPARATED_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-30T09:28:16Z",
       "shared_by_labels": [
         "STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY",
         "STANDARDIZED_6V6_NOROLE"
-      ]
+      ],
+      "notes": [
+        {
+          "utc": "2026-09-30T22:01:57Z",
+          "note": "label STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-10-01T01:45:09Z",
+          "note": "all shared labels sealed (last: STANDARDIZED_6V6_NOROLE)"
+        }
+      ],
+      "spent_utc": "2026-10-01T01:45:09Z"
     }
   ],
-  "updated_utc": "2026-09-30T09:28:16Z",
+  "updated_utc": "2026-10-01T02:13:52Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

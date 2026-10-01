@@ -1,0 +1,99 @@
+{
+  "record": "STANDARDIZED_6V6_SHARE_ENCODER crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-09-30T21:50:18Z",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "STANDARDIZED_6V6_SHARING_EVAL_SPEC.json#EVALUATION",
+  "suite_arm": "share_encoder",
+  "team_size": 6,
+  "device": "cuda",
+  "checkpoint": "artifacts\\strategic_demand\\sppo\\suite_sharing_std\\6v6\\share_encoder\\ckpts\\final_share_encoder_6v6.pt",
+  "checkpoint_sha256": "4412ea3314c35f262a56d4174dd0acc53895b612dc38e13597e1d603139adffe",
+  "seeds": {
+    "block": [
+      25700001,
+      25700128
+    ],
+    "n": 128,
+    "shared_across_z_and_poles": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_6V6_SHARING_EVAL",
+    "shared_by_labels": [
+      "STANDARDIZED_6V6_SHARE_ENCODER",
+      "STANDARDIZED_6V6_FULLY_SHARED_Z",
+      "STANDARDIZED_6V6_GENERALIST",
+      "STANDARDIZED_6V6_SEPARATED_GENERALIST_REF"
+    ]
+  },
+  "poles": {
+    "A": {
+      "policy": "A",
+      "team_size": 6,
+      "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+      "certification_sha256": "b33d92f42bdc0fde3f42ffa66efc71af0b46ebe8ab8b0c23e7a1a4168323b2ce",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 6
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "1c17c67afb2ad130a4576202ee3afe160171f093b051fa90f507ceccfd7ac11a",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 6
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 6,
+      "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+      "certification_sha256": "b33d92f42bdc0fde3f42ffa66efc71af0b46ebe8ab8b0c23e7a1a4168323b2ce",
+      "genome_id": "SDS_PARENT_OP7",
+      "base_opponent": "OP7",
+      "overlay": {
+        "min_alive_for_defender": 6
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "765cf7dc353a7942de0fb0feb8ea0219c2e43c686838e2cb4743abdd420458ad",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 6
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.0390625,
+      "lcb95": -0.015625,
+      "ucb95": 0.1015625,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": 0.0390625,
+      "lcb95": -0.0078125,
+      "ucb95": 0.0859375,
+      "passes": false
+    },
+    "passes": false
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 512,
+  "claim_boundary": "6v6 sharing baselines, n=128 matched seeds (sealed_confirmatory block shared by all arms); mean effects are the headline, 95% intervals for figures; not PAPER-FAITHFUL",
+  "integrity_flag": null,
+  "status": "SEALED",
+  "sealed_utc": "2026-09-30T21:50:18Z",
+  "git_sha": "e00c7e7748298eb9dfc3db4e689162c19f70d692",
+  "AUDIT": {
+    "path": "STANDARDIZED_6V6_SHARE_ENCODER_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 13,
+    "n_gating": 11,
+    "failed_checks": [],
+    "rows_sha256": "1e4b053c1c8b050a582e8dc52e1664c1bd5fedb3c4b1ff7f1f2c61b016ce4a75"
+  }
+}
