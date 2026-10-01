@@ -2306,9 +2306,27 @@
         }
       ],
       "spent_utc": "2026-10-01T01:45:09Z"
+    },
+    {
+      "experiment_id": "STANDARDIZED_6V6_NOISE_EVAL",
+      "purpose": "6v6 deployment-noise suite on the final system: nominal + medium localization/motion/delay, matched seeds",
+      "seed_class": "sealed_confirmatory",
+      "lo": 25900001,
+      "hi": 25900128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "STANDARDIZED_6V6_NOISE_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-01T02:14:00Z",
+      "shared_by_labels": [
+        "STANDARDIZED_6V6_NOISE_NOMINAL",
+        "STANDARDIZED_6V6_NOISE_LOCALIZATION_MEDIUM",
+        "STANDARDIZED_6V6_NOISE_MOTION_MEDIUM",
+        "STANDARDIZED_6V6_NOISE_DELAY_MEDIUM"
+      ]
     }
   ],
-  "updated_utc": "2026-10-01T02:13:52Z",
+  "updated_utc": "2026-10-01T02:14:00Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
