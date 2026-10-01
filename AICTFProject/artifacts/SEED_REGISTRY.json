@@ -1413,10 +1413,17 @@
       "lo": 21800001,
       "hi": 21800128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-22T19:49:11Z"
+      "allocated_utc": "2026-09-22T19:49:11Z",
+      "spent_utc": "2026-10-01T17:07:57Z",
+      "notes": [
+        {
+          "utc": "2026-10-01T17:07:57Z",
+          "note": "reconciled 2026-10-01: spent by the DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1 crossover (FROZEN_RESULT); status was never updated"
+        }
+      ]
     },
     {
       "experiment_id": "SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_TRAINING",
@@ -2345,7 +2352,7 @@
       "spent_utc": "2026-10-01T14:34:47Z"
     }
   ],
-  "updated_utc": "2026-10-01T14:34:47Z",
+  "updated_utc": "2026-10-01T17:07:57Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
