@@ -2362,9 +2362,33 @@
       "spec": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-10-01T20:21:54Z"
+    },
+    {
+      "experiment_id": "SYMMETRIC_ROLE_TOP50_6V6_A_DEFENDER_TRAINING",
+      "purpose": "6v6 pi_DA (k=2): 200k defender training from repaired pi_A on the school PC (symmetric-role top-50 diagnostic)",
+      "seed_class": "exploratory",
+      "lo": 26100001,
+      "hi": 26100001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-01T20:26:12Z"
+    },
+    {
+      "experiment_id": "SYMMETRIC_ROLE_TOP50_6V6_B_DEFENDER_TRAINING",
+      "purpose": "6v6 pi_DB (k=2): 200k defender training from repaired pi_B on the school PC (symmetric-role top-50 diagnostic)",
+      "seed_class": "exploratory",
+      "lo": 26200001,
+      "hi": 26200001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-01T20:26:12Z"
     }
   ],
-  "updated_utc": "2026-10-01T20:21:54Z",
+  "updated_utc": "2026-10-01T20:26:12Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

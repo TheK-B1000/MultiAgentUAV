@@ -1,0 +1,9 @@
+{
+  "record": "TOP50_6V6_ASYMMETRIC_OURS",
+  "action": "READ_ONLY_SLICE",
+  "source_rows": "standardized_6v6_split_k1_confirmatory_specialist_crossover_eval_rows.csv",
+  "n_rows": 200,
+  "n_seeds": 50,
+  "seed_ids_file": "K:/MultiAgentUAV/AICTFProject/artifacts/strategic_demand/sppo/symmetric_role_top50/6v6_ours_top50_seed_ids.json",
+  "out_csv": "K:/MultiAgentUAV/AICTFProject/artifacts/strategic_demand/sppo/symmetric_role_top50/top50_6v6_asymmetric_ours_rows.csv"
+}

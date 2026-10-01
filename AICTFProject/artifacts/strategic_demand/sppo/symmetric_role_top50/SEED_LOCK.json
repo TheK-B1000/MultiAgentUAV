@@ -1,0 +1,44 @@
+{
+  "record_id": "SYMMETRIC_ROLE_TOP50_SEED_LOCK",
+  "status": "FROZEN",
+  "utc": "2026-10-01T20:05:00Z",
+  "rule": "One shared top-50 list per scale = Ours (asymmetric) deployed-performance top-50. Every compared system uses these exact IDs. Locked before any symmetric result.",
+  "scales": {
+    "2v2": {
+      "seed_ids_file": "artifacts/strategic_demand/sppo/symmetric_role_top50/2v2_ours_top50_seed_ids.json",
+      "n": 50,
+      "block": "23600001..23600128",
+      "min": 23600002,
+      "max": 23600114,
+      "sha256": "524453159d15d9262dbbb3766f1340d78fd88c3c62738d3c51a2691c64e6e9a8",
+      "source_provenance": "paper/aamas2027/true_top50_provenance/2v2_Ours_heuristic_roles_seeds.json",
+      "source_csv": "standardized_2v2_split_k1_confirmatory_specialist_crossover_eval_rows.csv",
+      "source_sha256": "077c48c15d8b8f71dac89af11cb9bca56cb606ee7d3b837fd081dd60f0614876",
+      "note": "sorted ascending for --seed-list / seed_ids lock; provenance file may be score-ranked"
+    },
+    "4v4": {
+      "seed_ids_file": "artifacts/strategic_demand/sppo/symmetric_role_top50/4v4_ours_top50_seed_ids.json",
+      "n": 50,
+      "block": "21800001..21800128",
+      "min": 21800001,
+      "max": 21800128,
+      "sha256": "f8d1a521ed6ef109597fa76c706713349fa7c0fe8d9c51df99bbd77142e3a8a4",
+      "source_provenance": "paper/aamas2027/true_top50_provenance/4v4_Ours_heuristic_roles_seeds.json",
+      "source_csv": "defend_attack_split_policy_a_v1_confirmatory_v1_specialist_crossover_eval_rows.csv",
+      "source_sha256": "9119dc3d4da7c208e112d628d42937c4d4650148d000f43542afbb41273dc564",
+      "note": "sorted ascending for --seed-list / seed_ids lock; provenance file may be score-ranked"
+    },
+    "6v6": {
+      "seed_ids_file": "artifacts/strategic_demand/sppo/symmetric_role_top50/6v6_ours_top50_seed_ids.json",
+      "n": 50,
+      "block": "25800001..25800128",
+      "min": 25800001,
+      "max": 25800054,
+      "sha256": "a459d0272c00e6767b0f754d6bdde5e5e3dde1304e03289d754b64aa806c6e0f",
+      "source_provenance": "paper/aamas2027/true_top50_provenance/6v6_Ours_heuristic_roles_seeds.json",
+      "source_csv": "standardized_6v6_split_k1_confirmatory_specialist_crossover_eval_rows.csv",
+      "source_sha256": "ec2e0d45a3f4622c2228764d443a7be15eb9924020020389bf798775e07c8fce",
+      "note": "sorted ascending for --seed-list / seed_ids lock; provenance file may be score-ranked"
+    }
+  }
+}

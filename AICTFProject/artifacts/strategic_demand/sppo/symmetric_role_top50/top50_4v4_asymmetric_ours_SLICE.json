@@ -1,0 +1,9 @@
+{
+  "record": "TOP50_4V4_ASYMMETRIC_OURS",
+  "action": "READ_ONLY_SLICE",
+  "source_rows": "defend_attack_split_policy_a_v1_confirmatory_v1_specialist_crossover_eval_rows.csv",
+  "n_rows": 200,
+  "n_seeds": 50,
+  "seed_ids_file": "K:/MultiAgentUAV/AICTFProject/artifacts/strategic_demand/sppo/symmetric_role_top50/4v4_ours_top50_seed_ids.json",
+  "out_csv": "K:/MultiAgentUAV/AICTFProject/artifacts/strategic_demand/sppo/symmetric_role_top50/top50_4v4_asymmetric_ours_rows.csv"
+}
