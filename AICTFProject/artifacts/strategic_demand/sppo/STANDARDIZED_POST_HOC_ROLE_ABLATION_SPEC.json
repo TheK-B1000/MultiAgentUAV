@@ -1,0 +1,45 @@
+{
+  "record_id": "STANDARDIZED_POST_HOC_ROLE_ABLATION_SPEC",
+  "status": "FROZEN_BEFORE_EVAL",
+  "arm": "POST_HOC_ABLATION",
+  "confirmatory": false,
+  "utc": "2026-10-01T16:30:00Z",
+  "decided_by": "PI, 2026-10-01: one canonical Ours per scale; compare it with a no-role ablation on the identical seeds at every scale. Rerun no-role only; do not retrain or re-evaluate Ours.",
+  "THE_QUESTION": "On the exact same 128 scenarios, what changes when we remove explicit ATTACK/DEFEND organization?",
+  "METHODOLOGY_TEXT": "To isolate the effect of explicit role organization, the no-role specialists were additionally evaluated on the same sealed seed blocks used by the primary role-allocated system. The role-allocated checkpoints and confirmatory results were not changed. These matched no-role evaluations were conducted post hoc as ablations, using already-spent confirmatory seeds, and are therefore used only to estimate the within-seed effect of removing role organization rather than as new confirmatory evidence.",
+
+  "POST_HOC_MATCHED_ROLE_ABLATIONS": {
+    "STANDARDIZED_2V2_NOROLE_MATCHED": {
+      "registry_experiment_id": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER",
+      "block": "23600001..23600128",
+      "primary_record": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "pi_A": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+               "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"},
+      "pi_B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+               "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"},
+      "no_role_definition": "the repaired pi_A and pi_B as plain policies: no role conditioning, no allocator, no frozen-attack splice (as STANDARDIZED_2V2_DIAG_PRESPLIT)"
+    },
+    "STANDARDIZED_4V4_NOROLE_MATCHED": {
+      "registry_experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER",
+      "block": "21800001..21800128",
+      "primary_record": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "pi_A": {"path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+               "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"},
+      "pi_B": {"path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+               "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"},
+      "no_role_definition": "the b3 pi_A and b3-corrected pi_B as plain policies (as the 4v4 no-role reading)",
+      "registry_note": "this block was spent on the other machine and was absent from this registry; backfilled as SPENT before this spec was frozen"
+    }
+  },
+  "ALREADY_MATCHED": {
+    "6v6": "STANDARDIZED_6V6_NOROLE was evaluated on the same block as STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY (25800001..25800128); no new run"
+  },
+  "LAUNCH": {
+    "STANDARDIZED_2V2_NOROLE_MATCHED": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/STANDARDIZED_POST_HOC_ROLE_ABLATION_SPEC.json --post-hoc-ablation-spec artifacts/strategic_demand/sppo/STANDARDIZED_POST_HOC_ROLE_ABLATION_SPEC.json --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --seed-base 23600001 --n-seeds 128 --label STANDARDIZED_2V2_NOROLE_MATCHED --registry-experiment-id STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER --device cuda --resume",
+    "STANDARDIZED_4V4_NOROLE_MATCHED": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 4 --spec artifacts/strategic_demand/sppo/STANDARDIZED_POST_HOC_ROLE_ABLATION_SPEC.json --post-hoc-ablation-spec artifacts/strategic_demand/sppo/STANDARDIZED_POST_HOC_ROLE_ABLATION_SPEC.json --pi-a-path artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip --pi-b-path artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip --seed-base 21800001 --n-seeds 128 --label STANDARDIZED_4V4_NOROLE_MATCHED --registry-experiment-id DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER --device cuda --resume",
+    "env": "FOR_DISABLE_CONSOLE_CTRL_HANDLER=1 (a console-close event killed the 6v6 noise runs once)"
+  },
+  "READING": "per scale: the paired per-seed difference (Ours - no-role) in Delta_A and Delta_B on the primary block, mean with 95% bootstrap interval; reported as a post-hoc ablation",
+  "PAPER": "Ours is always the primary confirmatory system; the role table compares it with this matched no-role ablation at 2v2, 4v4 and 6v6. The old 2v2 paired diagnostic (+0.180/+0.523) and the old unmatched no-role rows leave the main tables (they stay as provenance).",
+  "NOT_AUTHORIZED_BY_THIS_SPEC": ["re-evaluating or retraining Ours", "any fresh seed spend", "calling these confirmatory", "changing any block's status"]
+}

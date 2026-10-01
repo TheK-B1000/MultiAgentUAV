@@ -134,6 +134,35 @@ def shared_block_all_sealed(block: dict, sd: Path) -> bool:
     return True
 
 
+def post_hoc_block(spec: dict, label: str, reg_id: str, lo: int, hi: int, sd: Path) -> dict:
+    """Authorize a post-hoc matched ablation on an ALREADY-SPENT block (PI 2026-10-01).
+
+    The only way this evaluator reuses seeds: the frozen spec lists the label under
+    POST_HOC_MATCHED_ROLE_ABLATIONS with this registry id and range; the block is registered with
+    exactly this range and is SPENT (never RESERVED -- this path cannot spend fresh seeds); and the
+    primary record it is matched to was sealed on exactly this block. The block's status is never
+    changed. Results are post-hoc ablations, not confirmatory evidence.
+    """
+    entry = (spec.get("POST_HOC_MATCHED_ROLE_ABLATIONS") or {}).get(label)
+    if not isinstance(entry, dict):
+        raise SystemExit(f"REFUSING: {label} is not a post-hoc ablation of this spec")
+    if entry.get("registry_experiment_id") != reg_id or entry.get("block") != f"{lo}..{hi}":
+        raise SystemExit(f"REFUSING: {label} is authorized on {entry.get('registry_experiment_id')} "
+                         f"{entry.get('block')}, not {reg_id} {lo}..{hi}")
+    b = next((x for x in sr.load()["blocks"] if x["experiment_id"] == reg_id), None)
+    if b is None or (b["lo"], b["hi"]) != (lo, hi):
+        raise SystemExit(f"REFUSING: block {reg_id} {lo}..{hi} is not registered with exactly this range")
+    if b["status"] != "SPENT":
+        raise SystemExit(f"REFUSING: post-hoc reuse requires a SPENT block; {reg_id} is {b['status']}")
+    prim = sd / entry["primary_record"]
+    if not prim.is_file():
+        raise SystemExit(f"REFUSING: primary record {prim.name} missing")
+    blk = (json.loads(prim.read_text(encoding="utf-8")).get("seeds") or {}).get("block")
+    if list(blk or []) != [lo, hi]:
+        raise SystemExit(f"REFUSING: {prim.name} was sealed on {blk}, not {lo}..{hi}")
+    return {**entry, "seed_class": b["seed_class"]}
+
+
 def resolve_perturbation(family: str, severity: str) -> dict | None:
     """The frozen tier values for one deployment-only disturbance, or None for nominal.
 
@@ -214,6 +243,10 @@ def main() -> int:
                     help="continue an interrupted run of THIS label from its PARTIAL rows file "
                          "(fingerprint must match exactly); with no PARTIAL file it starts fresh. "
                          "Without --resume an existing PARTIAL file refuses.")
+    ap.add_argument("--post-hoc-ablation-spec", default="",
+                    help="evaluate a post-hoc matched ablation on an already-SPENT block listed in this "
+                         "frozen spec's POST_HOC_MATCHED_ROLE_ABLATIONS (must equal --spec); never spends "
+                         "seeds or changes the block's status")
     ap.add_argument("--perturbation", default="nominal",
                     choices=("nominal", "localization_noise", "motion_error", "control_delay"),
                     help="deployment-only disturbance (DEPLOYMENT_ROBUSTNESS_SPEC.json TIERS). "
@@ -251,14 +284,24 @@ def main() -> int:
     )
     REG_ID = str(args.registry_experiment_id or "").strip() or EXP_ID
     shared_block = None
-    if REG_ID != EXP_ID:
+    posthoc = None
+    if args.post_hoc_ablation_spec:
+        if Path(args.post_hoc_ablation_spec).resolve() != spec_path.resolve():
+            raise SystemExit("REFUSING: --post-hoc-ablation-spec must be the --spec itself")
+        posthoc = post_hoc_block(spec, label, REG_ID, lo, hi, SD)
+        seed_class = posthoc["seed_class"]
+        print(f"  Rule 9: POST-HOC matched ablation on SPENT block {REG_ID} {lo}..{hi} "
+              f"(matched to {posthoc['primary_record']}); no seeds spent, block status unchanged")
+    elif REG_ID != EXP_ID:
         shared_block = shared_block_owner(REG_ID, label, lo, hi, seed_class)
         print(f"  Rule 9: shared block {REG_ID} {lo}..{hi} [{seed_class}/RESERVED], "
               f"label {label} declared among {shared_block.get('shared_by_labels')}")
     ok, msg = sr.check_block(lo, hi, seed_class, experiment_id=REG_ID)
     if not ok:
         raise SystemExit(f"REFUSING (Rule 9): {msg}")
-    if shared_block is None and not any(b["experiment_id"] == EXP_ID for b in sr.load()["blocks"]):
+    if posthoc is not None:
+        pass                                  # reuse authorized above; never allocate
+    elif shared_block is None and not any(b["experiment_id"] == EXP_ID for b in sr.load()["blocks"]):
         if args.dry_run:
             print(f"  Rule 9: block {lo}..{hi} free; would allocate as {EXP_ID} on real run")
         else:
@@ -681,7 +724,12 @@ def main() -> int:
     payload = {
         "record": f"{label} specialist crossover EVAL",
         "one_shot": True, "utc": _now(),
-        "arm": spec.get("arm", "n/a"), "confirmatory": bool(spec.get("confirmatory", False)),
+        "arm": ("POST_HOC_ABLATION" if posthoc else spec.get("arm", "n/a")),
+        "confirmatory": (False if posthoc else bool(spec.get("confirmatory", False))),
+        "post_hoc_ablation": ({"spec": spec_path.name, "matched_to": posthoc["primary_record"],
+                               "claim": "post-hoc matched role ablation on already-spent confirmatory seeds; "
+                                        "estimates the within-seed effect of removing role organization; "
+                                        "not new confirmatory evidence"} if posthoc else None),
         "implements": f"{spec_path.name}#EVALUATION",
         "team_size": N, "device": device,
         "perturbation": ({"family": "nominal"} if pert is None else
@@ -721,7 +769,13 @@ def main() -> int:
     rs.seal(out_path=OUT, payload=payload, plan=plan, state=state, strict=False)
     PARTIAL.unlink(missing_ok=True)       # the sealed rows CSV is now the record
     sealed = json.loads(OUT.read_text(encoding="utf-8"))
-    if shared_block is None:
+    if posthoc is not None:
+        doc = sr.load()                       # provenance note only; status stays SPENT
+        b = next(x for x in doc["blocks"] if x["experiment_id"] == REG_ID)
+        b.setdefault("notes", []).append({"utc": _now(), "note": f"post-hoc matched ablation {label} sealed "
+                                          f"{sealed.get('status')} on this already-spent block"})
+        sr.save(doc)
+    elif shared_block is None:
         sr.set_status(EXP_ID, "SPENT",
                       note=f"sealed {sealed.get('status')}; gate_passes={gate_passes}")
     else:
