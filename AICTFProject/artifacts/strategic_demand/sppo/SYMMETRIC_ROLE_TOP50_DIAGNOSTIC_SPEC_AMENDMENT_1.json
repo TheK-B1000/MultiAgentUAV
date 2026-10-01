@@ -21,5 +21,14 @@
     "EXECUTION_PLAN.6v6.Symmetric_Ours": "unchanged (already 200 episodes, all four cells)"
   },
   "unchanged": "seeds, labels, registry blocks, checkpoints, k, every authorization; the evaluator was always launched with both sides spliced and runs all four cells",
-  "fold_in_when": "after TOP50_2V2_NOROLE, TOP50_4V4_NOROLE and TOP50_2V2_SYMMETRIC_OURS have sealed, the wording may be folded into the spec itself; until then this record governs"
+  "supersedes_only": [
+    "EXECUTION_PLAN.2v2.Symmetric_Ours",
+    "EXECUTION_PLAN.4v4.Symmetric_Ours",
+    "POST_HOC_MATCHED_ROLE_ABLATIONS.TOP50_2V2_SYMMETRIC_OURS.episodes_new",
+    "POST_HOC_MATCHED_ROLE_ABLATIONS.TOP50_4V4_SYMMETRIC_OURS.episodes_new",
+    "POST_HOC_MATCHED_ROLE_ABLATIONS.TOP50_2V2_SYMMETRIC_OURS.reuse_A_cells_from",
+    "POST_HOC_MATCHED_ROLE_ABLATIONS.TOP50_4V4_SYMMETRIC_OURS.reuse_A_cells_from"
+  ],
+  "parent_immutability": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json stays byte-for-byte frozen forever (amends_sha256 above). Do not edit it after any experiment has launched against that hash. Do not fold this amendment into the parent. Keep both files; this record permanently governs the superseded 2v2/4v4 execution wording only."
 }
+
