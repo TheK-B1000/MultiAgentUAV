@@ -889,8 +889,12 @@ def _maybe_attach_split_attack_defend(cfg, trainer) -> None:
     for p in frozen_model.parameters():
         p.requires_grad_(False)
     trainer.split_attack_defend_frozen_model = frozen_model
+    # Name the frozen policy from its checkpoint (pi_A on the A side, pi_B on the symmetric B side);
+    # the log once said "pi_A" for both.
+    _sides = [s for s in ("pi_A", "pi_B") if f"{s}_" in ckpt_path.name]
+    _frozen_name = _sides[0] if len(_sides) == 1 else "specialist"
     print(
-        f"[SPLIT-ATTACK-DEFEND] frozen pi_A ATTACHED for ATTACK-role slots: "
+        f"[SPLIT-ATTACK-DEFEND] frozen {_frozen_name} ATTACHED for ATTACK-role slots: "
         f"ckpt={ckpt_path.name} sha={actual[:12]}... "
         f"(DEFEND slots -> trainable model; main PPO actor loss/entropy DEFEND-gated)"
     )

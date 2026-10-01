@@ -1,0 +1,25 @@
+{
+  "record_id": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC_AMENDMENT_1",
+  "status": "FROZEN",
+  "utc": "2026-10-01T17:35:00Z",
+  "amends": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
+  "amends_sha256": "6b11e17711ded4750fd39c066312d03a0818a68b9bef6ab1c447680a1d378bf9",
+  "decided_by": "PI, 2026-10-01: the live behavior is 200 fresh crossover episodes per scale; re-running all four cells on the same 50 seeds is cleaner than reusing A cells.",
+  "why_an_amendment_not_an_edit": "The frozen spec's sha256 is inside the crash-resume fingerprint of the running TOP50_2V2_NOROLE and TOP50_4V4_NOROLE evaluations; editing it in place would block their --resume and make their sealed records name a spec they did not launch under. The spec stays byte-identical; this record governs the wording.",
+  "corrections": {
+    "EXECUTION_PLAN.2v2.Symmetric_Ours": {
+      "was": "reuse existing A-role cells where valid; run new B-role cells; 50x2 = 100 new episodes",
+      "now": "200 fresh crossover episodes: all four cells (pi_A+D_A and pi_B+D_B on Pole A and Pole B) on the frozen 50 seeds; no reuse of the confirmatory A-role rows"
+    },
+    "EXECUTION_PLAN.4v4.Symmetric_Ours": {
+      "was": "reuse existing A-role cells where valid; run new B-role cells; 50x2 = 100 new episodes",
+      "now": "200 fresh crossover episodes: all four cells on the frozen 50 seeds; no reuse of the confirmatory A-role rows"
+    },
+    "POST_HOC_MATCHED_ROLE_ABLATIONS.TOP50_2V2_SYMMETRIC_OURS.episodes_new": {"was": 100, "now": 200},
+    "POST_HOC_MATCHED_ROLE_ABLATIONS.TOP50_4V4_SYMMETRIC_OURS.episodes_new": {"was": 100, "now": 200},
+    "POST_HOC_MATCHED_ROLE_ABLATIONS.TOP50_{2V2,4V4}_SYMMETRIC_OURS.reuse_A_cells_from": {"was": "<confirmatory rows csv>", "now": "not used (all cells re-run)"},
+    "EXECUTION_PLAN.6v6.Symmetric_Ours": "unchanged (already 200 episodes, all four cells)"
+  },
+  "unchanged": "seeds, labels, registry blocks, checkpoints, k, every authorization; the evaluator was always launched with both sides spliced and runs all four cells",
+  "fold_in_when": "after TOP50_2V2_NOROLE, TOP50_4V4_NOROLE and TOP50_2V2_SYMMETRIC_OURS have sealed, the wording may be folded into the spec itself; until then this record governs"
+}

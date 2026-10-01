@@ -175,6 +175,34 @@ def post_hoc_block(spec: dict, label: str, reg_id: str, lo: int, hi: int, sd: Pa
     return {**entry, "seed_class": b["seed_class"], "block_range": (lo, hi)}
 
 
+def is_symmetric_evaluation(label: str, entry: dict | None) -> bool:
+    """A symmetric-role evaluation: the label says SYMMETRIC / _SYM_, or its post-hoc entry names a B-side
+    frozen attacker or the symmetric system (SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json, *_SYM_SHARING_EVAL_SPEC)."""
+    up = str(label).upper()
+    e = entry or {}
+    return ("SYMMETRIC" in up or "_SYM_" in up or bool(e.get("frozen_attack_B"))
+            or e.get("system") == "symmetric Ours")
+
+
+def require_symmetric_split(label: str, entry: dict | None, args) -> None:
+    """Fail closed (PI 2026-10-01): a symmetric evaluation must splice BOTH sides -- --frozen-attack-path
+    (A) and --frozen-attack-path-b (B), each with its sha256 -- so pi_DB can never be evaluated alone in
+    place of the B composite. Hashes must equal the spec entry's frozen attackers when it names them."""
+    if not is_symmetric_evaluation(label, entry):
+        return
+    for flag, path, sha in (("--frozen-attack-path", args.frozen_attack_path, args.frozen_attack_path_sha256),
+                            ("--frozen-attack-path-b", args.frozen_attack_path_b, args.frozen_attack_path_b_sha256)):
+        if not str(path or "") or not str(sha or ""):
+            raise SystemExit(f"REFUSING: symmetric evaluation {label} requires {flag} and its sha256 "
+                             f"(both sides must be the split composite)")
+    e = entry or {}
+    for key, sha in (("frozen_attack_A", args.frozen_attack_path_sha256),
+                     ("frozen_attack_B", args.frozen_attack_path_b_sha256)):
+        want = (e.get(key) or {}).get("sha256") if isinstance(e.get(key), dict) else None
+        if want and str(sha).lower() != want:
+            raise SystemExit(f"REFUSING: {key} sha256 {str(sha)[:12]} != the spec's {want[:12]}")
+
+
 def resolve_perturbation(family: str, severity: str) -> dict | None:
     """The frozen tier values for one deployment-only disturbance, or None for nominal.
 
@@ -385,6 +413,7 @@ def main() -> int:
         want_b = str(args.frozen_attack_path_b_sha256 or "").lower()
         if not want_b or _sha(frozen_attack_b_ckpt_path) != want_b:
             raise SystemExit("REFUSING: --frozen-attack-path-b needs a matching --frozen-attack-path-b-sha256")
+    require_symmetric_split(label, posthoc, args)
 
     import torch
     from experiments.opponent_spec import (

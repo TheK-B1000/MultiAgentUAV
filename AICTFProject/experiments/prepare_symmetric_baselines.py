@@ -323,7 +323,8 @@ def eval_spec(n: int) -> Path:
     post_hoc = {lab[a]: {**base, "system": a} for a in ARMS}
     for key, fam in ROBUSTNESS.items():
         post_hoc[lab[f"robust_{key.lower()}"]] = {**base, "system": "symmetric Ours", "perturbation": fam,
-                                                   "severity": ROBUSTNESS_SEVERITY}
+                                                   "severity": ROBUSTNESS_SEVERITY,
+                                                   "frozen_attack_A": pins["pi_A"], "frozen_attack_B": pins["pi_B"]}
     common = (f".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size {n} "
               f"--spec artifacts/strategic_demand/sppo/STANDARDIZED_{n}V{n}_{TAG}_SHARING_EVAL_SPEC.json "
               f"--post-hoc-ablation-spec artifacts/strategic_demand/sppo/STANDARDIZED_{n}V{n}_{TAG}_SHARING_EVAL_SPEC.json "

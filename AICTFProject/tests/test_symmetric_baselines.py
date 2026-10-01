@@ -321,3 +321,50 @@ class SuiteReadoutTests(unittest.TestCase):
                 self.assertAlmostEqual(ro["robustness_ours_symmetric"][k.lower()]["change_vs_nominal_Delta_A"]["mean"], 0.0)
             self.assertAlmostEqual(ro["score_margin"]["ours_symmetric"]["Delta_A"]["mean"], 1.2)
             self.assertTrue((d / "out" / "BASELINE_READOUT.md").is_file())
+
+
+class SymmetricEvaluatorFailClosedTests(unittest.TestCase):
+    """PI 2026-10-01: a symmetric evaluation must splice both sides (pi_DB never evaluated alone)."""
+
+    def _args(self, a="x/a.zip", sa="1" * 64, b="x/b.zip", sb="2" * 64):
+        from types import SimpleNamespace
+        return SimpleNamespace(frozen_attack_path=a, frozen_attack_path_sha256=sa,
+                               frozen_attack_path_b=b, frozen_attack_path_b_sha256=sb)
+
+    def test_detects_symmetric_labels_and_entries(self):
+        from experiments.eval_specialist_crossover_scaled import is_symmetric_evaluation as S
+        self.assertTrue(S("TOP50_2V2_SYMMETRIC_OURS", None))
+        self.assertTrue(S("TOP50_6V6_SYM_OURS_DELAY_MEDIUM", None))
+        self.assertTrue(S("X", {"frozen_attack_B": {"sha256": "2" * 64}}))
+        self.assertTrue(S("X", {"system": "symmetric Ours"}))
+        for legacy in ("TOP50_2V2_NOROLE", "STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY", "STANDARDIZED_6V6_NOISE_DELAY_MEDIUM"):
+            self.assertFalse(S(legacy, None), legacy)
+
+    def test_symmetric_requires_both_frozen_attackers(self):
+        from experiments.eval_specialist_crossover_scaled import require_symmetric_split as R
+        R("TOP50_2V2_SYMMETRIC_OURS", None, self._args())
+        for bad in (self._args(b=""), self._args(sb=""), self._args(a=""), self._args(sa="")):
+            with self.assertRaises(SystemExit):
+                R("TOP50_2V2_SYMMETRIC_OURS", None, bad)
+
+    def test_hashes_must_match_the_spec_entry(self):
+        from experiments.eval_specialist_crossover_scaled import require_symmetric_split as R
+        e = {"frozen_attack_A": {"sha256": "1" * 64}, "frozen_attack_B": {"sha256": "2" * 64}}
+        R("L", e, self._args())
+        with self.assertRaises(SystemExit):
+            R("L", e, self._args(sb="3" * 64))
+
+    def test_legacy_labels_untouched(self):
+        from experiments.eval_specialist_crossover_scaled import require_symmetric_split as R
+        R("TOP50_2V2_NOROLE", {"pi_A": {}, "pi_B": {}}, self._args(a="", sa="", b="", sb=""))
+
+    def test_live_diagnostic_spec_entries(self):
+        from experiments.eval_specialist_crossover_scaled import is_symmetric_evaluation as S
+        d = json.loads((SD / "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json").read_text(encoding="utf-8"))
+        for label, e in d["POST_HOC_MATCHED_ROLE_ABLATIONS"].items():
+            self.assertEqual(S(label, e), "SYMMETRIC" in label, label)
+
+    def test_frozen_policy_named_in_split_log(self):
+        src = (ROOT / "rl" / "training" / "orchestrator.py").read_text(encoding="utf-8")
+        self.assertNotIn('"[SPLIT-ATTACK-DEFEND] frozen pi_A ATTACHED', src)
+        self.assertIn("frozen {_frozen_name} ATTACHED", src)
