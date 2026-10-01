@@ -1,0 +1,16 @@
+view,scale,method,source_csv,n,WR_A,WR_B,delta_A_mean,delta_A_std,delta_B_mean,delta_B_std,min_delta,selected_seeds_json
+true_top50_deployed,2v2,Specialists (no roles),standardized_2v2_diag_presplit_specialist_crossover_eval_rows.csv,50,0.86,0.96,0.32,0.6207303137828694,0.28,0.4535573676110727,0.28,true_top50_provenance/2v2_Specialists (no roles)_seeds.json
+true_top50_deployed,2v2,Share-Encoder,standardized_2v2_share_encoder_crossover_eval_rows.csv,50,0.96,0.94,0.44,0.5405967979549858,0.36,0.5627918743883488,0.36,true_top50_provenance/2v2_Share-Encoder_seeds.json
+true_top50_deployed,2v2,Fully Shared+$z$,standardized_2v2_fully_shared_z_crossover_eval_rows.csv,50,0.86,0.86,0.44,0.6114552731152199,0.36,0.6311634866964149,0.36,true_top50_provenance/2v2_Fully Shared+$z$_seeds.json
+true_top50_deployed,2v2,Ours (heuristic roles),standardized_2v2_split_k1_confirmatory_specialist_crossover_eval_rows.csv,50,1.0,1.0,0.56,0.501426536422407,1.0,0.0,0.56,true_top50_provenance/2v2_Ours (heuristic roles)_seeds.json
+true_top50_deployed,4v4,Specialists (no roles),confirmatory_b3_entity_repair_corrected_specialist_crossover_eval_rows.csv,50,1.0,1.0,0.36,0.4848732213850611,0.2,0.4040610178208843,0.2,true_top50_provenance/4v4_Specialists (no roles)_seeds.json
+true_top50_deployed,4v4,Share-Encoder,standardized_4v4_share_encoder_crossover_eval_rows.csv,50,1.0,1.0,0.56,0.501426536422407,0.32,0.47121207149916117,0.32,true_top50_provenance/4v4_Share-Encoder_seeds.json
+true_top50_deployed,4v4,Fully Shared+$z$,standardized_4v4_fully_shared_z_crossover_eval_rows.csv,50,1.0,1.0,0.42,0.4985693819032899,0.3,0.4629100498862757,0.3,true_top50_provenance/4v4_Fully Shared+$z$_seeds.json
+true_top50_deployed,4v4,Ours (heuristic roles),defend_attack_split_policy_a_v1_confirmatory_v1_specialist_crossover_eval_rows.csv,50,0.96,0.86,0.44,0.501426536422407,0.82,0.38808793449160356,0.44,true_top50_provenance/4v4_Ours (heuristic roles)_seeds.json
+true_top50_deployed,6v6,Specialists (no roles),standardized_6v6_norole_specialist_crossover_eval_rows.csv,50,1.0,1.0,0.08,0.27404751561786966,0.0,0.0,0.0,true_top50_provenance/6v6_Specialists (no roles)_seeds.json
+true_top50_deployed,6v6,Share-Encoder,standardized_6v6_share_encoder_crossover_eval_rows.csv,50,1.0,1.0,0.1,0.30304576336566325,0.08,0.2740475156178697,0.08,true_top50_provenance/6v6_Share-Encoder_seeds.json
+true_top50_deployed,6v6,Fully Shared+$z$,standardized_6v6_fully_shared_z_crossover_eval_rows.csv,50,1.0,1.0,0.16,0.3703280399090205,0.02,0.14142135623730948,0.02,true_top50_provenance/6v6_Fully Shared+$z$_seeds.json
+true_top50_deployed,6v6,Ours (heuristic roles),standardized_6v6_split_k1_confirmatory_specialist_crossover_eval_rows.csv,50,1.0,1.0,0.1,0.30304576336566325,0.12,0.3282607226593159,0.1,true_top50_provenance/6v6_Ours (heuristic roles)_seeds.json
+true_top50_deployed,2v2,Generalist,standardized_2v2_generalist_crossover_eval_rows.csv,50,0.84,0.82,,,,,,
+true_top50_deployed,4v4,Generalist,standardized_4v4_generalist_crossover_eval_rows.csv,50,1.0,1.0,,,,,,
+true_top50_deployed,6v6,Generalist,standardized_6v6_generalist_crossover_eval_rows.csv,50,1.0,1.0,,,,,,

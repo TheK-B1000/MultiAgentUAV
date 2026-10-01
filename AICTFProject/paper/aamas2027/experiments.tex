@@ -373,37 +373,52 @@ Team size
 & $+0.141 \pm 0.661$ & $+0.375 \pm 0.652$ \\ % STANDARDIZED_4V4_NOISE_{LOCALIZATION,MOTION,DELAY}_MEDIUM (128 seeds, one block)
 
 6v6
-& Pending & Pending
-& Pending & Pending
-& Pending & Pending \\
+& $+0.039 \pm 0.385$ & $+0.102 \pm 0.373$
+& $+0.039 \pm 0.459$ & $+0.039 \pm 0.385$
+& $+0.070 \pm 0.617$ & $-0.047 \pm 0.329$ \\ % STANDARDIZED_6V6_NOISE_{LOCALIZATION,MOTION,DELAY}_MEDIUM (128 seeds; nominal +0.031/+0.094)
 \hline
 \end{tabular}
 \end{table*}
 
-These experiments test whether the intended strategic specialization persists
-when observations and execution are perturbed. For each team size, the
-perturbed results will be compared against the corresponding nominal result in
-Table~\ref{tab:main_specialization}. In addition to the absolute perturbed
-specialization effects, matched-seed degradation relative to nominal will be
-reported where available.
+The corresponding 2v2 nominal result on the same matched seed block is
+\(\Delta_A=+0.219 \pm 0.709\) and
+\(\Delta_B=+0.492 \pm 0.517\).
+Relative to nominal, the paired mean changes are
+\((-0.016,+0.039)\) for localization,
+\((+0.016,+0.047)\) for motion, and
+\((+0.039,-0.016)\) for delay.
+All six 2v2 paired-change 95\% intervals include zero; specialization stays
+positive on both poles.
 
-At 2v2 none of the three disturbances changes the specialization measurably.
-Relative to the nominal run on the same 128 seeds, the paired mean change is
-$-0.016$ / $+0.039$ ($\Delta_A$ / $\Delta_B$) under localization noise,
-$+0.016$ / $+0.047$ under motion error and $+0.039$ / $-0.016$ under control
-delay, and every 95\% interval of the change includes zero. Both effects stay
-positive throughout: $\Delta_A$ between $+0.20$ and $+0.26$, $\Delta_B$ between
-$+0.48$ and $+0.54$.
-% STANDARDIZED_2V2_NOISE_NOMINAL; change CIs: loc [-0.141,+0.102]/[-0.063,+0.141],
-% motion [-0.148,+0.180]/[-0.078,+0.172], delay [-0.117,+0.188]/[-0.141,+0.109].
+The corresponding 4v4 nominal result is
+\(\Delta_A=+0.234 \pm 0.670\) and
+\(\Delta_B=+0.484 \pm 0.588\).
+Paired changes are
+\((-0.016,-0.047)\) (localization),
+\((+0.023,-0.117)\) (motion), and
+\((-0.094,-0.109)\) (delay).
+All six 4v4 change intervals include zero, while mean specialization remains
+positive under every disturbance.
 
-At 4v4 both effects also stay positive under every disturbance ($\Delta_A$
-between $+0.14$ and $+0.26$, $\Delta_B$ between $+0.37$ and $+0.44$), and every
-95\% interval of the paired change from nominal again includes zero. The point
-estimates, however, lean downward on Pole~B: the mean change in $\Delta_B$ is
-$-0.047$ under localization noise, $-0.117$ under motion error and $-0.109$
-under control delay, and control delay also lowers $\Delta_A$ by $0.094$. With
-128 seeds these declines are not distinguishable from zero, but they are larger
-than at 2v2.
-% STANDARDIZED_4V4_NOISE_NOMINAL; change CIs: loc [-0.156,+0.125]/[-0.164,+0.070],
-% motion [-0.141,+0.188]/[-0.258,+0.031], delay [-0.242,+0.055]/[-0.250,+0.031].
+The corresponding 6v6 nominal result is
+\(\Delta_A=+0.031 \pm 0.434\) and
+\(\Delta_B=+0.094 \pm 0.424\).
+Localization and motion keep both means positive
+(\(+0.039/+0.102\) and \(+0.039/+0.039\)).
+Control delay raises \(\Delta_A\) to \(+0.070\) but flips
+\(\Delta_B\) to \(-0.047\) (paired change vs nominal about
+\((+0.039,-0.141)\)).
+Thus specialization is broadly stable under localization/motion, while larger
+teams are more sensitive to delayed control on Pole~B.
+% STANDARDIZED_6V6_NOISE_*; sealed 2026-10-01 (CHAIN_6V6_DONE).
+
+\subsection{Sensitivity: seed-ID prefix of 50 (archived; not top-50)}
+\label{sec:seedid50}
+
+Superseded by the deployed-performance top-50 in
+\texttt{true\_top50\_tables.tex}. The sealed \(n=128\) tables remain primary.
+The old deterministic first-50-by-seed-ID check is archived as
+\texttt{seedid50\_prefix\_tables.tex} / \texttt{fig\_*\_seedid50} and is
+\emph{not} a performance-ranked top-50.
+
+% \input{seedid50_prefix_tables}
