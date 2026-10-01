@@ -1,0 +1,14 @@
+{
+  "record": "STANDARDIZED_6V6_NOISE_DELAY_MEDIUM specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-10-01T14:33:16Z",
+  "implements": "STANDARDIZED_6V6_NOISE_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.0703125,
+    "delta_B": -0.046875
+  },
+  "rule": "requires a row-level integrity audit before any scientific interpretation. Raw rows: standardized_6v6_noise_delay_medium_specialist_crossover_eval_rows.csv. Sealing still proceeds for immutability."
+}
