@@ -2350,9 +2350,21 @@
         }
       ],
       "spent_utc": "2026-10-01T14:34:47Z"
+    },
+    {
+      "experiment_id": "SYMMETRIC_ROLE_TOP50_2V2_B_DEFENDER_TRAINING",
+      "purpose": "2v2 pi_DB (k=1): 200k defender training from repaired pi_B, identical recipe to pi_DA",
+      "seed_class": "exploratory",
+      "lo": 26000001,
+      "hi": 26000001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-01T20:21:54Z"
     }
   ],
-  "updated_utc": "2026-10-01T17:07:57Z",
+  "updated_utc": "2026-10-01T20:21:54Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
