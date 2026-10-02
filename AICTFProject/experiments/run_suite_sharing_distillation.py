@@ -200,11 +200,13 @@ def main() -> int:
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--preflight", action="store_true")
     ap.add_argument("--spec-tag", default="", choices=SPEC_TAGS,
-                    help="SYM = the symmetric-role family (STANDARDIZED_<N>V<N>_SYM_SHARING_SPEC.json)")
+                    help="SYM = symmetric-role family; STAGE4 = dual-branch teachers + z+r/role-only")
     args = ap.parse_args()
     stag = str(args.spec_tag)
     n = int(args.team_size)
     arm = str(args.arm)
+    if stag == "STAGE4" and arm == "generalist":
+        raise SystemExit("REFUSING: Stage 4 forbids Generalist pi(a|o); use role_only")
     device = args.device
     paths = _paths(arm, n, stag)
     is_ladder = arm in LADDER_RUNG
@@ -249,37 +251,60 @@ def main() -> int:
     obs_space, act_space = probe.observation_space, probe.action_space
     probe.close()
 
-    teachers = {}
-    for name in ("pi_A", "pi_B"):
-        ck = ROOT / tspec[name]["path"]
-        if _sha(ck) != tspec[name]["sha256"]:
-            raise SystemExit(f"REFUSING: {name} sha mismatch")
-        pol = load_custom_ppo_policy(str(ck), obs_space, act_space, device=device)
-        pol.model.eval()
-        for p in pol.model.parameters():
-            p.requires_grad_(False)
-        teachers[name] = pol.model
+    dual_teachers = (
+        tspec.get("mode") == "dual_branch_role_gated"
+        or (isinstance(tspec.get("pi_A"), dict) and "defend" in tspec["pi_A"])
+    )
+    teachers: dict = {"mode": "dual_branch_role_gated"} if dual_teachers else {}
+    if dual_teachers:
+        for name in ("pi_A", "pi_B"):
+            teachers[name] = {}
+            for half in ("defend", "attack"):
+                ck = ROOT / tspec[name][half]["path"]
+                if _sha(ck) != tspec[name][half]["sha256"]:
+                    raise SystemExit(f"REFUSING: {name}.{half} sha mismatch")
+                pol = load_custom_ppo_policy(str(ck), obs_space, act_space, device=device)
+                pol.model.eval()
+                for p in pol.model.parameters():
+                    p.requires_grad_(False)
+                teachers[name][half] = pol.model
+        arch_src = str(ROOT / tspec["pi_A"]["defend"]["path"])
+    else:
+        for name in ("pi_A", "pi_B"):
+            ck = ROOT / tspec[name]["path"]
+            if _sha(ck) != tspec[name]["sha256"]:
+                raise SystemExit(f"REFUSING: {name} sha mismatch")
+            pol = load_custom_ppo_policy(str(ck), obs_space, act_space, device=device)
+            pol.model.eval()
+            for p in pol.model.parameters():
+                p.requires_grad_(False)
+            teachers[name] = pol.model
+        arch_src = str(ROOT / tspec["pi_A"]["path"])
 
     if not args.preflight and paths["frozen"].is_file():
         raise SystemExit(f"REFUSING: {paths['frozen']} exists; one-shot")
     if not args.preflight and not paths["preflight"].is_file():
         raise SystemExit("REFUSING: run --preflight first")
 
-    if arm in ("fully_shared", "generalist"):
+    if arm in ("fully_shared", "generalist", "role_only"):
         from rl import suite_fully_shared_distill as FS
-        build_fn, save_fn, load_fn = (
-            (FS.build_fully_shared_student, FS.save_fully_shared, FS.load_fully_shared)
-            if arm == "fully_shared" else
-            (FS.build_generalist_student, FS.save_generalist, FS.load_generalist))
         seed = init_seeds[0]
         branch_seeds = None
         rung = None
+        role_on = bool(stag == "STAGE4" and arm == "fully_shared")
+
+        if arm == "role_only":
+            build_fn, save_fn, load_fn = FS.build_role_only_student, FS.save_role_only, FS.load_role_only
+        elif arm == "fully_shared":
+            build_fn, save_fn, load_fn = FS.build_fully_shared_student, FS.save_fully_shared, FS.load_fully_shared
+        else:
+            build_fn, save_fn, load_fn = FS.build_generalist_student, FS.save_generalist, FS.load_generalist
 
         def build_student():
-            return build_fn(
-                str(ROOT / tspec["pi_A"]["path"]), obs_space, act_space,
-                seed=seed, device=device,
-            )
+            if arm == "fully_shared" and role_on:
+                return build_fn(arch_src, obs_space, act_space, seed=seed, device=device,
+                                role_conditioning=True)
+            return build_fn(arch_src, obs_space, act_space, seed=seed, device=device)
 
         def actor_params(m):
             return TD.actor_parameters(m)
@@ -288,7 +313,8 @@ def main() -> int:
             return TD.critic_parameters(m)
 
         def save_student(m, cfg, kw, path, prov):
-            save_fn(m, cfg, kw, path, {**prov, "suite_arm": arm, "team_size": n})
+            save_fn(m, cfg, kw, path, {**prov, "suite_arm": arm, "team_size": n,
+                                       "stage4": stag == "STAGE4"})
 
         def load_student(path):
             return load_fn(path, obs_space, act_space, device=device)
@@ -314,12 +340,12 @@ def main() -> int:
         def build_student():
             if rung == 1:
                 model, cfg, kw, _ref = L1.build_rung1(
-                    str(ROOT / tspec["pi_A"]["path"]), obs_space, act_space,
+                    arch_src, obs_space, act_space,
                     seeds=branch_seeds, device=device,
                 )
             else:
                 model, cfg, kw, _ref = L1.build_rung(
-                    rung, str(ROOT / tspec["pi_A"]["path"]), obs_space, act_space,
+                    rung, arch_src, obs_space, act_space,
                     seeds=branch_seeds, device=device,
                 )
             return model, cfg, kw
@@ -331,7 +357,8 @@ def main() -> int:
             return L1.critic_parameters(m)
 
         def save_student(m, cfg, kw, path, prov):
-            payload_prov = {**prov, "suite_arm": arm, "team_size": n, "rung": rung}
+            payload_prov = {**prov, "suite_arm": arm, "team_size": n, "rung": rung,
+                            "stage4": stag == "STAGE4"}
             if rung == 1:
                 L1.save_rung1(m, cfg, kw, path, payload_prov)
             else:
