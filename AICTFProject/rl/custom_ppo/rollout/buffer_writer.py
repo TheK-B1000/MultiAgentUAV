@@ -118,6 +118,19 @@ class RolloutStepRecorder:
                     "-- the collector must compute it every step this flag is on"
                 )
             entity_items["defend_log_probs"] = frame.defend_log_probs_t
+            if bool(getattr(self.trainer.cfg, "dual_branch_role_composite_enabled", False)):
+                if frame.attack_log_probs_t is None:
+                    raise ValueError(
+                        "dual_branch_role_composite_enabled=True but "
+                        "StepFrame.attack_log_probs_t is None"
+                    )
+                if frame.attack_values_norm_t is None:
+                    raise ValueError(
+                        "dual_branch_role_composite_enabled=True but "
+                        "StepFrame.attack_values_norm_t is None"
+                    )
+                entity_items["attack_log_probs"] = frame.attack_log_probs_t
+                entity_items["attack_values_norm"] = frame.attack_values_norm_t
         return dict(
             obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=device),
             obs_vec=torch.as_tensor(obs["vec"], dtype=torch.float32, device=device),

@@ -1,0 +1,9 @@
+{
+  "record_id": "ABORTED_4V4_SYM_B_TOP50_DEFENDER_ONLY",
+  "status": "ABORTED_MID_RUN",
+  "under": "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+  "reclassified_by": "PRIOR_ROLE_WORK_RECLASSIFIED_AS_EXPLORATORY_ABLATION.json",
+  "hard_stop": "artifacts/strategic_demand/sppo/symmetric_role_top50/HARD_STOP_4V4_B_DEFENDER_ONLY.json",
+  "rule": "Do not use any checkpoint under this directory as a main-candidate branch or as half of DUAL_BRANCH_ROLE_COMPOSITE_V1. Exploratory defender-only provenance only if ever scored under an explicit ablation authorization.",
+  "experiment_id": "SYMMETRIC_ROLE_TOP50_4V4_B_DEFENDER_TRAINING"
+}

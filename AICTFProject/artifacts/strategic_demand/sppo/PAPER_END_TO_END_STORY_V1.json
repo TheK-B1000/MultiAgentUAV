@@ -1,0 +1,121 @@
+{
+  "record_id": "PAPER_END_TO_END_STORY_V1",
+  "status": "FROZEN_PAPER_NARRATIVE",
+  "utc": "2026-10-02T02:00:00Z",
+  "classification": "PAPER STORY FREEZE. Experimental protocol. Not PAPER-FAITHFUL. Does not authorize a new architecture, a learned router, or online opponent inference. Does not reopen DUAL_BRANCH_ROLE_COMPOSITE_V1.",
+  "decided_by": "PI, 2026-10-01/02: freeze one end-to-end paper story and stop adding architectural branches. Same research program, stronger architecture: repair the A-only role asymmetry; keep specialists, poles, crossover, deltas, scaling, CLOSEST_DEFENDS, and the sharing ladder.",
+
+  "CHARACTERIZATION": "Same research program, stronger architecture. Not a new project. Skeleton stays specialists -> team organization -> crossover -> parameter sharing / z. The middle layer changes from A-only roles to identical ATTACK/DEFEND machinery on A and B.",
+
+  "CENTRAL_CLAIM": "strategy != role. Roles answer who does what. z answers what overall team behavior is being executed.",
+
+  "PIPELINE_boxed": "opponent demand -> role-organized strategic teachers -> shared latent strategic representation",
+
+  "THE_QUESTION": "Can explicit role organization preserve distinct opponent-conditioned strategies as multi-agent teams scale, and can those strategies subsequently be represented within a shared policy through a compact latent strategic representation?",
+
+  "DISTINCTION_locked": {
+    "roles": "organize agents (what job does this agent have?)",
+    "z": "which team strategy is being expressed (discrete strategic mode), not an inferred opponent identity",
+    "not_the_same_thing": "roles are the scaffold that keeps a strategy coherent as N grows; they are not the strategy"
+  },
+
+  "STAGES_locked": {
+    "1_different_strategic_demands": {
+      "artifacts": "repaired 1M specialists pi_A and pi_B at N in {2,4,6} (FOUNDATION_CHECKPOINTS in DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json)",
+      "question": "Do Pole A (OP6) and Pole B (OP7) create different strategic demands?"
+    },
+    "2_make_strategies_scalable": {
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+      "construction": "for each s in {A,B}: pi_s -> {pi_s,ATTACK, pi_s,DEFEND}, both warm-started from the same specialist, one joint 200k env-step PPO run, k=ceil(N/3), CLOSEST_DEFENDS, roles fixed for the episode",
+      "k_by_scale": {"2": 1, "4": 2, "6": 2},
+      "question": "Does explicit team organization allow those strategic responses to remain coherent at 2v2, 4v4, and 6v6?",
+      "same_construction_everywhere": true
+    },
+    "3_prove_they_are_different_strategies": {
+      "success_owner": "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json::SUCCESS_CRITERIA_locked",
+      "primary": "reproducible behavioral differentiation interpretable vs OP6 vs OP7, plus a functional measure (crossover) showing the distinction matters",
+      "not_required": "Delta_A, Delta_B >> 0 as the sole success definition",
+      "measures_examples": [
+        "territorial occupancy",
+        "flag pressure",
+        "team dispersion",
+        "target selection",
+        "interception",
+        "ATTACK positioning",
+        "DEFEND positioning"
+      ],
+      "crossover_cells": ["A@A", "B@A", "A@B", "B@B"],
+      "eval_order": "fresh DEV n=64 then confirmatory n=128; neither block overlaps exploratory top-50"
+    },
+    "4_one_shared_strategic_representation": {
+      "starts_only_after": "Stage 2 teachers seal and Stage 3 freezes them as the distillation teachers",
+      "policy": "pi_theta(a | o, z, r)",
+      "symbols": {
+        "o": "local observation",
+        "r": "explicit ATTACK/DEFEND role from CLOSEST_DEFENDS(ceil(N/3))",
+        "z": "strategy-conditioned latent mode in {z_A, z_B}, supplied externally, learned as embeddings inside the shared network",
+        "theta": "shared parameters"
+      },
+      "four_combinations": ["(A, ATTACK)", "(A, DEFEND)", "(B, ATTACK)", "(B, DEFEND)"],
+      "distillation_example": {
+        "fields": ["observation", "strategy in {A,B}", "role in {ATTACK,DEFEND}", "teacher action distribution"],
+        "not": "observation + strategy only, with role identity dropped"
+      },
+      "deployment": "select z_A or z_B and assign r by CLOSEST_DEFENDS(ceil(N/3)); do not infer z from opponent history",
+      "what_this_tests": "Can one shared policy encode and preserve distinct strategic modes, and is z necessary once the agent already knows its role?",
+      "naming": "latent strategic representation or strategy-conditioned latent mode. Do not say the network autonomously discovered two latent strategies.",
+      "sharing_ladder_remove_information": [
+        "Separated: four teacher branches A_ATTACK, A_DEFEND, B_ATTACK, B_DEFEND",
+        "Share-Encoder",
+        "Fully shared + strategy z + role r: pi(a | o, z, r)",
+        "Role only: pi(a | o, r), strategy z removed"
+      ],
+      "role_only_question": "If the model still knows it is ATTACK or DEFEND but no longer knows Strategy A vs Strategy B, is role information enough, or is a distinct strategic representation necessary?",
+      "fully_shared_question": "Can one network preserve both strategies when told which strategic mode to execute and which role this agent has?",
+      "teachers_must_be": "the sealed dual-branch role composites from Stage 2, not historical frozen-ATTACK pi_DA / pi_DB"
+    }
+  },
+
+  "SUCCESS_for_the_paper": {
+    "chain": [
+      "different regimes -> different reproducible strategies",
+      "roles preserve/organize them as N increases",
+      "shared z can represent both without collapsing them"
+    ],
+    "performance": "evidence that the strategies are meaningful; behavioral differentiation is central",
+    "allowed_readings": [
+      "similar win rates with distinct, repeatable signatures (broader pressure vs concentrated/reactive) that survive into Fully Shared+z",
+      "role-only (no z) keeps a good win rate but loses A vs B signatures: role organization is not the same as preserving two strategies",
+      "a scale where organization fails (e.g. 6v6) reported as a scaling result under the frozen construction"
+    ]
+  },
+
+  "EXPLICITLY_NOT_IN_THIS_PAPER": [
+    "q_phi(z | opponent history) or any learned router",
+    "online opponent classifier",
+    "a third strategic mode",
+    "per-scale architecture changes after seeing results",
+    "reopening dual-branch ATTACK/DEFEND losses, k, or the 200k joint budget",
+    "treating historical sharing-ladder runs (defender-only teachers, k=N/2 at 4v4) as this paper's Stage 4"
+  ],
+
+  "HISTORICAL_SHARING_SPECS": {
+    "status": "exploratory provenance under earlier teachers; not Stage 4 of this story",
+    "examples": [
+      "FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC.json",
+      "FULLY_SHARED_STRATEGY_CONDITIONED_6V6_V1_SPEC.json",
+      "SUITE_DISTILLATION_*_SPEC.json"
+    ],
+    "why_not_reused": "those arms distilled defender-only / asymmetric composites and, at 4v4, held k=N/2. This paper's teachers are dual-branch with k=ceil(N/3) on both A and B."
+  },
+
+  "ORDER_do_not_reorder": [
+    "1M opponent specialists (already sealed)",
+    "symmetric dual-branch role training, 200k joint env steps per strategy, all N",
+    "fresh behavioral + crossover evaluation",
+    "freeze A/B strategic teachers",
+    "distillation dataset from both modes",
+    "Separated teachers; then Share-Encoder; Fully shared + z + r; role r only (no z)",
+    "evaluate behavioral strategy preservation plus crossover / win-rate / score evidence"
+  ]
+}

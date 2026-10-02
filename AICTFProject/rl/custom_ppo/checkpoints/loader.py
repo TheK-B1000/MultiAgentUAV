@@ -391,6 +391,26 @@ def load_trainer_checkpoint(trainer: Any, path: str, *, reset_progress: bool = F
         observation_space=trainer.env.observation_space,
         action_space=trainer.env.action_space,
     )
+    # Dual-branch resume: stash ATTACK weights for orchestrator attach (runs after load).
+    # Warm-start from a foundation specialist (no attack_branch_state_dict) is OK —
+    # attach re-inits ATTACK from split_attack_defend_frozen_ckpt. Only refuse when
+    # the zip itself claims to be a dual-branch run but is missing the ATTACK weights.
+    if bool(getattr(trainer.cfg, "dual_branch_role_composite_enabled", False)):
+        ckpt_cfg = payload.get("cfg") if isinstance(payload.get("cfg"), dict) else {}
+        ckpt_was_dual = bool(ckpt_cfg.get("dual_branch_role_composite_enabled", False)) or bool(
+            payload.get("dual_branch_role_composite")
+        )
+        attack_sd = payload.get("attack_branch_state_dict")
+        if ckpt_was_dual and attack_sd is None:
+            raise RuntimeError(
+                f"dual-branch checkpoint {path!r} is missing attack_branch_state_dict — "
+                "refusing to treat a defender-only zip as dual-branch"
+            )
+        if attack_sd is not None:
+            trainer._pending_attack_branch_state_dict = attack_sd
+            trainer._pending_attack_optimizer_state_raw = payload.get(
+                "attack_branch_optimizer_state"
+            )
     model_construction_seconds = time.perf_counter() - model_start
     
     state_start = time.perf_counter()
@@ -400,6 +420,11 @@ def load_trainer_checkpoint(trainer: Any, path: str, *, reset_progress: bool = F
     reset_progress = bool(reset_progress) or bool(
         getattr(trainer.cfg, "warm_start_reset_progress", False)
     )
+    raw_atk_opt = getattr(trainer, "_pending_attack_optimizer_state_raw", None)
+    if raw_atk_opt is not None:
+        delattr(trainer, "_pending_attack_optimizer_state_raw")
+        if not load_weights_only and not reset_progress:
+            trainer._pending_attack_optimizer_state = raw_atk_opt
     if load_weights_only or reset_progress:
         why = (
             "--load-weights-only was set"
@@ -583,6 +608,16 @@ def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingRepo
         # representations of one identity, verified against ``ruleset`` above.
         ARTIFACT_IDENTITY_KEY: run_identity.artifact_identity(),
     }
+    # DUAL_BRANCH_ROLE_COMPOSITE_V1: persist trainable ATTACK branch alongside DEFEND.
+    attack_model = getattr(trainer, "dual_branch_attack_model", None)
+    if attack_model is not None and bool(
+        getattr(trainer.cfg, "dual_branch_role_composite_enabled", False)
+    ):
+        payload["attack_branch_state_dict"] = attack_model.state_dict()
+        attack_opt = getattr(trainer, "dual_branch_attack_optimizer", None)
+        if attack_opt is not None:
+            payload["attack_branch_optimizer_state"] = attack_opt.state_dict()
+        payload["dual_branch_role_composite"] = True
     trainer.optimizers.write_checkpoint(payload)
     if trainer.v6i1_curriculum is not None:
         from rl.custom_ppo.v6i1_phase_runtime import (

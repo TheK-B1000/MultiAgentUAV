@@ -1,0 +1,35 @@
+{
+  "record_id": "PRIOR_ROLE_WORK_RECLASSIFIED_AS_EXPLORATORY_ABLATION",
+  "status": "FROZEN",
+  "utc": "2026-10-02T01:40:00Z",
+  "under": "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+  "decided_by": "PI, 2026-10-01/02: freeze dual-branch ATTACK+DEFEND as the main candidate; reclassify defender-only / A-asymmetric lineages as exploratory ablations without deleting artifacts.",
+
+  "MAIN_CANDIDATE": "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+
+  "RECLASSIFIED_TO_EXPLORATORY_ABLATION": {
+    "defender_only_frozen_attack": {
+      "what": "CLOSEST_DEFENDS + frozen repaired specialist on ATTACK + 200k trainable DEFEND only",
+      "why_not_main": "ATTACK is not a trainable branch of the same composite; historically A-first; not the dual-branch construction",
+      "artifacts_retained": [
+        "STANDARDIZED_2V2_SPLIT_DEFEND_K1 checkpoints",
+        "4v4 a4_split_attack_defend_v1",
+        "6v6 split_defend_k1_v1",
+        "SYMMETRIC_ROLE_TOP50 2v2 pi_DB and TOP50_* evals under that construction"
+      ]
+    },
+    "asymmetric_Ours_paper_rows": {
+      "what": "A = role composite (defender-only stage), B = plain specialist",
+      "why_not_main": "A-only mechanism; B had no role decomposition at deployment",
+      "use": "historical control / provenance only"
+    }
+  },
+
+  "HARD_STOPS": [
+    "Do not launch further 4v4/6v6 production defender-only training as if it were the main system (including launch_4v4_B_train.ps1 under SYMMETRIC_ROLE_TOP50).",
+    "Do not fold SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json; it stays byte-frozen; its runs remain valid diagnostic evidence for the defender-only ablation.",
+    "Do not reuse old pi_DA/pi_DB as half of DUAL_BRANCH_ROLE_COMPOSITE_V1 finals."
+  ],
+
+  "LIVE_JOBS_note": "In-flight TOP50 no-role / TOP50 symmetric-defender-only evals may finish and seal as ablation/diagnostic artifacts. They do not authorize the dual-branch main candidate and must not be relabeled as such."
+}

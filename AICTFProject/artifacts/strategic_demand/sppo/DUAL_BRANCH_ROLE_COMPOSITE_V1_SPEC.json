@@ -1,0 +1,229 @@
+{
+  "record_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC",
+  "status": "FROZEN_IMPLEMENTATION_GATE_PASSED",
+  "utc": "2026-10-02T01:40:00Z",
+  "arm": "MAIN_CANDIDATE_METHODOLOGY",
+  "confirmatory": false,
+  "classification": "EXPERIMENTAL PROTOCOL. Not PAPER-FAITHFUL. Authorizes no training until IMPLEMENTATION_GATE passes. Authorizes no evaluation until training seals under this spec.",
+  "decided_by": "PI, 2026-10-01/02: if cross-scale symmetry is the priority, A and B must receive the same ATTACK+DEFEND construction at every N. Defender-only (frozen ATTACK) becomes an exploratory ablation, not the main system.",
+
+  "THE_QUESTION": "Does decomposing each opponent-conditioned specialist into two explicit role policies (ATTACK and DEFEND), both initialized from that specialist and trained under one identical role-allocation and optimization procedure, produce complementary opponent-conditioned team strategies at 2v2, 4v4 and 6v6?",
+
+  "RESEARCH_CLAIM_TEMPLATE": "Each opponent-conditioned specialist is decomposed into two explicit role policies, ATTACK and DEFEND, initialized from the same specialist and trained under an identical role-allocation and optimization procedure. The same construction is applied at every team size and to both strategic regimes.",
+
+  "PAPER_STORY": "PAPER_END_TO_END_STORY_V1.json — this spec is Stage 2 (role-organized teachers) of that freeze. Do not add a router or a sharing arm inside this file.",
+
+  "SUPERSEDES_FOR_MAIN_CANDIDATE": {
+    "rule": "This record is the main role-composite methodology going forward. Prior recipes remain valid as exploratory / ablation provenance only.",
+    "prior_main_line_now_exploratory_ablation": [
+      "CROSS_SCALE_CANONICAL_RECIPE_V1.json split_defender_stage (frozen ATTACK + trainable DEFEND only; A-only historically)",
+      "STANDARDIZED_2V2_SPLIT_DEFEND_K1_SPEC.json",
+      "DEFEND_ATTACK_SPLIT_POLICY_A_V1 (4v4)",
+      "6v6 split_defend_k1 lineage",
+      "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json and AMENDMENT_1 (defender-only B; top-50 diagnostic under that construction)"
+    ],
+    "do_not_reuse_as_half_of_this_architecture": [
+      "any existing pi_DA / pi_DB / sym_B_top50 / split_defend_k1 checkpoints as a final branch of this V1 system",
+      "old asymmetric confirmatory Delta_A / Delta_B as this method's deltas",
+      "asymmetric Ours top-50 seeds as selection or confirmatory blocks"
+    ]
+  },
+
+  "ARCHITECTURE_locked": {
+    "for_each_scale_N_in": [2, 4, 6],
+    "for_each_strategy_s_in": ["A", "B"],
+    "foundation": "repaired 1M entity-repair specialist pi_s (frozen file on disk; never overwritten)",
+    "branches": {
+      "ATTACK": "trainable network pi^ATTACK_s, warm-started as a clone of pi_s",
+      "DEFEND": "trainable network pi^DEFEND_s, warm-started as a clone of the SAME pi_s"
+    },
+    "deployment": "CLOSEST_DEFENDS(k) assigns roles once per episode (fixed_for_episode); ATTACK slots execute pi^ATTACK_s; DEFEND slots execute pi^DEFEND_s",
+    "k_rule": "k = ceil(N/3)",
+    "k_by_scale": {"2": 1, "4": 2, "6": 2},
+    "k_note": "Resolved k MUST be passed explicitly (--role-k-defend). Do not use rl.custom_ppo.rule_role_assignment.role_k (that helper is N/2 and would wrongly give k=3 at 6v6).",
+    "identical_across_A_and_B": [
+      "allocator CLOSEST_DEFENDS",
+      "k_rule",
+      "roles fixed for episode",
+      "H_r hold ticks unused because fixed_for_episode",
+      "200k joint role-training budget",
+      "ATTACK update rule",
+      "DEFEND update rule",
+      "N-prime teacher schedule on DEFEND",
+      "optimizer / PPO hyperparameters inherited from the specialist trainer defaults used by the canonical split stage",
+      "entity_repair_enabled=true, entity_hidden_dim=32",
+      "SA-PPO anchor OFF"
+    ],
+    "allowed_to_differ": [
+      "foundation checkpoint (pi_A vs pi_B) and its sha256",
+      "training opponent pole (Pole A vs Pole B)",
+      "seed, experiment_id, artifact paths, run_label",
+      "N and the derived k=ceil(N/3) and tensor widths"
+    ]
+  },
+
+  "FOUNDATION_CHECKPOINTS_locked": {
+    "2": {
+      "A": {
+        "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+        "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"
+      },
+      "B": {
+        "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+        "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"
+      }
+    },
+    "4": {
+      "A": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+      },
+      "B": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+      }
+    },
+    "6": {
+      "A": {
+        "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip",
+        "sha256": "3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e"
+      },
+      "B": {
+        "path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip",
+        "sha256": "fc0043235d3abc23f87f5157a46920921f5eced0e9aa252347084d2b500258b5"
+      }
+    }
+  },
+
+    "JOINT_200K_TRAINING_locked": {
+    "total_timesteps": 200000,
+    "budget_semantics_locked": "200000 environment-training steps for the composite team (shared rollout). Samples are routed to ATTACK or DEFEND by role. This is NOT 200k updates per branch independently, and NOT two sequential 200k experiments.",
+    "structure": "ONE composite PPO run per (N, s). Both branches are present for the whole run. This is not two unrelated sequential experiments.",
+    "initialization": "Both pi^ATTACK_s and pi^DEFEND_s load weights from FOUNDATION_CHECKPOINTS[N][s] (identical file, identical sha256). Fresh optimizer / progress counters for the 200k stage.",
+    "role_assignment_during_training": "CLOSEST_DEFENDS(k=ceil(N/3)), fixed_for_episode=true, on every episode of the training pole for strategy s",
+    "sample_routing": {
+      "ATTACK_experiences": "decision-eligible, alive agent-ticks whose assigned role is ATTACK update ONLY pi^ATTACK_s under the ATTACK objective",
+      "DEFEND_experiences": "decision-eligible, alive agent-ticks whose assigned role is DEFEND update ONLY pi^DEFEND_s under the DEFEND objective",
+      "no_cross_branch_gradients": "an ATTACK tick must not write gradients into pi^DEFEND_s; a DEFEND tick must not write gradients into pi^ATTACK_s"
+    },
+    "ATTACK_objective": {
+      "locked_choice": "standard on-policy PPO policy+value(+entropy) losses on ATTACK-assigned decision points only, using the same PPO hyperparameters as the specialist trainer's production defaults for this codebase's split/role stage",
+      "explicitly_not": [
+        "leaving ATTACK frozen for the 200k stage",
+        "a second unrelated 200k run after DEFEND finishes",
+        "N-prime teacher on ATTACK",
+        "undefined 'train an attacker' prose without the decision-point filter above"
+      ]
+    },
+    "DEFEND_objective": {
+      "ppo": "standard on-policy PPO on DEFEND-assigned decision points only (same PPO hyperparameter inheritance as ATTACK)",
+      "n_prime_teacher_auxiliary": {
+        "lambda_peak": 0.1,
+        "lambda_end": 0.0,
+        "decay_start_step": 50000,
+        "decay_end_step": 150000,
+        "cadence": 4,
+        "loss": "CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND-role, alive, decision-eligible agent-ticks",
+        "do_not_retune": true
+      }
+    },
+    "decision_point_filtering": "only decision-eligible agent-ticks enter either branch's PPO minibatches (same semi-Markov decision semantics as the rest of the suite)",
+    "checkpoint_rule": "periodic checkpoints every 100000 steps; terminal weights at ~200k are the sole selected artifact (no early stopping, no checkpoint shopping)",
+    "sappo_anchor": "OFF",
+    "IMPLEMENTATION_GATE": {
+      "status": "PASSED",
+      "passed_utc": "2026-10-02T02:15:00Z",
+      "evidence": [
+        "tests/test_dual_branch_role_composite_v1.py (ceil(N/3), attack/defend gating, both trainable + isolated, teacher not on ATTACK, checkpoint roundtrip)",
+        "tests/test_split_attack_defend.py still green (frozen-ATTACK ablation path preserved)",
+        "cfg.dual_branch_role_composite_enabled + --dual-branch-spec authorization",
+        "joint budget = env total_timesteps with per-minibatch dual PPO steps (not 2x 200k)"
+      ],
+      "required_before_launch": [
+        "trainer supports two trainable networks in one run with the sample_routing above",
+        "fail-closed attestation that both branches loaded the foundation sha256",
+        "fail-closed that --role-k-defend equals ceil(N/3)",
+        "unit tests: ATTACK ticks do not change DEFEND weights and vice versa",
+        "smoke (5k, disposable 999xxxxx seed) PASS at N=2 before any 200k"
+      ]
+    }
+  },
+
+  "EVALUATION_locked": {
+    "after_all_six_role_composites_seal": "2v2 A, 2v2 B, 4v4 A, 4v4 B, 6v6 A, 6v6 B",
+    "development": {
+      "purpose": "sanity / process check of the frozen architecture",
+      "n_seeds": 64,
+      "cells": ["A@A", "B@A", "A@B", "B@B"],
+      "fresh_block": true,
+      "forbidden_sources": ["asymmetric Ours top-50", "any confirmatory block", "any selection block reused as confirmatory"]
+    },
+    "confirmatory": {
+      "purpose": "paper primary n=128",
+      "n_seeds": 128,
+      "cells": ["A@A", "B@A", "A@B", "B@B"],
+      "fresh_block": true,
+      "deltas": {
+        "Delta_A": "V(A_sym, A) - V(B_sym, A)",
+        "Delta_B": "V(B_sym, B) - V(A_sym, B)"
+      },
+      "note": "Both A_sym and B_sym are dual-branch role composites under this spec. Old asymmetric / defender-only deltas are historical controls only."
+    },
+    "seed_allocation_rule": "Allocate dedicated RESERVED blocks via experiments/seed_registry.py before any eval launch; record experiment_ids in an amendment. Do not spend until the corresponding stage is authorized."
+  },
+
+  "SUCCESS_CRITERIA_locked": {
+    "decided_by": "PI, 2026-10-01/02: do not require Delta_A, Delta_B >> 0 as the sole success definition",
+    "not_required": "large positive deltas on both poles as a necessary condition for a successful experiment",
+    "primary_success": "strategic differentiation under the frozen dual-branch construction",
+    "requires_all_of": [
+      "A and B have reproducibly different behavioral signatures (same construction; differences not explained by seed noise alone)",
+      "those differences are interpretable relative to Pole A (OP6) vs Pole B (OP7)",
+      "crossover or another functional measure shows that the distinction matters (the strategies are not mere stylistic variants)"
+    ],
+    "delta_interpretation": {
+      "role": "supporting functional evidence, not the sole success criterion",
+      "modest_positive_example": "Delta_B = +0.10 can support the claim if B shows a clearly different, repeatable strategy with a measurable Pole-B advantage",
+      "large_positive_without_behavior": "Delta_B = +0.80 with no behavioral explanation is a strong specialization result but a weaker strategy story",
+      "negative_or_null_at_a_scale": "reportable under this freeze (e.g. scaling difficulty at 6v6); do not redesign k or losses after seeing results"
+    },
+    "forbidden_post_hoc": [
+      "redefining success as Delta >> 0 only after seeing confirmatory numbers",
+      "changing architecture at a weak scale to chase larger deltas"
+    ]
+  },
+
+  "EXPLORATORY_ABLATION_defender_only": {
+    "definition": "foundation specialist frozen on ATTACK; only DEFEND branch receives the 200k update (current split_attack_defend path)",
+    "status": "EXPLORATORY / ABLATION under this methodology freeze",
+    "includes_on_disk": [
+      "historical A-only split pi_DA at 2v2/4v4/6v6",
+      "SYMMETRIC_ROLE_TOP50 2v2 pi_DB and its top-50 symmetric eval",
+      "any 4v4/6v6 defender-only B work prepared under SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC"
+    ],
+    "may_be_reported_as": "ablation: dedicated DEFEND only vs this V1 dual-branch main candidate",
+    "must_not_be_reported_as": "the paper-final symmetric role-composite system"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "any 200k or evaluation launch before IMPLEMENTATION_GATE passes",
+    "reusing old pi_DA / pi_DB as a branch of the V1 final system",
+    "k = N/2 at 6v6 (would be 3) or any k other than ceil(N/3)",
+    "A-only or B-only construction as the main system",
+    "training ATTACK and DEFEND as two unrelated sequential experiments with different recipes",
+    "using asymmetric top-50 seeds for selection or confirmatory",
+    "architecture changes after seeing development or confirmatory results",
+    "retuning the N-prime teacher schedule",
+    "calling results confirmatory before the confirmatory block is sealed under this spec"
+  ],
+
+  "NEXT_STEPS_ordered": [
+    "1. Keep this file byte-frozen. Do not edit after any run fingerprints it.",
+    "2. Implement dual-branch trainer + tests (IMPLEMENTATION_GATE).",
+    "3. 5k smoke at 2v2 for strategy A, then B.",
+    "4. Allocate training seeds; run six 200k jobs (N in {2,4,6} x s in {A,B}).",
+    "5. Allocate fresh DEV n=64; four-cell crossover; seal process reading.",
+    "6. Allocate fresh confirmatory n=128; four-cell; seal Delta_A / Delta_B.",
+    "7. Optionally score defender-only ablation on the same confirmatory block as a labeled ablation (separate authorization)."
+  ]
+}

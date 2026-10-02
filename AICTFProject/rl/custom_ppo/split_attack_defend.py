@@ -1,21 +1,26 @@
-"""DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: pure splice/gating functions.
+"""Role-split splice/gating functions (defender-only ablation + dual-branch V1).
 
-Two physically separate networks: a frozen pi_A produces ATTACK-role
-actions, a trainable pi_D produces DEFEND-role actions. These functions are
-deliberately pure (no state, no I/O, no model access) so the "splice
-before env.step, never overwrite after" and "DEFEND-gated log-prob/entropy"
-contracts can be checked directly against known inputs, not just observed
-indirectly through a full rollout. The SAME functions are called from both
-rl.custom_ppo.rollout.collector (collection time) and
-rl.custom_ppo.update.minibatch_updater (update time), so the gate a
-minibatch trains through is provably the same gate that produced its
-stored old log-prob.
+Two physically separate networks produce role-assigned actions. Historically
+ATTACK was frozen (DEFEND_ATTACK_SPLIT_POLICY_A_V1); dual-branch
+DUAL_BRANCH_ROLE_COMPOSITE_V1 makes both trainable with sample routing.
+These helpers are deliberately pure so the "splice before env.step" and
+role-gated log-prob contracts can be checked against known inputs. The SAME
+functions are called from collector (collection) and minibatch_updater
+(update).
 """
 from __future__ import annotations
 
+import math
+
 import torch
 
-__all__ = ["role_broadcast_mask", "splice_actions", "defend_gated_sum"]
+__all__ = [
+    "role_broadcast_mask",
+    "splice_actions",
+    "defend_gated_sum",
+    "attack_gated_sum",
+    "ceil_n_over_3",
+]
 
 
 def role_broadcast_mask(is_defend: torch.Tensor, heads_per_agent: int) -> torch.Tensor:
@@ -62,3 +67,20 @@ def defend_gated_sum(per_agent_values: torch.Tensor, is_defend: torch.Tensor) ->
             f"is_defend shape {tuple(is_defend.shape)}"
         )
     return (per_agent_values * is_defend.float()).sum(dim=-1)
+
+
+def attack_gated_sum(per_agent_values: torch.Tensor, is_defend: torch.Tensor) -> torch.Tensor:
+    """(B, N) -> (B,), summing only ATTACK-role agents (is_defend == False)."""
+    if per_agent_values.shape != is_defend.shape:
+        raise ValueError(
+            f"per_agent_values shape {tuple(per_agent_values.shape)} != "
+            f"is_defend shape {tuple(is_defend.shape)}"
+        )
+    return (per_agent_values * (~is_defend).float()).sum(dim=-1)
+
+
+def ceil_n_over_3(n: int) -> int:
+    """Locked k = ceil(N/3) for DUAL_BRANCH_ROLE_COMPOSITE_V1 (gives 1,2,2)."""
+    if int(n) < 1:
+        raise ValueError(f"team size N must be >= 1, got {n}")
+    return int(math.ceil(int(n) / 3.0))

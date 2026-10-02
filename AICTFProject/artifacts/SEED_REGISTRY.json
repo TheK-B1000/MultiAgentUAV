@@ -1422,6 +1422,10 @@
         {
           "utc": "2026-10-01T17:07:57Z",
           "note": "reconciled 2026-10-01: spent by the DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1 crossover (FROZEN_RESULT); status was never updated"
+        },
+        {
+          "utc": "2026-10-02T00:20:54Z",
+          "note": "post-hoc matched ablation TOP50_4V4_NOROLE sealed SEALED on this already-spent block"
         }
       ]
     },
@@ -1819,6 +1823,14 @@
         {
           "utc": "2026-09-27T17:25:30Z",
           "note": "sealed SEALED; gate_passes=False"
+        },
+        {
+          "utc": "2026-10-01T23:18:05Z",
+          "note": "post-hoc matched ablation TOP50_2V2_NOROLE sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-02T00:51:46Z",
+          "note": "post-hoc matched ablation TOP50_2V2_SYMMETRIC_OURS sealed SEALED on this already-spent block"
         }
       ]
     },
@@ -2358,10 +2370,17 @@
       "lo": 26000001,
       "hi": 26000001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-01T20:21:54Z"
+      "allocated_utc": "2026-10-01T20:21:54Z",
+      "spent_utc": "2026-10-01T22:04:00Z",
+      "notes": [
+        {
+          "utc": "2026-10-01T22:04:00Z",
+          "note": "final_pi_B_specialist_2v2_sym_B_top50.zip present (200k complete 2026-10-01)"
+        }
+      ]
     },
     {
       "experiment_id": "SYMMETRIC_ROLE_TOP50_6V6_A_DEFENDER_TRAINING",
@@ -2566,9 +2585,93 @@
       "spec": "experiments/prepare_symmetric_baselines.py",
       "subdivides": null,
       "allocated_utc": "2026-10-01T20:56:42Z"
+    },
+    {
+      "experiment_id": "SYMMETRIC_ROLE_TOP50_4V4_B_DEFENDER_TRAINING",
+      "purpose": "4v4 symmetric-role top-50: train pi_DB (k=2) from repaired pi_B; 200k",
+      "seed_class": "exploratory",
+      "lo": 26800001,
+      "hi": 26800001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-01T22:03:35Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_2V2_A_TRAIN",
+      "purpose": "2v2 dual-branch joint 200k A (ATTACK+DEFEND from repaired pi_A)",
+      "seed_class": "exploratory",
+      "lo": 26900001,
+      "hi": 26900001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T01:56:11Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_2V2_B_TRAIN",
+      "purpose": "2v2 dual-branch joint 200k B (ATTACK+DEFEND from repaired pi_B)",
+      "seed_class": "exploratory",
+      "lo": 26900002,
+      "hi": 26900002,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T01:56:11Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_4V4_A_TRAIN",
+      "purpose": "4v4 dual-branch joint 200k A",
+      "seed_class": "exploratory",
+      "lo": 26900003,
+      "hi": 26900003,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T01:56:11Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_4V4_B_TRAIN",
+      "purpose": "4v4 dual-branch joint 200k B",
+      "seed_class": "exploratory",
+      "lo": 26900004,
+      "hi": 26900004,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T01:56:11Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_6V6_A_TRAIN",
+      "purpose": "6v6 dual-branch joint 200k A (school PC)",
+      "seed_class": "exploratory",
+      "lo": 26900005,
+      "hi": 26900005,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T01:56:11Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_6V6_B_TRAIN",
+      "purpose": "6v6 dual-branch joint 200k B (school PC)",
+      "seed_class": "exploratory",
+      "lo": 26900006,
+      "hi": 26900006,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T01:56:11Z"
     }
   ],
-  "updated_utc": "2026-10-01T20:56:42Z",
+  "updated_utc": "2026-10-02T01:56:11Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

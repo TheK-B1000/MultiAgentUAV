@@ -1036,6 +1036,11 @@ class PPOConfig:
     split_attack_defend_enabled: bool = False
     split_attack_defend_frozen_ckpt: str = ""
     split_attack_defend_frozen_ckpt_sha256: str = ""
+    # DUAL_BRANCH_ROLE_COMPOSITE_V1: both ATTACK and DEFEND branches trainable
+    # from the same foundation in ONE joint 200k env-step PPO run. When False
+    # with split_attack_defend_enabled, ATTACK stays frozen (exploratory
+    # defender-only ablation). Requires split_attack_defend_enabled=True.
+    dual_branch_role_composite_enabled: bool = False
 
     # --- Assignment conditioning v1 (ASSIGNMENT_CONDITIONING_V1_SPEC) ---
     # Privileged GUARD_DISTRIBUTED_V2 z_i (4-d per agent) on actor; critic gets

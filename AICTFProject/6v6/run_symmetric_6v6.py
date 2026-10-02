@@ -369,6 +369,14 @@ def phase2() -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true", help="verify everything; change nothing")
+    ap.add_argument(
+        "--allow-exploratory-ablation",
+        action="store_true",
+        help=(
+            "required for any non --check run: this pipeline is defender-only "
+            "(frozen ATTACK). Main candidate is DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json."
+        ),
+    )
     a = ap.parse_args()
     problems, notes = check()
     if a.check:
@@ -376,10 +384,17 @@ def main() -> int:
             print("  " + n)
         print("ALL CHECKS PASS" if not problems else "PROBLEMS:\n  " + "\n  ".join(problems))
         return 0 if not problems else 1
+    if not a.allow_exploratory_ablation:
+        print(
+            "REFUSING: 6v6/run_symmetric_6v6.py is the defender-only symmetric diagnostic.\n"
+            "Main candidate is artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json\n"
+            "(dual-branch ATTACK+DEFEND). Pass --allow-exploratory-ablation only for intentional ablation."
+        )
+        return 2
     if problems:
         fail("pre-run checks failed: " + "; ".join(problems))
     state(status="RUNNING", pid=os.getpid(), git_head=git("rev-parse", "HEAD"))
-    log("6v6 symmetric diagnostic started")
+    log("6v6 symmetric diagnostic started (exploratory ablation; not dual-branch V1)")
 
     if not done("smoke_B"):
         # same suffix as the authorized run (the authorization matches it); --smoke prefixes the directory with

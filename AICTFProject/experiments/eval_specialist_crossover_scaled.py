@@ -180,7 +180,8 @@ def is_symmetric_evaluation(label: str, entry: dict | None) -> bool:
     frozen attacker or the symmetric system (SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json, *_SYM_SHARING_EVAL_SPEC)."""
     up = str(label).upper()
     e = entry or {}
-    return ("SYMMETRIC" in up or "_SYM_" in up or bool(e.get("frozen_attack_B"))
+    return ("SYMMETRIC" in up or "_SYM_" in up or "DUAL_BRANCH" in up
+            or bool(e.get("frozen_attack_B"))
             or e.get("system") == "symmetric Ours")
 
 
@@ -195,6 +196,24 @@ def require_symmetric_split(label: str, entry: dict | None, args) -> None:
         if not str(path or "") or not str(sha or ""):
             raise SystemExit(f"REFUSING: symmetric evaluation {label} requires {flag} and its sha256 "
                              f"(both sides must be the split composite)")
+    manifest_path = str(getattr(args, "dual_branch_deploy_manifest", "") or "")
+    if manifest_path:
+        import hashlib
+        man = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+        if man.get("architecture") != "DUAL_BRANCH_ROLE_COMPOSITE_V1":
+            raise SystemExit("REFUSING: deploy manifest is not DUAL_BRANCH_ROLE_COMPOSITE_V1")
+        pairs = (
+            ("pi_A_defend", args.pi_a_path),
+            ("pi_B_defend", args.pi_b_path),
+            ("pi_A_attack", args.frozen_attack_path),
+            ("pi_B_attack", args.frozen_attack_path_b),
+        )
+        for key, path in pairs:
+            pin = man.get(key) or {}
+            got = hashlib.sha256(Path(str(path)).read_bytes()).hexdigest()
+            if got != str(pin.get("sha256") or "").lower():
+                raise SystemExit(f"REFUSING: {key} sha256 does not match the dual-branch deploy manifest")
+        return
     e = entry or {}
     for key, sha in (("frozen_attack_A", args.frozen_attack_path_sha256),
                      ("frozen_attack_B", args.frozen_attack_path_b_sha256)):
@@ -255,6 +274,9 @@ def main() -> int:
                          "exactly as --frozen-attack-path is spliced with pi_DA")
     ap.add_argument("--frozen-attack-path-b-sha256", default="",
                     help="expected sha256 of --frozen-attack-path-b (fail-closed on mismatch)")
+    ap.add_argument("--dual-branch-deploy-manifest", default="",
+                    help="DUAL_BRANCH_ROLE_COMPOSITE_V1 deploy manifest: ATTACK zips are the "
+                         "trained branches, not the foundation specialists")
     ap.add_argument("--label", required=True,
                     help="output prefix, e.g. EXPLORATORY_4V4; never omitted so an exploratory "
                          "result cannot be written under a confirmatory name")

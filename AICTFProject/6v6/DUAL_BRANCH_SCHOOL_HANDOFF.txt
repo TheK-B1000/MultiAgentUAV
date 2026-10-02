@@ -1,0 +1,26 @@
+# School-PC handoff: 6v6 dual-branch suite
+#
+# 1. git pull
+# 2. cd AICTFProject
+# 3. Check (no side effects):
+#      .venv\Scripts\python.exe 6v6\run_dual_branch_6v6.py --check
+# 4. Launch (detached; resumes if the PC restarts):
+#      powershell -ExecutionPolicy Bypass -File 6v6\run_dual_branch_6v6.ps1
+# 5. Watch:
+#      Get-Content 6v6\dual_branch_6v6.log -Wait -Tail 20
+#
+# What it runs, in order:
+#   smoke A, smoke B
+#   joint 200k dual-branch train A, then B
+#     (ATTACK ticks update ATTACK only; DEFEND ticks update DEFEND + N' teacher)
+#   export the trained ATTACK branches
+#   four-cell crossover on the frozen top-50 seeds (post-hoc diagnostic)
+#   6v6\dual_branch_6v6_results.zip
+#
+# Do NOT run 6v6\run_symmetric_6v6.ps1. That is the defender-only ablation.
+# The sharing ladder (Share-Encoder, Fully Shared + z + r, role-only) is not
+# this launch. It waits until these teachers are sealed.
+#
+# Seeds: A=26900005, B=26900006
+# k = ceil(6/3) = 2
+# Foundations: repaired pi_A / pi_B c2 entity-repair zips (hashes in the V1 spec)

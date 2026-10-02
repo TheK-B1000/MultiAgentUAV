@@ -288,24 +288,28 @@ class RolloutCollector:
         context_state: torch.Tensor,
         actions_t: torch.Tensor,
         log_prob_per_agent: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Splice the trainable model's own DEFEND-slot actions with the
-        frozen model's ATTACK-slot actions BEFORE env.step -- never
-        overwritten after the fact, so every stored (action, log_prob) pair
-        always corresponds to the policy that actually produced it -- and
-        reduce the trainable model's per-agent log-prob to the DEFEND-only
-        scalar the split PPO loss trains on."""
-        frozen_model = self._split_attack_defend_frozen_model()
-        frozen_entity_kwargs: Dict[str, torch.Tensor] = {}
-        if getattr(frozen_model, "entity_encoder", None) is not None:
-            frozen_entity_kwargs = dict(
+    ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor]]:
+        """Splice DEFEND-slot actions from the student with ATTACK-slot
+        actions from the ATTACK branch BEFORE env.step. Returns
+        (actions_exec, defend_log_prob, attack_log_prob, attack_values_norm).
+        The last two are set only under dual_branch_role_composite_enabled.
+        """
+        from rl.custom_ppo.split_attack_defend import attack_gated_sum
+
+        attack_model = self._split_attack_defend_frozen_model()
+        attack_entity_kwargs: Dict[str, torch.Tensor] = {}
+        if getattr(attack_model, "entity_encoder", None) is not None:
+            attack_entity_kwargs = dict(
                 teammates=obs_t["teammates"], teammates_valid=obs_t["teammates_valid"],
                 enemies=obs_t["enemies"], enemies_valid=obs_t["enemies_valid"],
             )
         with torch.no_grad():
-            frozen_actions_t, *_ = frozen_model.act(
-                obs_t, context_state, z_idx=None, **frozen_entity_kwargs
+            attack_out = attack_model.act(
+                obs_t, context_state, z_idx=None, return_per_agent=True, **attack_entity_kwargs
             )
+            attack_actions_t = attack_out[0]
+            attack_values_norm_t = attack_out[1]
+            attack_per_agent = attack_out[4] if len(attack_out) >= 5 else None
         roles_t = obs_t["roles"]
         n_agents = int(self.model.n_agents)
         if roles_t.dim() != 2 or int(roles_t.shape[1]) != n_agents:
@@ -315,9 +319,18 @@ class RolloutCollector:
             )
         is_defend = roles_t < 0.5  # ROLE_DEFEND == 0, ROLE_ATTACK == 1
         heads_per_agent = int(self.model.heads_per_agent)
-        actions_exec = splice_actions(actions_t, frozen_actions_t, is_defend, heads_per_agent)
+        actions_exec = splice_actions(actions_t, attack_actions_t, is_defend, heads_per_agent)
         defend_log_prob = defend_gated_sum(log_prob_per_agent, is_defend)
-        return actions_exec, defend_log_prob
+        attack_log_prob: Optional[torch.Tensor] = None
+        attack_values: Optional[torch.Tensor] = None
+        if bool(getattr(self.cfg, "dual_branch_role_composite_enabled", False)):
+            if not isinstance(attack_per_agent, dict) or "log_prob_per_agent" not in attack_per_agent:
+                raise RuntimeError(
+                    "dual_branch ATTACK act() must return per-agent log_prob aux"
+                )
+            attack_log_prob = attack_gated_sum(attack_per_agent["log_prob_per_agent"], is_defend)
+            attack_values = attack_values_norm_t
+        return actions_exec, defend_log_prob, attack_log_prob, attack_values
 
     def on_sb3_rollout_env_step(self) -> None:
         p = self.runtime._sb3_rollout_pbar
@@ -367,6 +380,9 @@ class RolloutCollector:
             )
         if bool(getattr(cfg, "split_attack_defend_enabled", False)):
             buffer.register_field("defend_log_probs")
+            if bool(getattr(cfg, "dual_branch_role_composite_enabled", False)):
+                buffer.register_field("attack_log_probs")
+                buffer.register_field("attack_values_norm")
         buffer.register_field("global_state", (self.model.global_state_dim,))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
@@ -916,12 +932,16 @@ class RolloutCollector:
                 entity_act_kwargs["assignment"] = obs_t["assignment"]
             split_attack_defend = bool(getattr(self.cfg, "split_attack_defend_enabled", False))
             defend_log_probs_t: Optional[torch.Tensor] = None
+            attack_log_probs_t: Optional[torch.Tensor] = None
+            attack_values_norm_t: Optional[torch.Tensor] = None
             if split_attack_defend:
                 actions_t, values_norm_t, log_probs_t, _entropy_t, per_agent_aux = self.model.act(
                     obs_t, context_state, z_idx=z_t, return_per_agent=True, **entity_act_kwargs
                 )
-                actions_t, defend_log_probs_t = self._splice_split_attack_defend_actions(
-                    obs_t, context_state, actions_t, per_agent_aux["log_prob_per_agent"],
+                actions_t, defend_log_probs_t, attack_log_probs_t, attack_values_norm_t = (
+                    self._splice_split_attack_defend_actions(
+                        obs_t, context_state, actions_t, per_agent_aux["log_prob_per_agent"],
+                    )
                 )
             else:
                 actions_t, values_norm_t, log_probs_t, _ = self.model.act(
@@ -1160,6 +1180,8 @@ class RolloutCollector:
             blue_ahead=blue_ahead_t,
             message_aux=message_aux,
             defend_log_probs_t=defend_log_probs_t,
+            attack_log_probs_t=attack_log_probs_t,
+            attack_values_norm_t=attack_values_norm_t,
         )
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():

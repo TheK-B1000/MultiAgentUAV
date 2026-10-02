@@ -1,0 +1,12 @@
+﻿{
+    "action":  "Stopped duplicate live SYMMETRIC_ROLE_TOP50_4V4_B_DEFENDER_TRAINING processes after methodology freeze",
+    "experiment_id":  "SYMMETRIC_ROLE_TOP50_4V4_B_DEFENDER_TRAINING",
+    "pids_stopped":  [
+                         25312,
+                         1504
+                     ],
+    "classification":  "exploratory ablation aborted mid-run; do not treat any partial ckpt as main-candidate",
+    "under":  "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+    "utc":  "2026-10-02T01:41:10.1221645Z",
+    "record_id":  "HARD_STOP_4V4_B_DEFENDER_ONLY_TRAINING"
+}

@@ -812,19 +812,20 @@ def _maybe_attach_defend_teacher(cfg, trainer) -> None:
 
 
 def _maybe_attach_split_attack_defend(cfg, trainer) -> None:
-    """Attach the frozen pi_A used for ATTACK-role agent slots, or attach nothing.
+    """Attach the ATTACK-role network (frozen ablation or dual-branch trainable).
 
-    See artifacts/strategic_demand/sppo/DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json.
-    Default OFF = structurally absent: no frozen model loaded, no action
-    splicing in the collector, no per-agent DEFEND-gated loss path taken in
-    the minibatch updater. The frozen model is attached as a raw
-    SharedActorCentralizedCritic (not the CustomPPOInferencePolicy
-    numpy-facing wrapper) so the collector can call ``.act()`` on it
-    directly, batched, under torch.no_grad() every tick -- it never
-    receives an optimizer, never appears in any loss, and its parameters
-    are frozen immediately after loading.
+    See DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json (frozen ATTACK ablation) and
+    DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json (both branches trainable).
+    Default OFF = structurally absent. The ATTACK model is a raw
+    SharedActorCentralizedCritic so the collector can call ``.act()`` on it
+    directly, batched. Under dual-branch it owns ``trainer.dual_branch_attack_optimizer``;
+    under the ablation it is frozen and never appears in any loss.
     """
     if not bool(getattr(cfg, "split_attack_defend_enabled", False)):
+        if bool(getattr(cfg, "dual_branch_role_composite_enabled", False)):
+            raise RuntimeError(
+                "dual_branch_role_composite_enabled=True requires split_attack_defend_enabled=True"
+            )
         return
     if not bool(getattr(cfg, "role_conditioning_enabled", False)):
         raise RuntimeError(
@@ -857,6 +858,19 @@ def _maybe_attach_split_attack_defend(cfg, trainer) -> None:
     if getattr(trainer, "getflag_preserve_runner", None) is not None:
         raise RuntimeError("split_attack_defend cannot coexist with getflag_preserve_runner")
 
+    dual = bool(getattr(cfg, "dual_branch_role_composite_enabled", False))
+    from rl.custom_ppo.split_attack_defend import ceil_n_over_3
+
+    n_agents = int(getattr(trainer.model, "n_agents", 0) or 0)
+    if dual:
+        k_cfg = int(getattr(cfg, "role_k_defend", 0) or 0)
+        k_req = ceil_n_over_3(n_agents)
+        if k_cfg != k_req:
+            raise RuntimeError(
+                f"dual_branch_role_composite requires role_k_defend=ceil(N/3)={k_req} "
+                f"for N={n_agents}, got {k_cfg}"
+            )
+
     ckpt_path = Path(ckpt)
     if not ckpt_path.is_file():
         raise RuntimeError(f"split_attack_defend frozen checkpoint missing: {ckpt_path}")
@@ -874,30 +888,64 @@ def _maybe_attach_split_attack_defend(cfg, trainer) -> None:
         str(ckpt_path), trainer.env.observation_space, trainer.env.action_space,
         device=str(trainer.device),
     )
-    frozen_model = loaded.model
-    if bool(getattr(frozen_model, "uses_latent_strategy", False)):
-        raise RuntimeError("split_attack_defend frozen model must be a non-latent specialist")
-    if bool(getattr(frozen_model, "role_conditioning_enabled", False)):
+    attack_model = loaded.model
+    if bool(getattr(attack_model, "uses_latent_strategy", False)):
+        raise RuntimeError("split_attack_defend ATTACK model must be a non-latent specialist")
+    if bool(getattr(attack_model, "role_conditioning_enabled", False)):
         raise RuntimeError(
-            "split_attack_defend frozen model must NOT be role-conditioned -- it always "
+            "split_attack_defend ATTACK model must NOT be role-conditioned -- it always "
             "plays its own native (unconditioned) behavior for whichever slots "
             "CLOSEST_DEFENDS assigns to ATTACK"
         )
-    if tuple(frozen_model.action_dims) != tuple(trainer.model.action_dims):
-        raise RuntimeError("split_attack_defend frozen model action space differs from student")
-    frozen_model.eval()
-    for p in frozen_model.parameters():
-        p.requires_grad_(False)
-    trainer.split_attack_defend_frozen_model = frozen_model
-    # Name the frozen policy from its checkpoint (pi_A on the A side, pi_B on the symmetric B side);
-    # the log once said "pi_A" for both.
+    if tuple(attack_model.action_dims) != tuple(trainer.model.action_dims):
+        raise RuntimeError("split_attack_defend ATTACK model action space differs from DEFEND")
+
+    pending = getattr(trainer, "_pending_attack_branch_state_dict", None)
+    if dual and pending is not None:
+        attack_model.load_state_dict(pending)
+        trainer._pending_attack_branch_state_dict = None
+        print(
+            "[DUAL-BRANCH] resumed ATTACK branch weights from checkpoint "
+            "(not re-initialized from foundation)"
+        )
+
     _sides = [s for s in ("pi_A", "pi_B") if f"{s}_" in ckpt_path.name]
-    _frozen_name = _sides[0] if len(_sides) == 1 else "specialist"
-    print(
-        f"[SPLIT-ATTACK-DEFEND] frozen {_frozen_name} ATTACHED for ATTACK-role slots: "
-        f"ckpt={ckpt_path.name} sha={actual[:12]}... "
-        f"(DEFEND slots -> trainable model; main PPO actor loss/entropy DEFEND-gated)"
-    )
+    _attack_name = _sides[0] if len(_sides) == 1 else "specialist"
+
+    if dual:
+        attack_model.train()
+        for p in attack_model.parameters():
+            p.requires_grad_(True)
+        import torch
+
+        lr = float(trainer.optimizers.primary.param_groups[0]["lr"])
+        attack_opt = torch.optim.Adam(attack_model.parameters(), lr=lr)
+        pending_opt = getattr(trainer, "_pending_attack_optimizer_state", None)
+        if pending_opt is not None:
+            attack_opt.load_state_dict(pending_opt)
+            trainer._pending_attack_optimizer_state = None
+        trainer.dual_branch_attack_optimizer = attack_opt
+        trainer.split_attack_defend_frozen_model = attack_model  # collector accessor
+        trainer.dual_branch_attack_model = attack_model
+        print(
+            f"[DUAL-BRANCH] trainable {_attack_name} ATTACK + trainable DEFEND ATTACHED: "
+            f"foundation={ckpt_path.name} sha={actual[:12]}... "
+            f"k=ceil(N/3)={ceil_n_over_3(n_agents)}  "
+            f"(ATTACK ticks -> ATTACK PPO; DEFEND ticks -> DEFEND PPO + optional N' teacher)"
+        )
+    else:
+        attack_model.eval()
+        for p in attack_model.parameters():
+            p.requires_grad_(False)
+        trainer.split_attack_defend_frozen_model = attack_model
+        trainer.dual_branch_attack_optimizer = None
+        trainer.dual_branch_attack_model = None
+        print(
+            f"[SPLIT-ATTACK-DEFEND] frozen {_attack_name} ATTACHED for ATTACK-role slots: "
+            f"ckpt={ckpt_path.name} sha={actual[:12]}... "
+            f"(DEFEND slots -> trainable model; main PPO actor loss/entropy DEFEND-gated; "
+            f"exploratory defender-only ablation — not DUAL_BRANCH_ROLE_COMPOSITE_V1)"
+        )
 
 
 def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:

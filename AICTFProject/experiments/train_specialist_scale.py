@@ -207,6 +207,47 @@ def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
                 pass
 
 
+def _require_dual_branch_v1_authorization(args, policy: str) -> None:
+    """DUAL_BRANCH_ROLE_COMPOSITE_V1: A and B use the same construction; authorize via the frozen V1 spec."""
+    import hashlib
+    from rl.custom_ppo.split_attack_defend import ceil_n_over_3
+
+    sp = str(getattr(args, "dual_branch_spec", "") or "")
+    if not sp or not Path(sp).is_file():
+        raise SystemExit(
+            "FAIL-CLOSED: --dual-branch-role-composite-enabled requires --dual-branch-spec "
+            "pointing at DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json"
+        )
+    spec = json.loads(Path(sp).read_text(encoding="utf-8"))
+    if "FROZEN" not in str(spec.get("status", "")):
+        raise SystemExit(f"FAIL-CLOSED: {Path(sp).name} is not frozen")
+    n = int(args.team_size)
+    k_req = ceil_n_over_3(n)
+    if int(args.role_k_defend or 0) != k_req:
+        raise SystemExit(
+            f"FAIL-CLOSED: dual-branch k must be ceil(N/3)={k_req} for N={n}, "
+            f"got {int(args.role_k_defend or 0)}"
+        )
+    foundations = (spec.get("FOUNDATION_CHECKPOINTS_locked") or {}).get(str(n)) or {}
+    entry = foundations.get(policy)
+    if not isinstance(entry, dict):
+        raise SystemExit(
+            f"FAIL-CLOSED: {Path(sp).name} has no FOUNDATION_CHECKPOINTS_locked[{n}][{policy}]"
+        )
+    frozen = Path(str(args.split_attack_defend_frozen_ckpt or ""))
+    want_sha = str(entry.get("sha256") or "").lower()
+    if not frozen.is_file() or hashlib.sha256(frozen.read_bytes()).hexdigest() != want_sha:
+        raise SystemExit(
+            f"FAIL-CLOSED: foundation checkpoint for dual-branch {policy}@{n} is not the "
+            f"locked repaired specialist ({entry.get('path')})"
+        )
+    if Path(str(args.load_path or "")).resolve() != frozen.resolve():
+        raise SystemExit(
+            "FAIL-CLOSED: both ATTACK and DEFEND must warm-start from the same locked "
+            "foundation specialist (identical initialization)"
+        )
+
+
 def _require_symmetric_role_authorization(args, policy: str) -> None:
     """Policy B (or any non-A policy) may get the role-allocated defender construction only when a
     frozen symmetric spec lists exactly this run (PI 2026-10-01: A and B receive the same
@@ -383,6 +424,16 @@ def main() -> int:
     ap.add_argument("--split-attack-defend-frozen-ckpt-sha256", default="",
                     help="expected sha256 of --split-attack-defend-frozen-ckpt "
                          "(fail-closed on mismatch)")
+    ap.add_argument("--dual-branch-role-composite-enabled", action="store_true",
+                    help="DUAL_BRANCH_ROLE_COMPOSITE_V1: both ATTACK and DEFEND branches "
+                         "trainable from the same foundation in ONE joint env-step PPO run. "
+                         "Requires --split-attack-defend-enabled and "
+                         "--role-k-defend=ceil(N/3). ATTACK ticks update ATTACK only "
+                         "(standard PPO); DEFEND ticks update DEFEND only "
+                         "(PPO + optional N' teacher). Not the frozen-ATTACK ablation.")
+    ap.add_argument("--dual-branch-spec", default="",
+                    help="frozen DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json (required when "
+                         "--dual-branch-role-composite-enabled)")
     ap.add_argument("--assignment-conditioning-enabled", action="store_true",
                     help="concat privileged GUARD_DISTRIBUTED_V2 z_i (4-d) into the actor "
                          "(ASSIGNMENT_CONDITIONING_V1_SPEC). Requires entity repair. "
@@ -686,6 +737,7 @@ def main() -> int:
     cfg.split_attack_defend_enabled = bool(args.split_attack_defend_enabled)
     cfg.split_attack_defend_frozen_ckpt = str(args.split_attack_defend_frozen_ckpt)
     cfg.split_attack_defend_frozen_ckpt_sha256 = str(args.split_attack_defend_frozen_ckpt_sha256)
+    cfg.dual_branch_role_composite_enabled = bool(args.dual_branch_role_composite_enabled)
     cfg.assignment_conditioning_enabled = bool(args.assignment_conditioning_enabled)
     cfg.assignment_hold_ticks = int(args.assignment_hold_ticks)
     if cfg.role_conditioning_enabled and cfg.assignment_conditioning_enabled:
@@ -788,7 +840,7 @@ def main() -> int:
                 "FAIL-CLOSED: DEFEND-teacher imitation cannot coexist with role-pres MSE "
                 "loss (SINGLE_AXIS_v1)"
             )
-        if policy != "A":
+        if policy != "A" and not cfg.dual_branch_role_composite_enabled:
             _require_symmetric_role_authorization(args, policy)
 
     if cfg.split_attack_defend_enabled:
@@ -823,8 +875,15 @@ def main() -> int:
                 "FAIL-CLOSED: split_attack_defend cannot coexist with role-pres MSE "
                 "loss (SINGLE_AXIS discipline)"
             )
-        if policy != "A":
+        if cfg.dual_branch_role_composite_enabled:
+            _require_dual_branch_v1_authorization(args, policy)
+        elif policy != "A":
             _require_symmetric_role_authorization(args, policy)
+    elif cfg.dual_branch_role_composite_enabled:
+        raise SystemExit(
+            "FAIL-CLOSED: --dual-branch-role-composite-enabled requires "
+            "--split-attack-defend-enabled"
+        )
 
     if cfg.assignment_conditioning_enabled:
         if cfg.assignment_hold_ticks != 8:
@@ -972,10 +1031,16 @@ def main() -> int:
               f"cadence={cfg.defend_teacher_cadence}  "
               f"(CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND decision-eligible only)")
     if bool(getattr(cfg, "split_attack_defend_enabled", False)):
-        print(f"  split_attack_defend enabled  "
-              f"frozen_ckpt={cfg.split_attack_defend_frozen_ckpt}  "
-              f"(ATTACK slots -> frozen pi_A, no gradient; DEFEND slots -> trainable "
-              f"model, main PPO actor loss/entropy DEFEND-gated)")
+        if bool(getattr(cfg, "dual_branch_role_composite_enabled", False)):
+            print(f"  DUAL_BRANCH_ROLE_COMPOSITE_V1 enabled  "
+                  f"foundation={cfg.split_attack_defend_frozen_ckpt}  "
+                  f"k=ceil(N/3)={cfg.role_k_defend}  "
+                  f"(ATTACK ticks -> ATTACK PPO; DEFEND ticks -> DEFEND PPO + optional N' teacher; "
+                  f"ONE joint env-step budget)")
+        else:
+            print(f"  split_attack_defend enabled (frozen-ATTACK ablation)  "
+                  f"frozen_ckpt={cfg.split_attack_defend_frozen_ckpt}  "
+                  f"(ATTACK slots -> frozen specialist, no gradient; DEFEND slots -> trainable)")
     if bool(getattr(cfg, "assignment_conditioning_enabled", False)):
         print(f"  assignment_conditioning enabled  H_a={cfg.assignment_hold_ticks}  "
               f"(pi(a|o,z_i); GUARD_DISTRIBUTED_V2; no GETFLAG / no ROLE bit)")

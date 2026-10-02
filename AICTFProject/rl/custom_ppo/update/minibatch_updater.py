@@ -8,7 +8,7 @@ from typing import Any
 import torch
 
 from rl.custom_ppo.return_normalization import _normalize_value_targets
-from rl.custom_ppo.split_attack_defend import defend_gated_sum
+from rl.custom_ppo.split_attack_defend import attack_gated_sum, defend_gated_sum
 from rl.custom_ppo.trainer_optimizers import (
     collect_actor_optimizer_parameters,
     collect_actor_parameters,
@@ -126,6 +126,95 @@ class MinibatchUpdater:
         self.separation_objective = separation_objective
         self.optimizer_stepper = optimizer_stepper
         self.separation_generator = separation_generator
+
+    def _step_dual_branch_attack_ppo(
+        self,
+        *,
+        batch: dict[str, torch.Tensor],
+        advantages: torch.Tensor,
+        entity_kwargs: dict[str, torch.Tensor],
+        hparams: Any,
+        cfg: Any,
+        runtime: Any,
+        device: Any,
+        ent_coef: float,
+        epoch_idx: int,
+        mb_idx: int,
+    ) -> None:
+        """ATTACK-branch PPO on ATTACK-assigned decision points only.
+
+        Joint 200k semantics: this runs inside the same minibatch loop as the
+        DEFEND branch; it does not add a second independent 200k budget.
+        Teacher loss is intentionally absent here.
+        """
+        from rl.custom_ppo.update.helpers import assert_finite_gradients, assert_finite_loss
+        from rl.custom_ppo.update.optimizer_stepper import clip_optimizer_grad_norm
+
+        attack_model = getattr(runtime, "dual_branch_attack_model", None) or getattr(
+            runtime, "split_attack_defend_frozen_model", None
+        )
+        attack_opt = getattr(runtime, "dual_branch_attack_optimizer", None)
+        if attack_model is None or attack_opt is None:
+            raise RuntimeError(
+                "dual_branch_role_composite_enabled=True but ATTACK model/optimizer "
+                "not attached (orchestrator._maybe_attach_split_attack_defend)"
+            )
+        if "attack_log_probs" not in batch:
+            raise KeyError(
+                "dual_branch_role_composite_enabled=True requires attack_log_probs "
+                "in the rollout buffer"
+            )
+        if "attack_values_norm" not in batch:
+            raise KeyError(
+                "dual_branch_role_composite_enabled=True requires attack_values_norm "
+                "in the rollout buffer"
+            )
+        if "obs_roles" not in batch:
+            raise KeyError("dual_branch ATTACK PPO requires obs_roles in the batch")
+
+        # ATTACK model is non-role-conditioned: strip roles/assignment from kwargs.
+        attack_entity = {
+            k: v for k, v in entity_kwargs.items() if k in ("teammates", "teammates_valid",
+                                                           "enemies", "enemies_valid")
+        }
+        values_norm, _lp, _ent, aux = attack_model.evaluate_actions(
+            {
+                "grid": batch["obs_grid"],
+                "vec": batch["obs_vec"],
+                "agent_mask": batch["obs_agent_mask"],
+                "mask": batch["obs_mask"],
+            },
+            batch["global_state"],
+            batch["actions"],
+            z_idx=None,
+            return_per_agent=True,
+            **attack_entity,
+        )
+        is_defend = batch["obs_roles"] < 0.5
+        action_log_prob = attack_gated_sum(aux["log_prob_per_agent"], is_defend)
+        entropy = attack_gated_sum(aux["entropy_per_agent"], is_defend)
+        policy_loss, _stats = ppo_policy_loss(
+            action_log_prob,
+            batch["attack_log_probs"],
+            advantages,
+            hparams.clip_range,
+        )
+        value_targets = _normalize_value_targets(runtime, batch["returns"])
+        value_loss = ppo_value_loss(
+            values_norm, batch["attack_values_norm"], value_targets, hparams.value_clip_range
+        )
+        entropy_loss = -entropy.mean()
+        total_attack = (
+            policy_loss
+            + float(hparams.vf_coef) * value_loss
+            + float(ent_coef) * entropy_loss
+        )
+        attack_opt.zero_grad(set_to_none=True)
+        assert_finite_loss(total_attack, epoch_idx=epoch_idx, mb_idx=mb_idx)
+        total_attack.backward()
+        assert_finite_gradients(attack_model, epoch_idx=epoch_idx, mb_idx=mb_idx)
+        clip_optimizer_grad_norm(attack_opt, float(cfg.max_grad_norm))
+        attack_opt.step()
 
     def update(
         self,
@@ -834,6 +923,20 @@ class MinibatchUpdater:
                 epoch_idx=epoch_idx,
                 mb_idx=mb_idx,
                 max_grad_norm=float(cfg.max_grad_norm),
+            )
+
+        if bool(getattr(cfg, "dual_branch_role_composite_enabled", False)):
+            self._step_dual_branch_attack_ppo(
+                batch=batch,
+                advantages=advantages,
+                entity_kwargs=entity_kwargs,
+                hparams=hparams,
+                cfg=cfg,
+                runtime=runtime,
+                device=device,
+                ent_coef=float(ent_coef),
+                epoch_idx=epoch_idx,
+                mb_idx=mb_idx,
             )
 
         approx_kl_value = float(ppo_stats["approx_kl"].detach().cpu().item())

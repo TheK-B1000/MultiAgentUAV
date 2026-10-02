@@ -1,0 +1,8 @@
+{
+  "record_id": "TRAINING_LAUNCH_4V4_SUPERSEDED",
+  "status": "SUPERSEDED_FOR_MAIN_CANDIDATE",
+  "utc": "2026-10-02T01:45:00Z",
+  "original": "TRAINING_LAUNCH_4V4.json",
+  "main_candidate": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+  "note": "4v4 pi_DB defender-only production is no longer authorized as the main system. launch_4v4_B_train.ps1 refuses without -AllowExploratoryAblation. Partial sym_B_top50 artifacts are ABORTED."
+}
