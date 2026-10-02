@@ -16,6 +16,8 @@
     "collect Stage-4 dataset with --dataset-tag STAGE4",
     "distill share_encoder, fully_shared (z+r)=Ours-Shared, role_only under dual-branch teachers",
     "post-hoc top-50 diagnostic eval of Stage-4 students",
+    "post-hoc matched-128 on the historical 6v6 block after dual-branch teachers seal",
+    "dual-branch own top-50 via the historical rule (select_own_top50.py --scale 6) after matched-128 seals",
     "chain these stages inside 6v6/run_dual_branch_6v6.py after the dual-branch core seals"
   ],
   "TEACHERS_locked": "Ours-Teachers: dual-branch role composites from 6v6/dual_branch_deploy_manifest.json (ATTACK exports + DEFEND finals), not 1M foundations",

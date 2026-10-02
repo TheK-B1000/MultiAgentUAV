@@ -1,12 +1,13 @@
 r"""Apply the HISTORICAL top-50 rule to a system's own 128-seed crossover rows, then read the crossover on them.
 
-    python experiments/select_own_top50.py --verify-historical          # must reproduce the frozen 2v2 list
-    python experiments/select_own_top50.py --rows <rows.csv> --label DUAL_BRANCH_2V2_OWN_TOP50 --out <dir>
+    python experiments/select_own_top50.py --verify-historical --scale 2
+    python experiments/select_own_top50.py --verify-historical --scale 6
+    python experiments/select_own_top50.py --rows <rows.csv> --label DUAL_BRANCH_6V6_OWN_TOP50 --out <dir> --scale 6
 
-Rule (verbatim from paper/aamas2027/true_top50_provenance/2v2_Ours_heuristic_roles_seeds.json):
+Rule (verbatim from paper/aamas2027/true_top50_provenance/<scale>_Ours_heuristic_roles_seeds.json):
   score(seed) = outcome(strategy A on Pole A) + outcome(strategy B on Pole B), outcome = win (0/1);
   rank descending; tie-break ascending seed ID; take top 50.
-No other rule is used. The --verify-historical check proves this code reproduces the frozen list.
+No other rule is used. --verify-historical proves this code reproduces the frozen list for that scale.
 
 Reading: own-top50 = BEST-CASE strategic capability of the system on its own best scenarios, NOT an unbiased
 estimate of general performance (A@A and B@B are pushed toward 1 by construction; the informative cells are
@@ -28,9 +29,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
-PROV = ROOT / "paper" / "aamas2027" / "true_top50_provenance" / "2v2_Ours_heuristic_roles_seeds.json"
+PROV_DIR = ROOT / "paper" / "aamas2027" / "true_top50_provenance"
 CELLS = (("pi_A", "A"), ("pi_B", "A"), ("pi_A", "B"), ("pi_B", "B"))
 N_TOP = 50
+PROV_FOR = {
+    2: PROV_DIR / "2v2_Ours_heuristic_roles_seeds.json",
+    4: PROV_DIR / "4v4_Ours_heuristic_roles_seeds.json",
+    6: PROV_DIR / "6v6_Ours_heuristic_roles_seeds.json",
+}
 
 
 def load(path: Path) -> dict:
@@ -65,27 +71,36 @@ def readout(by: dict, seeds: list[int]) -> dict:
     return out
 
 
-def verify_historical() -> list[int]:
-    prov = json.loads(PROV.read_text(encoding="utf-8"))
+def verify_historical(scale: int) -> list[int]:
+    prov_path = PROV_FOR[scale]
+    if not prov_path.is_file():
+        raise SystemExit(f"FAIL: missing provenance {prov_path}")
+    prov = json.loads(prov_path.read_text(encoding="utf-8"))
     by = load(SD / prov["source_csv"])
     got, score = select(by)
     want = sorted(int(s) for s in prov["selected_seed_ids"])
     if got != want:
-        raise SystemExit(f"FAIL: rule does not reproduce the frozen list ({len(set(got) ^ set(want))} seeds differ)")
+        raise SystemExit(
+            f"FAIL: rule does not reproduce the frozen {scale}v{scale} list "
+            f"({len(set(got) ^ set(want))} seeds differ)"
+        )
     if any(score[s] != prov["scores"][str(s)] for s in want):
-        raise SystemExit("FAIL: per-seed scores differ from the provenance file")
+        raise SystemExit(f"FAIL: per-seed scores differ from {prov_path.name}")
     return got
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--verify-historical", action="store_true")
+    ap.add_argument("--scale", type=int, choices=(2, 4, 6), default=2,
+                    help="which frozen Ours top-50 provenance to verify / overlap against")
     ap.add_argument("--rows")
     ap.add_argument("--label")
     ap.add_argument("--out")
     a = ap.parse_args()
-    hist = verify_historical()
-    print(f"historical rule reproduced exactly: {len(hist)} seeds match {PROV.name}")
+    hist = verify_historical(int(a.scale))
+    print(f"historical rule reproduced exactly for {a.scale}v{a.scale}: "
+          f"{len(hist)} seeds match {PROV_FOR[int(a.scale)].name}")
     if a.verify_historical:
         return 0
     if not (a.rows and a.label and a.out):
@@ -97,11 +112,13 @@ def main() -> int:
     cut = score[sorted(score, key=lambda s: (-score[s], s))[N_TOP - 1]]
     tied = sum(1 for s in score if score[s] == cut)
     above = sum(1 for s in score if score[s] > cut)
+    prov_path = PROV_FOR[int(a.scale)]
     res = {"record": a.label, "utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "classification": "POST-HOC DESCRIPTIVE SUBSET: best-case strategic capability on the system's own best 50 "
                              "scenarios. Not an unbiased estimate of general performance; the full-128 readout is.",
-           "rule": json.loads(PROV.read_text(encoding="utf-8"))["rule"],
-           "rule_verified_against": PROV.name,
+           "scale": f"{a.scale}v{a.scale}",
+           "rule": json.loads(prov_path.read_text(encoding="utf-8"))["rule"],
+           "rule_verified_against": prov_path.name,
            "rows": str(rows.relative_to(ROOT)).replace("\\", "/"),
            "rows_sha256": hashlib.sha256(rows.read_bytes()).hexdigest(),
            "n_candidates": n_all, "selected_seed_ids": top,
@@ -112,7 +129,7 @@ def main() -> int:
            "overlap_with_old_ours_top50": len(set(top) & set(hist))}
     f = lambda s: f"{s['mean']:+.3f} ± {s['std']:.3f} [{s['lcb95']:+.3f}, {s['ucb95']:+.3f}]"  # noqa: E731
     md = [f"# {a.label}", "", res["classification"], "",
-          f"Rule (historical, verified to reproduce the old list): {res['rule']}", "",
+          f"Rule (historical, verified to reproduce the old {a.scale}v{a.scale} list): {res['rule']}", "",
           f"Scores over {n_all} seeds: both won (2) {res['score_distribution']['2.0']}, one (1) "
           f"{res['score_distribution']['1.0']}, neither (0) {res['score_distribution']['0.0']}. Cutoff score {cut:g}: "
           f"{above} seeds above, {tied} tied (tie-break ascending seed ID). Overlap with the old Ours top-50: "

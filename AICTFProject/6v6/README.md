@@ -23,7 +23,8 @@ No PowerShell. No packing script. No `artifacts/` tree.
 │   ├── SUMMARY/
 │   │   └── SUMMARY.txt
 │   ├── TEACHERS/               Ours-Teachers: dual-branch DEFEND + ATTACK (A and B)
-│   ├── STAGE3_EVALUATION/      top-50 four-cell diagnostic
+│   ├── STAGE3_EVALUATION/      old top-50 four-cell diagnostic
+│   ├── MATCHED128/             matched-128 fair comparison + dual-branch own top-50
 │   ├── STAGE4_SHARING/         Strategic Representation Under Parameter Sharing:
 │   │                             Share-Encoder / Ours-Shared Fully Shared+z+r / Role-only
 │   ├── SEALS/
