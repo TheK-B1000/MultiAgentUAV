@@ -1,0 +1,8 @@
+{
+  "step": "phase1_smoke_A",
+  "utc": "2026-10-02T03:54:52Z",
+  "status": "COMPLETE",
+  "team_size": 2,
+  "k_defend": 1,
+  "source": "existing dual_branch_v1 chain"
+}

@@ -148,7 +148,12 @@ def main() -> int:
     (out / f"{a.label}.json").write_text(json.dumps(res, indent=2) + "\n", encoding="utf-8")
     (out / f"{a.label}.md").write_text(res["table_markdown"] + "\n", encoding="utf-8")
     (out / f"{a.label}_seed_ids.json").write_text(json.dumps(top) + "\n", encoding="utf-8")
-    print(res["table_markdown"])
+    # Windows cp1252 consoles choke on Δ; files are already UTF-8 on disk.
+    try:
+        print(res["table_markdown"])
+    except UnicodeEncodeError:
+        print(res["table_markdown"].encode(sys.stdout.encoding or "utf-8", errors="replace")
+              .decode(sys.stdout.encoding or "utf-8", errors="replace"))
     return 0
 
 

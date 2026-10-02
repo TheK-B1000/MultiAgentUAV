@@ -1835,6 +1835,10 @@
         {
           "utc": "2026-10-02T05:43:37Z",
           "note": "post-hoc matched ablation DUAL_BRANCH_2V2_ROLE_COMPOSITE sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-02T19:48:02Z",
+          "note": "post-hoc matched ablation POSTHOC_MATCHED128_2V2_DUAL_BRANCH sealed SEALED on this already-spent block"
         }
       ]
     },
@@ -2890,7 +2894,7 @@
       "allocated_utc": "2026-10-02T02:21:46Z"
     }
   ],
-  "updated_utc": "2026-10-02T11:46:12Z",
+  "updated_utc": "2026-10-02T19:48:02Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

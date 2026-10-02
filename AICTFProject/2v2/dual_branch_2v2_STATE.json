@@ -1,0 +1,21 @@
+{
+  "steps": {
+    "phase0_preflight": "2026-10-02T11:43:53Z",
+    "phase1_smoke_A": "2026-10-02T03:54:52Z",
+    "phase1_smoke_B": "2026-10-02T03:54:52Z",
+    "phase1_train": "2026-10-02T03:54:52Z",
+    "phase1_export": "2026-10-02T03:54:52Z",
+    "phase1_technical_seal": "2026-10-02T03:54:54Z",
+    "phase2_diagnostic": "2026-10-02T05:43:37Z",
+    "phase3_dataset": "2026-10-02T07:36:41Z",
+    "phase4_students": "2026-10-02T11:46:13Z",
+    "phase5_evals": "2026-10-02T16:45:28Z",
+    "phase6_package": "2026-10-02T16:45:41Z"
+  },
+  "status": "DONE",
+  "pid": 36692,
+  "k_defend": 1,
+  "updated_utc": "2026-10-02T16:45:41Z",
+  "rebundle_utc": "2026-10-02T18:11:47Z",
+  "role_only_eval_sealed_utc": "2026-10-02T18:10:49Z"
+}

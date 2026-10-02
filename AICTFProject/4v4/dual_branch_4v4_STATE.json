@@ -1,0 +1,14 @@
+{
+  "steps": {
+    "phase0_preflight": "2026-10-02T18:12:35Z",
+    "phase1_smoke_A": "2026-10-02T18:15:55Z",
+    "phase1_smoke_B": "2026-10-02T18:18:50Z",
+    "phase1_train": "2026-10-02T21:21:53Z",
+    "phase1_export": "2026-10-02T21:21:54Z",
+    "phase1_technical_seal": "2026-10-02T21:21:57Z"
+  },
+  "status": "TECHNICALLY_SEALED",
+  "pid": 10348,
+  "k_defend": 2,
+  "updated_utc": "2026-10-02T21:21:57Z"
+}

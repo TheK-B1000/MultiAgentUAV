@@ -1,0 +1,8 @@
+{
+  "step": "phase1_export",
+  "utc": "2026-10-02T21:21:54Z",
+  "status": "COMPLETE",
+  "team_size": 4,
+  "k_defend": 2,
+  "deploy_manifest": "4v4/dual_branch_deploy_manifest.json"
+}

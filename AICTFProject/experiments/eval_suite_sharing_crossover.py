@@ -276,7 +276,12 @@ def main() -> int:
             loader = FS.load_generalist
         else:
             loader = FS.load_fully_shared
-        model, payload = loader(str(ck), obs_space, act_space, device=device)
+        loaded = loader(str(ck), obs_space, act_space, device=device)
+        # load_role_only -> (model, cfg, payload); load_fully_shared/generalist -> (model, payload).
+        if len(loaded) == 3:
+            model, _cfg, payload = loaded
+        else:
+            model, payload = loaded
         cfg = dict(payload.get("cfg") or {})
         if not no_z:
             cfg["fixed_latent_strategy"] = True
