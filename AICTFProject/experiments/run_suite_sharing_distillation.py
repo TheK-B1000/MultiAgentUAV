@@ -37,10 +37,11 @@ LADDER_RUNG = {
     "share_macro": 3,
 }
 #: Seeds each arm's builder consumes: ladder arms draw one fresh branch per z.
-N_INIT_SEEDS = {"fully_shared": 1, "generalist": 1, "share_encoder": 2, "share_backbone": 2, "share_macro": 2}
+N_INIT_SEEDS = {"fully_shared": 1, "generalist": 1, "role_only": 1, "share_encoder": 2, "share_backbone": 2, "share_macro": 2}
 ARM_TAG = {
     "fully_shared": "fully_shared_z",
     "generalist": "generalist",
+    "role_only": "role_only",
     "share_encoder": "share_encoder",
     "share_backbone": "share_backbone",
     "share_macro": "share_macro",
@@ -48,6 +49,7 @@ ARM_TAG = {
 ARM_LABEL = {
     "fully_shared": "FULLY SHARED+z",
     "generalist": "GENERALIST",
+    "role_only": "ROLE-ONLY",
     "share_encoder": "SHARE-ENCODER",
     "share_backbone": "SHARE-BACKBONE",
     "share_macro": "SHARE-MACRO",
@@ -64,12 +66,13 @@ def _sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
-#: --spec-tag SYM selects the symmetric-role family at any scale: its own sharing spec, its own
-#: dataset (named by that spec), its own output folder and its own audit entry. Naming only.
-SPEC_TAGS = ("", "SYM")
+#: --spec-tag SYM selects the symmetric-role family; STAGE4 selects dual-branch teachers + z+r / role-only.
+SPEC_TAGS = ("", "SYM", "STAGE4")
 
 
 def _family(n: int, tag: str = "") -> str:
+    if tag == "STAGE4":
+        return f"{n}v{n}_stage4"
     return f"{n}v{n}" + (f"_{tag.lower()}" if tag else "")
 
 
@@ -133,9 +136,23 @@ def spec_checks(spec: dict, arm: str, n: int, dataset: Path, man: dict, n_rows: 
         (man.get("poles") or {}).get(p, {}).get("pole_config_hash") == spec["POLES_locked"][p]["pole_config_hash"]
         for p in ("A", "B"))
     t = spec["TEACHERS_locked"]
-    c["teachers_equal_spec_and_manifest"] = all(
-        man["teachers"][k]["sha256"] == t[k]["sha256"] and man["teachers"][k]["path"] == t[k]["path"]
-        and _sha(ROOT / t[k]["path"]) == t[k]["sha256"] for k in ("pi_A", "pi_B"))
+    if t.get("mode") == "dual_branch_role_gated" or (
+        isinstance(t.get("pi_A"), dict) and "defend" in (t.get("pi_A") or {})
+    ):
+        ok = man.get("teachers", {}).get("mode") == "dual_branch_role_gated"
+        for side in ("pi_A", "pi_B"):
+            for half in ("defend", "attack"):
+                mp = (man.get("teachers") or {}).get(side, {}).get(half) or {}
+                sp = t[side][half]
+                ok = ok and mp.get("sha256") == sp["sha256"] and mp.get("path") == sp["path"]
+                ok = ok and _sha(ROOT / sp["path"]) == sp["sha256"]
+        c["teachers_equal_spec_and_manifest"] = bool(ok)
+        c["teachers_are_dual_branch"] = True
+    else:
+        c["teachers_equal_spec_and_manifest"] = all(
+            man["teachers"][k]["sha256"] == t[k]["sha256"] and man["teachers"][k]["path"] == t[k]["path"]
+            and _sha(ROOT / t[k]["path"]) == t[k]["sha256"] for k in ("pi_A", "pi_B"))
+        c["teachers_are_dual_branch"] = False
     c["N_and_k"] = (int(man.get("team_size", -1)) == n == spec["SCALE"]["N"]
                     and (man.get("allocator") or {}).get("k_defend") == spec["SCALE"]["k_defend"])
     r = spec["RECIPE_locked"]
@@ -151,11 +168,17 @@ def spec_checks(spec: dict, arm: str, n: int, dataset: Path, man: dict, n_rows: 
     if arm == "generalist":
         d = ROOT / spec["ARMS_locked"][arm]["definition"]
         c["generalist_definition_sha256"] = d.is_file() and _sha(d) == spec["ARMS_locked"][arm]["definition_sha256"]
+    if tag == "STAGE4" and arm == "generalist":
+        c["stage4_forbids_generalist"] = False
+    elif tag == "STAGE4":
+        c["stage4_forbids_generalist"] = arm != "generalist"
     return c
 
 
 def _paths(arm: str, n: int, spec_tag: str = ""):
     tag = ARM_TAG[arm]
+    if spec_tag == "STAGE4" and arm == "fully_shared":
+        tag = "fully_shared_z_r"
     out = SD / "suite_sharing_std" / _family(n, spec_tag) / tag
     return {
         "out": out,

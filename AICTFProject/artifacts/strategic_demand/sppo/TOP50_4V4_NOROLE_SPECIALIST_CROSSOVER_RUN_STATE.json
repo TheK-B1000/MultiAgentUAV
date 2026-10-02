@@ -1,0 +1,49 @@
+{
+  "label": "TOP50_4V4_NOROLE_SPECIALIST_CROSSOVER",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-10-01T20:11:05Z",
+      "pid": 54032,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "3b7eedfd725478d981a3213e5f12d76bbb41b44e",
+      "seed_base": 21800001,
+      "n_seeds": 50,
+      "team_size": 4,
+      "pi_a": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_b3_entity_repair\\ckpts\\final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "pi_b": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_b3_entity_repair_corrected\\ckpts\\final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-10-02T00:20:54Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-10-02T00:20:54Z",
+      "audit": "TOP50_4V4_NOROLE_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 14
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-10-02T00:20:54Z",
+      "result": "TOP50_4V4_NOROLE_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-10-02T00:20:54Z",
+  "pid": 54032,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "3b7eedfd725478d981a3213e5f12d76bbb41b44e",
+  "seed_base": 21800001,
+  "n_seeds": 50,
+  "team_size": 4,
+  "pi_a": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_b3_entity_repair\\ckpts\\final_pi_A_specialist_4v4_b3_entity_repair.zip",
+  "pi_b": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_b3_entity_repair_corrected\\ckpts\\final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+  "reason": "all episodes written",
+  "audit": "TOP50_4V4_NOROLE_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 14,
+  "result": "TOP50_4V4_NOROLE_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+}

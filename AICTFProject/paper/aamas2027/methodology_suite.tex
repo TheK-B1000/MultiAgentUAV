@@ -41,20 +41,20 @@ the same simulator, the same two regimes, the same teacher checkpoints where
 applicable, and the same evaluation seeds.
 
 \begin{itemize}
-  \item \textbf{Generalist} (\(\pi_G\)): one shared policy trained against
-  both regimes. This is the default multi-agent RL setup. It has no strategy
-  label, so it measures how well a team does without any opponent
-  conditioning.
+  \item \textbf{Generalist} (\(\pi_G\)): a single unconditioned policy obtained
+  by distilling both repaired specialists into one network with no strategy
+  variable \(z\). It uses the same suite dataset and teacher policies as the
+  strategy-conditioned sharing baselines, isolating the effect of explicit
+  strategy conditioning from dataset and teacher choice.
   \item \textbf{Specialists (no roles)}: one policy trained per regime,
   switched by \(z\). This is the simplest way to obtain two strategies. It
   tests whether training against different opponents is, by itself, enough to
   produce complementary behavior.
-  \item \textbf{Share-Encoder} and \textbf{Fully Shared+\(z\)}: the two
-  specialists compressed into one network, either sharing the observation
-  encoder (with private strategy bodies) or sharing all weights and receiving
-  \(z\) as an input. Parameter sharing is standard practice in multi-agent RL
-  for reducing parameters and data. These arms test whether specialization
-  survives that compression.
+  \item \textbf{Share-Encoder} and \textbf{Fully Shared+\(z\)}: the same
+  specialists compressed by distillation into one network, either sharing the
+  observation encoder (with private strategy bodies) or sharing all weights
+  and receiving \(z\) as an input. These arms test whether specialization
+  survives that compression when strategy identity remains available.
   \item \textbf{Ours (heuristic roles)}: the specialists plus explicit team
   organization. A deterministic rule, CLOSEST\_DEFENDS(\(k\)), assigns the
   \(k\) living agents nearest their own flag to DEFEND for the whole episode
@@ -63,10 +63,27 @@ applicable, and the same evaluation seeds.
   Pole-B strategy is the Pole-B specialist.
 \end{itemize}
 
+\begin{table}[t]
+\centering
+\caption{Distillation-family baselines. All three students share teachers
+\(\pi_A,\pi_B\) and the suite dataset; only architecture and whether \(z\) is
+provided differ.}
+\label{tab:distill-family}
+\begin{tabular}{lccc}
+\hline
+System & Training source & Uses \(z\)? & Role allocation at test? \\
+\hline
+Generalist & Distilled from \(\pi_A,\pi_B\) & No & No \\
+Share-Encoder & Distilled from \(\pi_A,\pi_B\) & Yes & No \\
+Fully Shared+\(z\) & Distilled from \(\pi_A,\pi_B\) & Yes & No \\
+\hline
+\end{tabular}
+\end{table}
+
 The comparisons are designed so that each one changes a single factor:
 Specialists versus Ours isolates role organization; Specialists versus the
-sharing arms isolates parameter sharing; Generalist versus Ours isolates the
-presence of opponent-conditioned strategy at all.
+sharing arms isolates parameter sharing; Generalist versus Fully Shared+\(z\)
+isolates explicit strategy conditioning under matched teachers and data.
 
 \subsection{Training the specialists}
 \label{sec:method-ppo}
@@ -95,25 +112,30 @@ and tensor sizes that follow from \(N\) differ:
   the Pole-A specialist.
 \end{enumerate}
 
-\subsection{Building the sharing baselines}
+\subsection{Building the distillation-family baselines}
 \label{sec:method-distill}
 
-To compare sharing without re-tuning reinforcement learning per arm, all
-sharing students are fit by distillation from the same frozen teachers on
-the same frozen dataset. Per team size, one dataset of decision-time
-observations (96 episodes per regime) is collected with CLOSEST\_DEFENDS
-active, storing entity tensors and roles
-(\texttt{collect\_suite\_distillation\_states.py}). Students minimize
+To compare strategy conditioning and parameter sharing without re-tuning
+reinforcement learning per arm, the Generalist, Share-Encoder, and Fully
+Shared+\(z\) students are fit by distillation from the same frozen teachers on
+the same frozen dataset (Table~\ref{tab:distill-family}). Per team size, one
+dataset of decision-time observations (96 episodes per regime) is collected
+with CLOSEST\_DEFENDS active, storing entity tensors and roles
+(\texttt{collect\_suite\_distillation\_states.py}). Strategy-conditioned
+students minimize
 \[
 \mathcal{L}
 =\tfrac12\,\mathrm{KL}\!\big(\pi_A(\cdot\mid o)\,\|\,\pi(\cdot\mid o,z_A)\big)
 +\tfrac12\,\mathrm{KL}\!\big(\pi_B(\cdot\mid o)\,\|\,\pi(\cdot\mid o,z_B)\big)
 \]
-on decision-eligible action heads, with an identical recipe for every arm
-(Adam, learning rate \(3\times10^{-4}\), batch 256, 20 epochs, gradient-norm
-clip 1, actor parameters only, final weights kept, no checkpoint selection).
-At evaluation, sharing students receive a forced \(z\); the role rule is not
-re-applied, so \(z\) is their only strategy signal.
+on decision-eligible action heads; the Generalist uses the same mixture of
+targets but with a single unconditioned student \(\pi_G(\cdot\mid o)\) (no
+\(z\)). The optimization recipe is identical for every arm (Adam, learning
+rate \(3\times10^{-4}\), batch 256, 20 epochs, gradient-norm clip 1, actor
+parameters only, final weights kept, no checkpoint selection). At evaluation,
+Share-Encoder and Fully Shared+\(z\) receive a forced \(z\); the role rule is
+not re-applied, so \(z\) is their only strategy signal. The Generalist has no
+\(z\) pathway.
 
 \subsection{Evaluation protocol}
 \label{sec:method-eval}

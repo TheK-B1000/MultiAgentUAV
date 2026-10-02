@@ -117,5 +117,7 @@
     "distillation dataset from both modes",
     "Separated teachers; then Share-Encoder; Fully shared + z + r; role r only (no z)",
     "evaluate behavioral strategy preservation plus crossover / win-rate / score evidence"
-  ]
+  ],
+
+  "STAGE4_INTERPRETATION": "STAGE4_SHARING_INTERPRETATION_V1.json (frozen wording: Role-only not Generalist; historical Fully Shared+z / Generalist suite is provenance only)"
 }

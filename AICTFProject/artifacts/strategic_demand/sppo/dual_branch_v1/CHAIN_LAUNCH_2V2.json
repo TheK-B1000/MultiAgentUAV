@@ -1,0 +1,18 @@
+﻿{
+    "script":  "artifacts\\strategic_demand\\sppo\\dual_branch_v1\\run_2v2_dual_branch_sequential.ps1",
+    "watch":  [
+                  "Get-Content artifacts\\strategic_demand\\sppo\\dual_branch_v1\\chain_2v2.log -Wait -Tail 20",
+                  "Get-Content artifacts\\strategic_demand\\sppo\\dual_branch_v1\\smoke_2v2_A.log.err -Wait -Tail 1",
+                  "Get-Content artifacts\\strategic_demand\\sppo\\dual_branch_v1\\train_2v2_A.log.err -Wait -Tail 1"
+              ],
+    "chain_pid":  51656,
+    "order":  [
+                  "IMPLEMENTATION_GATE tests 30/30",
+                  "smoke A",
+                  "smoke B",
+                  "200k A",
+                  "200k B"
+              ],
+    "utc":  "2026-10-02T02:11:32.2527888Z",
+    "record_id":  "DUAL_BRANCH_V1_2V2_CHAIN_LAUNCH"
+}

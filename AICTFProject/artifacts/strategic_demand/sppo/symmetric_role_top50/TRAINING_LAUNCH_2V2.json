@@ -8,5 +8,9 @@
   "experiment_id": "SYMMETRIC_ROLE_TOP50_2V2_B_DEFENDER_TRAINING",
   "command": ".venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 2 --policy B --seed 26000001 --experiment-id SYMMETRIC_ROLE_TOP50_2V2_B_DEFENDER_TRAINING --device cuda --total-timesteps 200000 --entity-repair-enabled --entity-hidden-dim 32 --role-conditioning-enabled --role-hold-ticks 8 --role-fixed-for-episode --role-k-defend 1 --split-attack-defend-enabled --split-attack-defend-frozen-ckpt artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --split-attack-defend-frozen-ckpt-sha256 9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d --load-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip --defend-teacher-lambda 0.1 --defend-teacher-lambda-end 0.0 --defend-teacher-decay-start-step 50000 --defend-teacher-decay-end-step 150000 --defend-teacher-cadence 4 --run-label-suffix _sym_B_top50 --symmetric-role-spec artifacts/strategic_demand/sppo/SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
   "expected_output": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_sym_B_top50/ckpts/final_pi_B_specialist_2v2_sym_B_top50.zip",
+  "status": "COMPLETE",
+  "completed_utc": "2026-10-01T21:47:54Z",
+  "final_sha256": "92d829fd49041fbb75a68ac50eb131def8ecfe4ef54bf3e89a0eef2df4d7ca21",
+  "note": "Do not retrain. Fresh four-cell TOP50_2V2_SYMMETRIC_OURS eval is the required Delta_A/Delta_B for symmetric Ours (AMENDMENT_1); old asymmetric deltas are historical controls only.",
   "env": "FOR_DISABLE_CONSOLE_CTRL_HANDLER=1"
 }

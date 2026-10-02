@@ -1,0 +1,36 @@
+{
+  "record_id": "STAGE4_6V6_SCHOOL_SUITE_SPEC",
+  "status": "AUTHORIZED_FOR_SCHOOL_PC",
+  "utc": "2026-10-02T06:00:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL. Authorizes Stage-4 chaining after dual-branch 6v6 seals on the school PC. Not PAPER-FAITHFUL. Not confirmatory.",
+  "decided_by": "PI, 2026-10-01/02: school PC runs for days; after Stage-2 teachers seal, automatically collect Stage-4 dataset and distill Share-Encoder / Fully Shared+z+r / Role-only under dual-branch teachers.",
+  "parent": [
+    "PAPER_END_TO_END_STORY_V1.json",
+    "STAGE4_SHARING_INTERPRETATION_V1.json",
+    "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json"
+  ],
+  "AUTHORIZES": [
+    "reserve Stage-4 collection and student-init seed blocks for 6v6",
+    "freeze SUITE_DISTILLATION_6V6_STAGE4_SPEC after dual-branch deploy manifest exists",
+    "collect Stage-4 dataset with --dataset-tag STAGE4",
+    "distill share_encoder, fully_shared (z+r), role_only under dual-branch teachers",
+    "post-hoc top-50 diagnostic eval of Stage-4 students",
+    "chain these stages inside 6v6/run_dual_branch_6v6.py after the dual-branch core seals"
+  ],
+  "TEACHERS_locked": "dual-branch role composites from 6v6/dual_branch_deploy_manifest.json (ATTACK exports + DEFEND finals), not 1M foundations",
+  "LADDER_locked": [
+    "Separated (the dual-branch teachers themselves; already scored by the dual-branch diagnostic)",
+    "Share-Encoder",
+    "Fully Shared+z+r := pi(a | o, z, r)",
+    "Role-only := pi(a | o, r)"
+  ],
+  "NOT_AUTHORIZED": [
+    "reusing SYM / historical Fully Shared+z / Generalist as Stage 4",
+    "foundation specialists as KL teachers",
+    "claiming confirmatory n=128 status for Stage-4 student evals"
+  ],
+  "LAUNCH": {
+    "after_dual_branch_core": "6v6/run_dual_branch_6v6.py continues into Stage 4 automatically",
+    "standalone": ".venv/Scripts/python.exe experiments/stage4_baseline_suite.py --team-size 6 --out 6v6/stage4_baseline_suite"
+  }
+}

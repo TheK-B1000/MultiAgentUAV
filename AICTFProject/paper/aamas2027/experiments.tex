@@ -106,11 +106,13 @@ itself establish that saturation is the cause.
 We next compare the proposed role-allocated system against alternative policy
 organizations. The specialist baseline executes the repaired Pole-A and
 Pole-B policies directly, without the explicit heuristic ATTACK/DEFEND
-decomposition. The parameter-sharing baselines use the same standardized
-distillation data and evaluation protocol. The Generalist is treated
-separately because it consists of a single policy and therefore does not have
-a meaningful crossover specialization quantity of the form
-\(\Delta_A/\Delta_B\).
+decomposition. The Generalist, Share-Encoder, and Fully Shared+$z$ arms are
+members of one distillation family: the same teachers $\pi_A,\pi_B$ and the
+same suite dataset, differing in architecture and whether a strategy label
+$z$ is provided. The Generalist is the no-$z$ ablation in that family, so
+its comparison to Fully Shared+$z$ isolates strategy conditioning; it is
+reported with absolute win rates rather than $\Delta_A/\Delta_B$ because a
+single unconditioned policy has no crossover specialization quantity.
 
 Table~\ref{tab:role_baseline_comparison} first isolates the effect of explicit
 role allocation. For 2v2, the role-allocation row is the paired diagnostic
@@ -267,18 +269,20 @@ teachers of any team size (0.99 / 0.94). As at 2v2 and 4v4, none of the
 parameter-sharing baselines reaches the Pole-B effect of the role-allocated
 system ($+0.117$).
 
-Because the Generalist uses a single policy without a strategy variable, its
-comparison is reported using absolute win rates on each pole and the
-corresponding gap to the proposed role-allocated system rather than a
-crossover specialization effect. The gap is formed on matched seeds against a
-Separated reference evaluated on the same block.
+Because the Generalist is the distilled no-$z$ ablation (same teachers and
+suite dataset as Fully Shared+$z$, but no strategy variable), its comparison
+is reported using absolute win rates on each pole and the corresponding gap
+to the proposed role-allocated system rather than a crossover specialization
+effect. The gap is formed on matched seeds against a Separated reference
+evaluated on the same block.
 
 \begin{table}[t]
 \centering
-\caption{Generalist baseline. The Generalist is a single policy, so we report
-its win rate on each pole and the matched-seed gap between the proposed system
-and the Generalist ($\Delta_G = V(\mathrm{ours}) - V(\pi_G)$). Values are
-mean $\pm$ standard deviation across seeds where the gap is defined.}
+\caption{Generalist baseline. The Generalist is a single unconditioned policy
+distilled from both specialists (no $z$), so we report its win rate on each
+pole and the matched-seed gap between the proposed system and the Generalist
+($\Delta_G = V(\mathrm{ours}) - V(\pi_G)$). Values are mean $\pm$ standard
+deviation across seeds where the gap is defined.}
 \label{tab:generalist_baseline}
 \begin{tabular}{c|cccc}
 \hline
@@ -314,8 +318,8 @@ role-allocated system on both poles: on the same 128 seeds it wins $0.758$ and
 $0.695$ against $0.688$ and $0.625$, a gap of $-0.070$ on each pole (with a
 per-seed standard deviation above $0.6$). The advantage of the role-allocated
 system at 4v4 is therefore specialization (a positive $\Delta_B$, which no
-baseline shows), not a higher absolute win rate than a single policy fitted to
-both specialists. At 6v6 the role-allocated system wins slightly more often
+baseline shows), not a higher absolute win rate than the distilled no-$z$
+Generalist. At 6v6 the role-allocated system wins slightly more often
 than the Generalist on both poles ($0.898$ vs.\ $0.859$ on Pole~A, $0.977$
 vs.\ $0.945$ on Pole~B; gaps $+0.039$ and $+0.031$), with both systems close
 to the ceiling of the win-rate metric.

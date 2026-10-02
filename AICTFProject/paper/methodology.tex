@@ -329,9 +329,11 @@ Share-0 deployment occupies $6{,}947{,}184$ unique parameters; the count is
 invariant to team size because actor weights are shared across agents.
 
 \textbf{Generalist baseline.}
-We also evaluate $\pi_G$, a single policy trained on the mixed opponent
-distribution with no strategy-code mechanism. The generalist provides a
-single-policy baseline trained on the mixed opponent distribution.
+We also evaluate $\pi_G$, a single unconditioned policy distilled from both
+repaired specialists on the same suite dataset used by Share-Encoder and Fully
+Shared+$z$, with no strategy variable $z$. This isolates the effect of explicit
+strategy conditioning under matched teachers and data; it is not an
+independently trained MAPPO policy.
 
 \subsection{Matched-state strategy-conditioned distillation}
 \label{sec:distill}

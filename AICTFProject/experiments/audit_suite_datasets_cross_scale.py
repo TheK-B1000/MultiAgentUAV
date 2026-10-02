@@ -49,9 +49,18 @@ DATASETS = {
     # their own family with 2v2_sym as the reference; never mixed with the asymmetric datasets.
     **{f"{n}v{n}_sym": (f"SUITE_DISTILLATION_{n}V{n}_SYM_SPEC.json", f"SUITE_DISTILLATION_{n}V{n}_SYM_DATASET.json")
        for n in (2, 4, 6)},
+    # Stage-4 family: dual-branch composites are both the acting policies and the KL teachers.
+    **{f"{n}v{n}_stage4": (f"SUITE_DISTILLATION_{n}V{n}_STAGE4_SPEC.json",
+                           f"SUITE_DISTILLATION_{n}V{n}_STAGE4_DATASET.json")
+       for n in (6,)},
 }
 #: The CLOSEST_DEFENDS scale knob (CROSS_SCALE_CANONICAL_RECIPE_V1 ALLOWED_TO_DIFFER).
-K_BY_SCALE = {"2v2": 1, "4v4": 2, "6v6": 1, "2v2_sym": 1, "4v4_sym": 2, "6v6_sym": 2}
+K_BY_SCALE = {
+    "2v2": 1, "4v4": 2, "6v6": 1,
+    "2v2_sym": 1, "4v4_sym": 2, "6v6_sym": 2,
+    "6v6_stage4": 2,
+}
+
 OUT = SD / "SUITE_DATASETS_CROSS_SCALE_AUDIT.json"
 #: Reviewed changes to files the collector executes, allowed between the reference (2v2) collection
 #: and a later one (PI 2026-09-29: identity = the executed code). Each entry pins exact blobs.
@@ -84,11 +93,14 @@ def audit_one(scale: str, spec_name: str, man_name: str, checks: list) -> dict:
     spec, man = json.loads(sp.read_text(encoding="utf-8")), json.loads(mp.read_text(encoding="utf-8"))
     n = int(man.get("team_size", -1))
     symmetric = scale.endswith("_sym")
-    k = K_BY_SCALE[scale] if symmetric else K_DEFEND_BY_SCALE.get(n)
+    stage4 = scale.endswith("_stage4")
+    split_both = symmetric or stage4
+    k = K_BY_SCALE[scale] if split_both else K_DEFEND_BY_SCALE.get(n)
+    want_c = "dual_branch" if stage4 else ("symmetric" if symmetric else "asymmetric")
     check("construction_matches_family",
           (spec.get("ACTING_DEPLOYMENT_locked") or {}).get("construction", "asymmetric")
           == (man.get("acting") or {}).get("construction", "asymmetric")
-          == ("symmetric" if symmetric else "asymmetric"),
+          == want_c,
           (man.get("acting") or {}).get("construction"))
     check("manifest_FROZEN_DATASET", man.get("status") == "FROZEN_DATASET", man.get("status"))
     check("spec_FROZEN", str(spec.get("status", "")).startswith("FROZEN"), spec.get("status"))
@@ -113,20 +125,46 @@ def audit_one(scale: str, spec_name: str, man_name: str, checks: list) -> dict:
         check(f"pole_{p}_spec_overlay_equals_certification", want == live["overlay"], [want, live["overlay"]])
 
     act, kl = spec["ACTING_DEPLOYMENT_locked"], spec["KL_TEACHERS_locked"]
-    pins = {"pi_D": act["Pole_A"]["pi_D"], "frozen_attack": act["Pole_A"]["frozen_attack_pi_A"],
-            "pi_B_act": act["Pole_B"]["frozen_attack_pi_B"] if symmetric else act["Pole_B"],
-            "pi_A_kl": kl["pi_A"], "pi_B_kl": kl["pi_B"]}
     mact, mteach = man.get("acting") or {}, man.get("teachers") or {}
-    mpins = {"pi_D": mact.get("pi_D"), "frozen_attack": mact.get("frozen_attack"), "pi_B_act": mact.get("pi_B"),
-             "pi_A_kl": mteach.get("pi_A"), "pi_B_kl": mteach.get("pi_B")}
-    if symmetric:
-        pins["pi_DB"], mpins["pi_DB"] = act["Pole_B"]["pi_D"], mact.get("pi_DB")
+    if stage4:
+        pins = {
+            "pi_D": act["Pole_A"]["pi_D"],
+            "frozen_attack": act["Pole_A"]["frozen_attack_pi_A"],
+            "pi_B_act": act["Pole_B"]["frozen_attack_pi_B"],
+            "pi_DB": act["Pole_B"]["pi_D"],
+            "pi_A_kl_defend": kl["pi_A"]["defend"],
+            "pi_A_kl_attack": kl["pi_A"]["attack"],
+            "pi_B_kl_defend": kl["pi_B"]["defend"],
+            "pi_B_kl_attack": kl["pi_B"]["attack"],
+        }
+        mpins = {
+            "pi_D": mact.get("pi_D"), "frozen_attack": mact.get("frozen_attack"),
+            "pi_B_act": mact.get("pi_B"), "pi_DB": mact.get("pi_DB"),
+            "pi_A_kl_defend": (mteach.get("pi_A") or {}).get("defend"),
+            "pi_A_kl_attack": (mteach.get("pi_A") or {}).get("attack"),
+            "pi_B_kl_defend": (mteach.get("pi_B") or {}).get("defend"),
+            "pi_B_kl_attack": (mteach.get("pi_B") or {}).get("attack"),
+        }
+        check("teachers_mode_dual_branch", mteach.get("mode") == "dual_branch_role_gated" == kl.get("mode"))
+        check("acting_equals_teacher_halves",
+              pins["pi_D"]["sha256"] == pins["pi_A_kl_defend"]["sha256"]
+              and pins["frozen_attack"]["sha256"] == pins["pi_A_kl_attack"]["sha256"]
+              and pins["pi_DB"]["sha256"] == pins["pi_B_kl_defend"]["sha256"]
+              and pins["pi_B_act"]["sha256"] == pins["pi_B_kl_attack"]["sha256"])
+    else:
+        pins = {"pi_D": act["Pole_A"]["pi_D"], "frozen_attack": act["Pole_A"]["frozen_attack_pi_A"],
+                "pi_B_act": act["Pole_B"]["frozen_attack_pi_B"] if symmetric else act["Pole_B"],
+                "pi_A_kl": kl["pi_A"], "pi_B_kl": kl["pi_B"]}
+        mpins = {"pi_D": mact.get("pi_D"), "frozen_attack": mact.get("frozen_attack"), "pi_B_act": mact.get("pi_B"),
+                 "pi_A_kl": mteach.get("pi_A"), "pi_B_kl": mteach.get("pi_B")}
+        if symmetric:
+            pins["pi_DB"], mpins["pi_DB"] = act["Pole_B"]["pi_D"], mact.get("pi_DB")
+        check("frozen_attack_is_KL_pi_A", pins["frozen_attack"]["sha256"] == pins["pi_A_kl"]["sha256"])
+        check("acting_pi_B_is_KL_pi_B", pins["pi_B_act"]["sha256"] == pins["pi_B_kl"]["sha256"])
     for name, pin in pins.items():
         f = ROOT / pin["path"]
         check(f"pin_{name}_file_sha", f.is_file() and _sha(f) == pin["sha256"], pin["sha256"][:16])
         check(f"pin_{name}_manifest_equals_spec", (mpins[name] or {}).get("sha256") == pin["sha256"])
-    check("frozen_attack_is_KL_pi_A", pins["frozen_attack"]["sha256"] == pins["pi_A_kl"]["sha256"])
-    check("acting_pi_B_is_KL_pi_B", pins["pi_B_act"]["sha256"] == pins["pi_B_kl"]["sha256"])
 
     npp = int(spec["DATASET"]["n_per_pole"])
     shards = man.get("shards") or []
@@ -185,11 +223,14 @@ def main() -> int:
     a = ap.parse_args()
     scales = [s.strip() for s in a.scales.split(",") if s.strip()]
     ref = scales[0]
-    # A single symmetric dataset may be audited on its own (per-dataset checks only): the school PC
-    # collects 6v6_sym without the 2v2_sym shards on disk.
+    # A single symmetric/stage4 dataset may be audited on its own (per-dataset checks only): the school PC
+    # collects 6v6_sym / 6v6_stage4 without the 2v2 reference shards on disk.
     single_sym = len(scales) == 1 and ref.endswith("_sym")
-    if ((ref not in ("2v2", "2v2_sym") and not single_sym) or any(s not in DATASETS for s in scales)
-            or any(s.endswith("_sym") != ref.endswith("_sym") for s in scales)):
+    single_stage4 = len(scales) == 1 and ref.endswith("_stage4")
+    single_family = single_sym or single_stage4
+    if ((ref not in ("2v2", "2v2_sym") and not single_family) or any(s not in DATASETS for s in scales)
+            or any(s.endswith("_sym") != ref.endswith("_sym") for s in scales)
+            or any(s.endswith("_stage4") != ref.endswith("_stage4") for s in scales)):
         raise SystemExit(f"--scales must start with 2v2 (or 2v2_sym), stay in one family, and name only {list(DATASETS)}")
     out_path = Path(a.out) if a.out else OUT
     checks: list = []

@@ -277,20 +277,22 @@ complementary strategies; compare Figure~\ref{fig:complementarity}.}
 \end{figure*}
 
 \paragraph{Generalist.}
-Because the Generalist has no strategy label, it has no \(\Delta_A\) or
-\(\Delta_B\); we compare it through the matched-seed gap
+The Generalist is the distilled no-\(z\) ablation: both specialists are
+compressed into one unconditioned policy on the same suite dataset used by
+Share-Encoder and Fully Shared+\(z\). Because it has no strategy label, it has
+no \(\Delta_A\) or \(\Delta_B\); we compare it through the matched-seed gap
 \(\Delta_{G,j}=V(\mathrm{ours},j)-V(\pi_G,j)\)
 (Table~\ref{tab:generalist_baseline}). Ours is ahead on Pole~A at 2v2
 (\(+0.195\)), behind on both regimes at 4v4 (\(-0.070\) each), and slightly
-ahead on both at 6v6 (\(+0.039\), \(+0.031\)). The Generalist shows that a
-single policy can reach high win rates; it cannot be steered toward a
-different behavior when the opponent changes.
+ahead on both at 6v6 (\(+0.039\), \(+0.031\)). High absolute win rates from
+\(\pi_G\) show that the teacher information can be represented without \(z\);
+they do not yield a selectable second strategy when the opponent changes.
 
 \begin{table}[t]
 \centering
-\caption{Generalist baseline. Win rate of the single policy on each regime,
-and the matched-seed gap to the role-allocated system (mean $\pm$ std across
-128 seeds).}
+\caption{Generalist baseline. Win rate of the distilled no-\(z\) policy on
+each regime, and the matched-seed gap to the role-allocated system
+(mean $\pm$ std across 128 seeds).}
 \label{tab:generalist_baseline}
 \footnotesize
 \setlength{\tabcolsep}{3pt}

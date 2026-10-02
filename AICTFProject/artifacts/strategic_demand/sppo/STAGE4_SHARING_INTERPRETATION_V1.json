@@ -1,0 +1,77 @@
+{
+  "record_id": "STAGE4_SHARING_INTERPRETATION_V1",
+  "status": "FROZEN_INTERPRETATION",
+  "utc": "2026-10-02T02:10:00Z",
+  "classification": "PAPER STAGE-4 INTERPRETATION FREEZE. Experimental protocol wording. Not PAPER-FAITHFUL. Does not authorize training or seed spend by itself.",
+  "decided_by": "PI, 2026-10-01/02: lock Stage 4 as the z-vs-r ablation under symmetric dual-branch teachers; stop conceptual reshuffling unless an implementation flaw (not an unfavorable result) is found.",
+  "parent": "PAPER_END_TO_END_STORY_V1.json",
+  "amends_wording_of": [
+    "GENERALIST_DEFINITION_V1.json (historical suite only; not the final Stage-4 rung)",
+    "historical Share-Encoder / Fully Shared+z / Generalist suite arms (provenance under asymmetric teachers)"
+  ],
+
+  "DISTINCTION_locked": {
+    "z": "strategy (strategic mode in {A, B})",
+    "r": "organization / role in {ATTACK, DEFEND}",
+    "not_the_same": "roles answer who does what; z answers which opponent-conditioned team strategy is being executed"
+  },
+
+  "FINAL_STAGE4_LADDER_locked": [
+    "Separated",
+    "Share-Encoder",
+    "Fully Shared+z+r  :=  pi(a | o, z, r)",
+    "Role-only r       :=  pi(a | o, r)"
+  ],
+
+  "NOT_the_final_Stage4_ladder": [
+    "Share-Encoder -> Fully Shared+z -> Generalist pi(a|o)"
+  ],
+
+  "WHY_NOT_HISTORICAL": {
+    "teachers": "older asymmetric construction (A role-composite, B plain specialist; or defender-only teachers)",
+    "student_inputs": "did not expose r as an explicit student input",
+    "status": "provenance / background only; do not present as the paper's Stage 4 experiment"
+  },
+
+  "DATASET_CONTRACT_locked": {
+    "when": "after symmetric dual-branch teachers are sealed",
+    "each_row_carries": [
+      "observation o",
+      "strategy label z in {A, B}",
+      "role label r in {ATTACK, DEFEND}",
+      "teacher action distribution / target"
+    ],
+    "Fully_Shared_z_r": "trained on all four (z, r) cells",
+    "Role_only": "exact same training data, architecture, optimization budget, and evaluation conditions; z removed (controlled difference)",
+    "not": "comparing a z-conditioned model against a completely unconditioned pi(a|o) as the headline Stage-4 ablation"
+  },
+
+  "NAMING_locked": {
+    "Role-only": "pi(a | o, r)  -- preferred name for the final rung",
+    "Fully Shared+r": "allowed synonym for Role-only",
+    "Generalist": "retired for the final Stage-4 rung; reserved historically for pi(a | o) under GENERALIST_DEFINITION_V1",
+    "why": "a policy with explicit r is not a generalist in the old sense of pi(a|o)"
+  },
+
+  "PAPER_QUESTION_locked": "After explicit roles have solved team organization, does a separate strategic representation remain necessary to preserve opponent-conditioned strategic behavior under parameter sharing?",
+
+  "ALLOWED_OUTCOMES": [
+    "Fully Shared+z+r preserves A/B signatures; Role-only collapses them -> roles organize, z carries strategy",
+    "Role-only still preserves A/B differences -> explicit z may be redundant under these conditions",
+    "both shared models lose the distinction -> aggressive parameter sharing may be destroying strategic structure"
+  ],
+
+  "LATENT_WORDING_locked": {
+    "ok": "z_A and z_B are learned internal embeddings/modes; deployment selects which mode is active",
+    "not_claimed": "observations -> infer opponent -> z, or autonomous strategy discovery",
+    "tested": "Can a shared network encode distinct strategic behaviors in a compact learned mode z?"
+  },
+
+  "PROTECT": "No more conceptual reshuffling of Stage 4 unless the frozen experiment reveals an implementation flaw rather than merely an unfavorable result.",
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "launching distillation or evaluation",
+    "editing GENERALIST_DEFINITION_V1 production recipe in place (historical freeze stays)",
+    "presenting historical suite Generalist / Fully Shared+z as Stage 4 of PAPER_END_TO_END_STORY_V1"
+  ]
+}

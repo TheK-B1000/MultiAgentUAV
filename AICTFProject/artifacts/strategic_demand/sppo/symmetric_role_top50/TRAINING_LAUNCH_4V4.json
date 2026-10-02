@@ -1,0 +1,25 @@
+{
+  "record_id": "SYMMETRIC_ROLE_TOP50_4V4_TRAINING_LAUNCH",
+  "utc": "2026-10-01T22:05:00Z",
+  "governed_by": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json (TRAINING_AUTHORIZED entry team_size=4, policy=B, k=2, suffix _sym_B_top50); execution budget for the matched eval is governed by SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC_AMENDMENT_1.json (200 fresh crossover episodes; no A-cell reuse)",
+  "already_built_do_not_retrain": {
+    "pi_A_repair": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+    "pi_B_repair": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+    "pi_DA_asymmetric_k2": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1/ckpts/final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+    "note": "pi_DA already has roles at k=2; only pi_DB is missing for symmetric Ours. After pi_DB seals, run a FRESH four-cell crossover (A and B on both poles) — old asymmetric Delta_A/Delta_B are historical controls only."
+  },
+  "missing": "pi_DB (this launch)",
+  "recipe_identical_to": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1 (pi_DA): same trainer, 200k, entity repair, roles fixed k=2 H_r=8, split, teacher 0.1->0 50k..150k cadence 4; only --policy B and the B specialist (frozen ATTACK = warm start) differ",
+  "smoke": "recommended before 200k: same flags with --smoke --seed 99901004 --total-timesteps 5000 (no --experiment-id); disposable",
+  "seed": 26800001,
+  "experiment_id": "SYMMETRIC_ROLE_TOP50_4V4_B_DEFENDER_TRAINING",
+  "command": ".venv/Scripts/python.exe experiments/train_specialist_scale.py --team-size 4 --policy B --seed 26800001 --experiment-id SYMMETRIC_ROLE_TOP50_4V4_B_DEFENDER_TRAINING --device cuda --total-timesteps 200000 --entity-repair-enabled --entity-hidden-dim 32 --role-conditioning-enabled --role-hold-ticks 8 --role-fixed-for-episode --role-k-defend 2 --split-attack-defend-enabled --split-attack-defend-frozen-ckpt artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip --split-attack-defend-frozen-ckpt-sha256 021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12 --load-path artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip --defend-teacher-lambda 0.1 --defend-teacher-lambda-end 0.0 --defend-teacher-decay-start-step 50000 --defend-teacher-decay-end-step 150000 --defend-teacher-cadence 4 --run-label-suffix _sym_B_top50 --symmetric-role-spec artifacts/strategic_demand/sppo/SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
+  "expected_output": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sym_B_top50/ckpts/final_pi_B_specialist_4v4_sym_B_top50.zip",
+  "after_training_eval": {
+    "episodes": 200,
+    "cells": "all four (pi_A+D_A and pi_B+D_B on Pole A and Pole B); no reuse of confirmatory A-role rows (AMENDMENT_1)",
+    "label": "TOP50_4V4_SYMMETRIC_OURS",
+    "seed_list": "artifacts/strategic_demand/sppo/symmetric_role_top50/4v4_ours_top50_seed_ids.json"
+  },
+  "env": "FOR_DISABLE_CONSOLE_CTRL_HANDLER=1"
+}

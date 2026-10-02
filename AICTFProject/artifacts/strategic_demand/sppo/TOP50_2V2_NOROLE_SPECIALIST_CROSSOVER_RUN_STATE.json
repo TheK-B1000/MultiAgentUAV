@@ -1,0 +1,61 @@
+{
+  "label": "TOP50_2V2_NOROLE_SPECIALIST_CROSSOVER",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-10-01T20:10:35Z",
+      "pid": 20660,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "3b7eedfd725478d981a3213e5f12d76bbb41b44e",
+      "seed_base": 23600002,
+      "n_seeds": 50,
+      "team_size": 2,
+      "pi_a": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_entity_repair\\ckpts\\final_pi_A_specialist_2v2_std_entity_repair.zip",
+      "pi_b": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_std_entity_repair\\ckpts\\final_pi_B_specialist_2v2_std_entity_repair.zip"
+    },
+    {
+      "state": "RUNNING",
+      "utc": "2026-10-01T20:12:37Z",
+      "pid": 44068,
+      "resumed": true,
+      "seed_base": 23600002,
+      "n_seeds": 50,
+      "team_size": 2,
+      "pi_a": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_entity_repair\\ckpts\\final_pi_A_specialist_2v2_std_entity_repair.zip",
+      "pi_b": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_std_entity_repair\\ckpts\\final_pi_B_specialist_2v2_std_entity_repair.zip"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-10-01T23:18:05Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-10-01T23:18:05Z",
+      "audit": "TOP50_2V2_NOROLE_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 14
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-10-01T23:18:05Z",
+      "result": "TOP50_2V2_NOROLE_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-10-01T23:18:05Z",
+  "pid": 44068,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "3b7eedfd725478d981a3213e5f12d76bbb41b44e",
+  "seed_base": 23600002,
+  "n_seeds": 50,
+  "team_size": 2,
+  "pi_a": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_entity_repair\\ckpts\\final_pi_A_specialist_2v2_std_entity_repair.zip",
+  "pi_b": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_std_entity_repair\\ckpts\\final_pi_B_specialist_2v2_std_entity_repair.zip",
+  "resumed": true,
+  "reason": "all episodes written",
+  "audit": "TOP50_2V2_NOROLE_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 14,
+  "result": "TOP50_2V2_NOROLE_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+}

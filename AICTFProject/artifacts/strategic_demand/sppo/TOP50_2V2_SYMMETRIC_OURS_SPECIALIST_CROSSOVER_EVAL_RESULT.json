@@ -1,0 +1,203 @@
+{
+  "record": "TOP50_2V2_SYMMETRIC_OURS specialist crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-10-02T00:51:45Z",
+  "arm": "POST_HOC_ABLATION",
+  "confirmatory": false,
+  "post_hoc_ablation": {
+    "spec": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json",
+    "matched_to": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "claim": "post-hoc matched role ablation on already-spent confirmatory seeds; estimates the within-seed effect of removing role organization; not new confirmatory evidence"
+  },
+  "implements": "SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC.json#EVALUATION",
+  "team_size": 2,
+  "device": "cuda",
+  "perturbation": {
+    "family": "nominal"
+  },
+  "role_fixed_for_episode": true,
+  "seeds": {
+    "block": [
+      23600002,
+      23600114
+    ],
+    "n": 50,
+    "shared_across_policies": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER",
+    "shared_by_labels": null
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "candidate_genome_id": null
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {},
+      "candidate_genome_id": null
+    }
+  },
+  "pole_identity": {
+    "A": {
+      "policy": "A",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 2
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS_PARENT_OP7",
+      "base_opponent": "OP7",
+      "overlay": {},
+      "opening_hold_steps": 0,
+      "pole_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": null
+    }
+  },
+  "pole_attestations": {
+    "A": {
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS2_A_payoff_INIT_3",
+      "certified_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "live_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "certified_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "live_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "hashes_match": true
+    },
+    "B": {
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS_PARENT_OP7",
+      "certified_overlay": {},
+      "live_overlay": {},
+      "certified_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "live_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "hashes_match": true
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.5,
+      "lcb95": 0.36,
+      "ucb95": 0.64,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.28,
+      "lcb95": 0.16,
+      "ucb95": 0.4,
+      "passes": true
+    },
+    "passes": true
+  },
+  "checkpoints": {
+    "pi_A": "e75b27751757290ba94bbd606275a621537e4c6a6b952d143ce63ee3934c2b97",
+    "pi_B": "92d829fd49041fbb75a68ac50eb131def8ecfe4ef54bf3e89a0eef2df4d7ca21"
+  },
+  "split_policy_pi_B": {
+    "pi_D_path": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_sym_B_top50\\ckpts\\final_pi_B_specialist_2v2_sym_B_top50.zip",
+    "frozen_attack_path": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_std_entity_repair\\ckpts\\final_pi_B_specialist_2v2_std_entity_repair.zip",
+    "frozen_attack_sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"
+  },
+  "seed_ids": [
+    23600002,
+    23600003,
+    23600004,
+    23600006,
+    23600009,
+    23600011,
+    23600023,
+    23600026,
+    23600029,
+    23600031,
+    23600032,
+    23600033,
+    23600037,
+    23600038,
+    23600039,
+    23600040,
+    23600043,
+    23600044,
+    23600045,
+    23600046,
+    23600049,
+    23600051,
+    23600052,
+    23600059,
+    23600060,
+    23600061,
+    23600062,
+    23600066,
+    23600071,
+    23600072,
+    23600078,
+    23600079,
+    23600083,
+    23600084,
+    23600085,
+    23600086,
+    23600090,
+    23600091,
+    23600092,
+    23600096,
+    23600097,
+    23600099,
+    23600100,
+    23600101,
+    23600103,
+    23600106,
+    23600107,
+    23600111,
+    23600113,
+    23600114
+  ],
+  "split_policy_pi_A": {
+    "pi_D_path": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_split_defend_k1\\ckpts\\final_pi_A_specialist_2v2_std_split_defend_k1.zip",
+    "frozen_attack_path": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_std_entity_repair\\ckpts\\final_pi_A_specialist_2v2_std_entity_repair.zip",
+    "frozen_attack_sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 200,
+  "integrity_flag": null,
+  "status": "SEALED",
+  "sealed_utc": "2026-10-02T00:51:46Z",
+  "git_sha": "7079422088ce7436066a0ec23a98bc6234208043",
+  "AUDIT": {
+    "path": "TOP50_2V2_SYMMETRIC_OURS_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 14,
+    "n_gating": 12,
+    "failed_checks": [],
+    "rows_sha256": "1311118aed72b95adadf76c299aca75033156c1373f750599f39e331c7bdf2b3"
+  }
+}

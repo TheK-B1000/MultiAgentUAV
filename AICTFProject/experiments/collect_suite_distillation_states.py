@@ -53,11 +53,16 @@ def _spec_path(n: int, tag: str = "") -> Path:
 #: The symmetric-role family's tag. Its shards live in their own tree, never beside an asymmetric set.
 SYMMETRIC_TAG = "SYM"
 SYMMETRIC_ROOT = SD / "suite_distillation_symmetric"
+#: Stage-4 family: dual-branch teachers are the KL targets (PAPER_END_TO_END Stage 4).
+STAGE4_TAG = "STAGE4"
+STAGE4_ROOT = SD / "suite_distillation_stage4"
 
 
 def _out_dir(n: int, smoke: bool, tag: str = "") -> Path:
     if tag == SYMMETRIC_TAG:
         return SYMMETRIC_ROOT / (f"{n}v{n}" + ("_SMOKE" if smoke else "")) / "states"
+    if tag == STAGE4_TAG:
+        return STAGE4_ROOT / (f"{n}v{n}" + ("_SMOKE" if smoke else "")) / "states"
     stem = f"suite_distillation_{n}v{n}{_tag(tag).lower()}" + ("_SMOKE" if smoke else "")
     return SD / stem / "states"
 
@@ -140,9 +145,17 @@ def shard_is_resumable(shard: Path, fingerprint: str) -> dict | None:
 def spec_is_symmetric(spec: dict) -> bool:
     """True when the spec builds Pole B the same way as Pole A (pi_DB + frozen pi_B)."""
     c = (spec.get("ACTING_DEPLOYMENT_locked") or {}).get("construction", "asymmetric")
-    if c not in ("asymmetric", "symmetric"):
+    if c not in ("asymmetric", "symmetric", "dual_branch"):
         raise SystemExit(f"REFUSING: unknown ACTING_DEPLOYMENT_locked.construction {c!r}")
     return c == "symmetric"
+
+
+def spec_is_dual_branch(spec: dict) -> bool:
+    """True when KL teachers are the dual-branch role composites (Stage 4)."""
+    c = (spec.get("ACTING_DEPLOYMENT_locked") or {}).get("construction", "asymmetric")
+    if c not in ("asymmetric", "symmetric", "dual_branch"):
+        raise SystemExit(f"REFUSING: unknown ACTING_DEPLOYMENT_locked.construction {c!r}")
+    return c == "dual_branch"
 
 
 def check_symmetric_acting(act: dict, kl: dict) -> None:
@@ -167,20 +180,58 @@ def check_symmetric_acting(act: dict, kl: dict) -> None:
         raise SystemExit("REFUSING: a defender checkpoint equals a teacher or the other defender")
 
 
-def check_tag_matches_construction(spec: dict, tag: str) -> bool:
-    """The symmetric construction runs only under --dataset-tag SYM, and that tag only with it, so a
-    symmetric set can never land on an asymmetric path (or the reverse). Returns SYMMETRIC."""
+def check_dual_branch_acting(act: dict, kl: dict) -> None:
+    """Stage 4: both poles act with dual-branch composites; KL teachers ARE those composites.
+
+    Each strategy's teacher is {defend, attack}; acting pins must equal the corresponding
+    teacher halves (same four checkpoints for visitation and KL targets).
+    """
+    if kl.get("mode") != "dual_branch_role_gated":
+        raise SystemExit("REFUSING: dual_branch construction requires KL_TEACHERS_locked.mode="
+                         "'dual_branch_role_gated'")
+    need = {"Pole_A": ("pi_D", "frozen_attack_pi_A"), "Pole_B": ("pi_D", "frozen_attack_pi_B")}
+    for pole, keys in need.items():
+        blk = act.get(pole)
+        for k in keys:
+            pin = blk.get(k) if isinstance(blk, dict) else None
+            if not (isinstance(pin, dict) and pin.get("path") and len(str(pin.get("sha256", ""))) == 64):
+                raise SystemExit(f"REFUSING: dual_branch spec needs ACTING_DEPLOYMENT_locked.{pole}.{k} "
+                                 f"as {{path, sha256}}")
+    for side, pole in (("A", "Pole_A"), ("B", "Pole_B")):
+        t = kl.get(f"pi_{side}")
+        if not (isinstance(t, dict) and isinstance(t.get("defend"), dict) and isinstance(t.get("attack"), dict)):
+            raise SystemExit(f"REFUSING: KL_TEACHERS_locked.pi_{side} must be {{defend, attack}} pins")
+        for half in ("defend", "attack"):
+            pin = t[half]
+            if not (pin.get("path") and len(str(pin.get("sha256", ""))) == 64):
+                raise SystemExit(f"REFUSING: KL pi_{side}.{half} needs {{path, sha256}}")
+        if act[pole]["pi_D"]["sha256"] != t["defend"]["sha256"]:
+            raise SystemExit(f"REFUSING: acting {pole} pi_D != KL pi_{side}.defend")
+        attack_key = "frozen_attack_pi_A" if side == "A" else "frozen_attack_pi_B"
+        if act[pole][attack_key]["sha256"] != t["attack"]["sha256"]:
+            raise SystemExit(f"REFUSING: acting {pole} attack != KL pi_{side}.attack")
+    if act["Pole_A"]["pi_D"]["sha256"] == act["Pole_B"]["pi_D"]["sha256"]:
+        raise SystemExit("REFUSING: dual_branch A and B defend checkpoints are identical")
+
+
+def check_tag_matches_construction(spec: dict, tag: str) -> tuple[bool, bool]:
+    """Return (SYMMETRIC, DUAL_BRANCH). Tag must match construction family."""
     sym = spec_is_symmetric(spec)
+    dual = spec_is_dual_branch(spec)
+    if dual and tag != STAGE4_TAG:
+        raise SystemExit(f"REFUSING: dual_branch construction runs only under --dataset-tag {STAGE4_TAG}")
+    if tag == STAGE4_TAG and not dual:
+        raise SystemExit(f"REFUSING: --dataset-tag {STAGE4_TAG} requires dual_branch construction")
     if sym != (tag == SYMMETRIC_TAG):
         raise SystemExit(f"REFUSING: --dataset-tag {tag or '(none)'} with a "
                          f"{'symmetric' if sym else 'asymmetric'} spec; the symmetric construction "
                          f"runs only under --dataset-tag {SYMMETRIC_TAG}, and that tag only with it")
-    return sym
+    return sym, dual
 
 
 def acting_action(pole: str, obs, pi_D, frozen_attack, pi_B, pi_DB):
     """Pole A: split composite (pi_D on DEFEND, frozen pi_A on ATTACK). Pole B: plain pi_B, or -- in
-    the symmetric construction (pi_DB given) -- the same split composite built from pi_B."""
+    the symmetric/dual_branch construction (pi_DB given) -- the same split composite built from pi_B."""
     if pole == "A":
         return _composite_predict(pi_D, frozen_attack, obs)
     if pi_DB is not None:
@@ -190,11 +241,11 @@ def acting_action(pole: str, obs, pi_D, frozen_attack, pi_B, pi_DB):
 
 
 def symmetric_k_defend(spec: dict, n_agents: int) -> int:
-    """k for a symmetric spec: the spec's ALLOCATOR_locked.k_defend, which must be ceil(N/3)."""
+    """k for a symmetric/dual_branch spec: the spec's ALLOCATOR_locked.k_defend, which must be ceil(N/3)."""
     k = int(spec["ALLOCATOR_locked"]["k_defend"])
     want = -(-n_agents // 3)
     if k != want:
-        raise SystemExit(f"REFUSING: symmetric k_defend={k} != ceil({n_agents}/3)={want}")
+        raise SystemExit(f"REFUSING: symmetric/dual_branch k_defend={k} != ceil({n_agents}/3)={want}")
     return k
 
 
@@ -249,8 +300,9 @@ def main() -> int:
     if not str(spec.get("status", "")).startswith("FROZEN"):
         raise SystemExit(f"REFUSING: {SPEC_PATH.name} not frozen: {spec.get('status')!r}")
 
-    SYMMETRIC = check_tag_matches_construction(spec, TAG)
-    K_DEFEND = (symmetric_k_defend(spec, N_AGENTS) if SYMMETRIC else K_DEFEND_BY_SCALE[N_AGENTS])
+    SYMMETRIC, DUAL_BRANCH = check_tag_matches_construction(spec, TAG)
+    SPLIT_BOTH = SYMMETRIC or DUAL_BRANCH
+    K_DEFEND = (symmetric_k_defend(spec, N_AGENTS) if SPLIT_BOTH else K_DEFEND_BY_SCALE[N_AGENTS])
     n_per_pole = int(args.n_per_pole) if args.n_per_pole else int(spec["DATASET"]["n_per_pole"])
     if smoke:
         n_per_pole = max(min(n_per_pole, 12), 10)
@@ -334,26 +386,50 @@ def main() -> int:
     kl = spec["KL_TEACHERS_locked"]
     if SYMMETRIC:
         check_symmetric_acting(act, kl)
-    pins = {
-        "pi_D": act["Pole_A"]["pi_D"],
-        "frozen_attack": act["Pole_A"]["frozen_attack_pi_A"],
-        "pi_B_act": act["Pole_B"]["frozen_attack_pi_B"] if SYMMETRIC else act["Pole_B"],
-        "pi_A_kl": kl["pi_A"],
-        "pi_B_kl": kl["pi_B"],
-    }
-    if SYMMETRIC:
-        pins["pi_DB"] = act["Pole_B"]["pi_D"]
+    if DUAL_BRANCH:
+        check_dual_branch_acting(act, kl)
+    if DUAL_BRANCH:
+        pins = {
+            "pi_D": act["Pole_A"]["pi_D"],
+            "frozen_attack": act["Pole_A"]["frozen_attack_pi_A"],
+            "pi_B_act": act["Pole_B"]["frozen_attack_pi_B"],
+            "pi_DB": act["Pole_B"]["pi_D"],
+            "pi_A_kl_defend": kl["pi_A"]["defend"],
+            "pi_A_kl_attack": kl["pi_A"]["attack"],
+            "pi_B_kl_defend": kl["pi_B"]["defend"],
+            "pi_B_kl_attack": kl["pi_B"]["attack"],
+        }
+    else:
+        pins = {
+            "pi_D": act["Pole_A"]["pi_D"],
+            "frozen_attack": act["Pole_A"]["frozen_attack_pi_A"],
+            "pi_B_act": act["Pole_B"]["frozen_attack_pi_B"] if SYMMETRIC else act["Pole_B"],
+            "pi_A_kl": kl["pi_A"],
+            "pi_B_kl": kl["pi_B"],
+        }
+        if SYMMETRIC:
+            pins["pi_DB"] = act["Pole_B"]["pi_D"]
     paths = {}
     for name, pin in pins.items():
         p = ROOT / pin["path"]
         if not p.is_file() or _sha(p) != pin["sha256"]:
             raise SystemExit(f"REFUSING: {name} missing or sha mismatch: {p}")
         paths[name] = p
-    # KL and acting attack/B share pins; refuse drift.
-    if pins["frozen_attack"]["sha256"] != pins["pi_A_kl"]["sha256"]:
-        raise SystemExit("REFUSING: frozen_attack sha != KL pi_A sha")
-    if pins["pi_B_act"]["sha256"] != pins["pi_B_kl"]["sha256"]:
-        raise SystemExit("REFUSING: acting pi_B sha != KL pi_B sha")
+    # KL and acting attack/B share pins; refuse drift (historical + Stage 4).
+    if DUAL_BRANCH:
+        if pins["frozen_attack"]["sha256"] != pins["pi_A_kl_attack"]["sha256"]:
+            raise SystemExit("REFUSING: frozen_attack sha != KL pi_A.attack sha")
+        if pins["pi_B_act"]["sha256"] != pins["pi_B_kl_attack"]["sha256"]:
+            raise SystemExit("REFUSING: acting pi_B sha != KL pi_B.attack sha")
+        if pins["pi_D"]["sha256"] != pins["pi_A_kl_defend"]["sha256"]:
+            raise SystemExit("REFUSING: pi_D sha != KL pi_A.defend sha")
+        if pins["pi_DB"]["sha256"] != pins["pi_B_kl_defend"]["sha256"]:
+            raise SystemExit("REFUSING: pi_DB sha != KL pi_B.defend sha")
+    else:
+        if pins["frozen_attack"]["sha256"] != pins["pi_A_kl"]["sha256"]:
+            raise SystemExit("REFUSING: frozen_attack sha != KL pi_A sha")
+        if pins["pi_B_act"]["sha256"] != pins["pi_B_kl"]["sha256"]:
+            raise SystemExit("REFUSING: acting pi_B sha != KL pi_B sha")
 
     probe = R2.build_env(device, seeds["A"][0])
     obs_space, act_space = probe.observation_space, probe.action_space
@@ -368,7 +444,7 @@ def main() -> int:
     )
     pi_B = load_custom_ppo_policy(str(paths["pi_B_act"]), obs_space, act_space, device=device)
     pi_DB = (load_custom_ppo_policy(str(paths["pi_DB"]), obs_space, act_space, device=device)
-             if SYMMETRIC else None)
+             if SPLIT_BOTH else None)
     if pi_DB is not None:
         if not bool(getattr(pi_DB.model, "role_conditioning_enabled", False)):
             raise SystemExit("REFUSING: pi_DB must be role-conditioned")
@@ -591,11 +667,11 @@ def main() -> int:
         },
         "acting": {
             "Pole_A": "DEFEND_ATTACK_SPLIT(pi_D + frozen_attack)",
-            "Pole_B": ("DEFEND_ATTACK_SPLIT(pi_DB + frozen pi_B)" if SYMMETRIC
+            "Pole_B": ("DEFEND_ATTACK_SPLIT(pi_DB + frozen pi_B)" if SPLIT_BOTH
                        else "pi_B entity-repair"),
-            "construction": "symmetric" if SYMMETRIC else "asymmetric",
+            "construction": ("dual_branch" if DUAL_BRANCH else ("symmetric" if SYMMETRIC else "asymmetric")),
             **({"pi_DB": {"path": str(pins["pi_DB"]["path"]), "sha256": pins["pi_DB"]["sha256"]}}
-               if SYMMETRIC else {}),
+               if SPLIT_BOTH else {}),
             "pi_D": {"path": str(pins["pi_D"]["path"]), "sha256": pins["pi_D"]["sha256"]},
             "frozen_attack": {
                 "path": str(pins["frozen_attack"]["path"]),
@@ -603,10 +679,26 @@ def main() -> int:
             },
             "pi_B": {"path": str(pins["pi_B_act"]["path"]), "sha256": pins["pi_B_act"]["sha256"]},
         },
-        "teachers": {
-            "pi_A": {"path": str(pins["pi_A_kl"]["path"]), "sha256": pins["pi_A_kl"]["sha256"]},
-            "pi_B": {"path": str(pins["pi_B_kl"]["path"]), "sha256": pins["pi_B_kl"]["sha256"]},
-        },
+        "teachers": (
+            {
+                "mode": "dual_branch_role_gated",
+                "pi_A": {
+                    "defend": {"path": str(pins["pi_A_kl_defend"]["path"]),
+                               "sha256": pins["pi_A_kl_defend"]["sha256"]},
+                    "attack": {"path": str(pins["pi_A_kl_attack"]["path"]),
+                               "sha256": pins["pi_A_kl_attack"]["sha256"]},
+                },
+                "pi_B": {
+                    "defend": {"path": str(pins["pi_B_kl_defend"]["path"]),
+                               "sha256": pins["pi_B_kl_defend"]["sha256"]},
+                    "attack": {"path": str(pins["pi_B_kl_attack"]["path"]),
+                               "sha256": pins["pi_B_kl_attack"]["sha256"]},
+                },
+            } if DUAL_BRANCH else {
+                "pi_A": {"path": str(pins["pi_A_kl"]["path"]), "sha256": pins["pi_A_kl"]["sha256"]},
+                "pi_B": {"path": str(pins["pi_B_kl"]["path"]), "sha256": pins["pi_B_kl"]["sha256"]},
+            }
+        ),
         "seeds": {k: [v[0], v[-1]] for k, v in seeds.items()},
         "seed_registry": (None if smoke else {blk: {"block": [lo, hi], "experiment_id": rid}
                                                for blk, (lo, hi, rid) in seed_blocks.items()}),
@@ -624,6 +716,16 @@ def main() -> int:
             "defenders_are_not_teachers": True,
             "spec": SPEC_PATH.name, "spec_sha256": _sha(SPEC_PATH), "git_sha": ident["git_sha"],
         }} if SYMMETRIC else {}),
+        **({"dataset_mode": "dual_branch_teachers", "dual_branch_teachers": {
+            "team_size": N_AGENTS, "k_defend": K_DEFEND,
+            "episodes_per_regime": n_per_pole,
+            "pole_A": {"attacker": pins["frozen_attack"], "defender": pins["pi_D"]},
+            "pole_B": {"attacker": pins["pi_B_act"], "defender": pins["pi_DB"]},
+            "teacher_A": {"defend": pins["pi_A_kl_defend"], "attack": pins["pi_A_kl_attack"]},
+            "teacher_B": {"defend": pins["pi_B_kl_defend"], "attack": pins["pi_B_kl_attack"]},
+            "teachers_are_the_acting_composites": True,
+            "spec": SPEC_PATH.name, "spec_sha256": _sha(SPEC_PATH), "git_sha": ident["git_sha"],
+        }} if DUAL_BRANCH else {}),
         "resumed_shards": sum(1 for s_ in shards if s_.get("resumed")),
         "device": device,
         "decision_rows_only": True,
