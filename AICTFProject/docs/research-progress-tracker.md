@@ -16,7 +16,9 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-10-02 — **Historical top-50 removed from the default dual-branch suite on 2v2/4v4/6v6.** It is provenance/regression only (`--allow-historical-top50` / `-AllowHistoricalTop50`). Default Stage-3 is matched-128 (PRIMARY) → own top-50 (secondary) → Stage 4. Existing sealed historical-top50 results are never deleted. 4v4 suite now wires matched-128 + own top-50; 2v2 keeps the external matched128_2v2 chain for the live run (no double-launch).
+> **Last updated:** 2026-10-02 — **2v2 salvage locked: do not restart.** Live historical-seed Stage-4 eval = DIAGNOSTIC only. After matched-128 + own top-50 seal, re-evaluate frozen Stage-4 students on own-top50 (`OWN50_*` labels) via `experiments/reeval_stage4_on_own_top50.py` / `run_own_top50_after.ps1`. No retrain, no overwrite of sealed `TOP50_*`. Auth: `STAGE4_2V2_SALVAGE_AND_OWN50_REEVAL_V1.json`. Future 4v4/6v6: matched-128 → own top-50 → Stage-4 train → Stage-4 eval on own-top50.
+>
+> **Prior — 2026-10-02 — Historical top-50 removed from the default dual-branch suite on 2v2/4v4/6v6.** It is provenance/regression only (`--allow-historical-top50` / `-AllowHistoricalTop50`). Default Stage-3 is matched-128 (PRIMARY) → own top-50 (secondary) → Stage 4. Existing sealed historical-top50 results are never deleted. 4v4 suite now wires matched-128 + own top-50; 2v2 keeps the external matched128_2v2 chain for the live run (no double-launch).
 >
 > **Prior — 2026-10-02 — 6v6 Stage-3 hierarchy locked: matched-128 is PRIMARY; own top-50 secondary; historical top-50 provenance only (skipped by default).** Default suite path is matched-128 → own top-50 → Stage 4. Historical top-50 remains reproducible via `--allow-historical-top50` (frozen seed lists kept) but is not paper evidence and is not spent on every full run.
 >

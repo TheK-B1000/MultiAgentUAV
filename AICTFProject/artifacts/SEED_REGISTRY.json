@@ -1831,6 +1831,10 @@
         {
           "utc": "2026-10-02T00:51:46Z",
           "note": "post-hoc matched ablation TOP50_2V2_SYMMETRIC_OURS sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-02T05:43:37Z",
+          "note": "post-hoc matched ablation DUAL_BRANCH_2V2_ROLE_COMPOSITE sealed SEALED on this already-spent block"
         }
       ]
     },
@@ -2677,10 +2681,17 @@
       "lo": 27000001,
       "hi": 27000096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "experiments/prepare_stage4_baselines.py",
       "subdivides": null,
-      "allocated_utc": "2026-10-02T02:30:55Z"
+      "allocated_utc": "2026-10-02T02:30:55Z",
+      "spent_utc": "2026-10-02T07:36:37Z",
+      "notes": [
+        {
+          "utc": "2026-10-02T07:36:37Z",
+          "note": "SUITE_DISTILLATION_2V2_STAGE4_DATASET.json written (collection_A)"
+        }
+      ]
     },
     {
       "experiment_id": "STAGE4_4V4_SUITE_DATASET_POLE_A",
@@ -2713,10 +2724,17 @@
       "lo": 27100001,
       "hi": 27100096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "experiments/prepare_stage4_baselines.py",
       "subdivides": null,
-      "allocated_utc": "2026-10-02T02:30:55Z"
+      "allocated_utc": "2026-10-02T02:30:55Z",
+      "spent_utc": "2026-10-02T07:36:37Z",
+      "notes": [
+        {
+          "utc": "2026-10-02T07:36:37Z",
+          "note": "SUITE_DISTILLATION_2V2_STAGE4_DATASET.json written (collection_B)"
+        }
+      ]
     },
     {
       "experiment_id": "STAGE4_4V4_SUITE_DATASET_POLE_B",
@@ -2749,10 +2767,17 @@
       "lo": 27200001,
       "hi": 27200002,
       "n": 2,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "experiments/prepare_stage4_baselines.py",
       "subdivides": null,
-      "allocated_utc": "2026-10-02T02:30:55Z"
+      "allocated_utc": "2026-10-02T02:30:55Z",
+      "spent_utc": "2026-10-02T07:39:55Z",
+      "notes": [
+        {
+          "utc": "2026-10-02T07:39:55Z",
+          "note": "STUDENT_FROZEN.json written (share_encoder 2v2)"
+        }
+      ]
     },
     {
       "experiment_id": "STAGE4_4V4_SHARE_ENCODER_TRAINING",
@@ -2785,10 +2810,17 @@
       "lo": 27300001,
       "hi": 27300001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "experiments/prepare_stage4_baselines.py",
       "subdivides": null,
-      "allocated_utc": "2026-10-02T02:30:55Z"
+      "allocated_utc": "2026-10-02T02:30:55Z",
+      "spent_utc": "2026-10-02T07:42:22Z",
+      "notes": [
+        {
+          "utc": "2026-10-02T07:42:22Z",
+          "note": "STUDENT_FROZEN.json written (fully_shared 2v2)"
+        }
+      ]
     },
     {
       "experiment_id": "STAGE4_4V4_FULLY_SHARED_ZR_TRAINING",
@@ -2821,10 +2853,17 @@
       "lo": 27400001,
       "hi": 27400001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "experiments/prepare_stage4_baselines.py",
       "subdivides": null,
-      "allocated_utc": "2026-10-02T02:30:55Z"
+      "allocated_utc": "2026-10-02T02:30:55Z",
+      "spent_utc": "2026-10-02T11:46:12Z",
+      "notes": [
+        {
+          "utc": "2026-10-02T11:46:12Z",
+          "note": "STUDENT_FROZEN.json written (role_only 2v2)"
+        }
+      ]
     },
     {
       "experiment_id": "STAGE4_4V4_ROLE_ONLY_TRAINING",
@@ -2851,7 +2890,7 @@
       "allocated_utc": "2026-10-02T02:21:46Z"
     }
   ],
-  "updated_utc": "2026-10-02T02:30:55Z",
+  "updated_utc": "2026-10-02T11:46:12Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

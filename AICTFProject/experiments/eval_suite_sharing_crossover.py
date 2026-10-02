@@ -66,7 +66,14 @@ def _spec_path(n: int, tag: str = "") -> Path:
 def _family(n: int, tag: str = "") -> str:
     if tag == "STAGE4":
         return f"{n}v{n}_stage4"
+    if tag == "STAGE4_OWN50":
+        return f"{n}v{n}_stage4_own50"
     return f"{n}v{n}" + (f"_{tag.lower()}" if tag else "")
+
+
+def _is_stage4(tag: str) -> bool:
+    """STAGE4 = historical-seed diagnostic; STAGE4_OWN50 = clean own-top50 re-score."""
+    return tag in ("STAGE4", "STAGE4_OWN50")
 
 
 def resolve_seeds(spec: dict, label: str) -> dict:
@@ -139,13 +146,19 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true",
                     help="continue an interrupted run of this arm from its PARTIAL rows file "
                          "(fingerprint must match); with no PARTIAL file it starts fresh")
-    ap.add_argument("--spec-tag", default="", choices=("", "SYM", "STAGE4"),
-                    help="SYM = symmetric-role family; STAGE4 = dual-branch z+r / role-only")
+    ap.add_argument(
+        "--spec-tag",
+        default="",
+        choices=("", "SYM", "STAGE4", "STAGE4_OWN50"),
+        help="SYM = symmetric-role family; STAGE4 = dual-branch z+r / role-only "
+             "(historical-seed diagnostic); STAGE4_OWN50 = same students re-scored on "
+             "dual-branch own top-50 (clean Stage-4 comparison; new OWN50_* labels)",
+    )
     args = ap.parse_args()
 
     N_AGENTS = int(args.team_size)
     STAG = str(args.spec_tag)
-    if STAG == "STAGE4" and args.arm == "generalist":
+    if _is_stage4(STAG) and args.arm == "generalist":
         raise SystemExit("REFUSING: Stage 4 forbids Generalist; use --arm role_only")
     SPEC_PATH = _spec_path(N_AGENTS, STAG)
     if not SPEC_PATH.is_file():
@@ -158,7 +171,7 @@ def main() -> int:
         raise SystemExit(f"REFUSING: {SPEC_PATH.name} not frozen: {spec.get('status')!r}")
 
     arm_key = ARM_KEY[args.arm]
-    if STAG == "STAGE4" and args.arm == "fully_shared":
+    if _is_stage4(STAG) and args.arm == "fully_shared":
         arm_key = "fully_shared_z_r"
     if arm_key not in spec["ARMS"]:
         raise SystemExit(f"REFUSING: SPEC missing ARMS[{arm_key!r}] — pin after distill freeze")
@@ -293,9 +306,9 @@ def main() -> int:
             bool(getattr(model.branch[z], "role_conditioning_enabled", False)) for z in ("z0", "z1")
         )
     )
-    if STAG == "STAGE4" and not needs_roles:
+    if _is_stage4(STAG) and not needs_roles:
         raise SystemExit("REFUSING: Stage-4 students require role_conditioning_enabled")
-    k_defend = -(-N_AGENTS // 3) if STAG in ("SYM", "STAGE4") else {2: 1, 4: 2, 6: 1}[N_AGENTS]
+    k_defend = -(-N_AGENTS // 3) if STAG in ("SYM", "STAGE4", "STAGE4_OWN50") else {2: 1, 4: 2, 6: 1}[N_AGENTS]
 
     def _attach_roles(obs, core, hold, *, force: bool):
         from rl.custom_ppo.rule_role_assignment import roles_from_core
@@ -429,7 +442,7 @@ def main() -> int:
     fingerprint = {"label": label, "arm": args.arm, "team_size": N_AGENTS, "checkpoint_sha256": ck_sha,
                    "seeds": [lo, hi], "spec_sha256": _sha(SPEC_PATH),
                    "poles": {p: POLE_IDENTITY[p]["pole_config_hash"] for p in ("A", "B")},
-                   "stage4": STAG == "STAGE4", "k_defend": k_defend if needs_roles else None}
+                   "stage4": _is_stage4(STAG), "k_defend": k_defend if needs_roles else None}
     if posthoc is not None:          # only present when used, so earlier PARTIAL files still resume
         fingerprint["seed_ids"] = seeds
     done = load_partial(PARTIAL, fingerprint) if PARTIAL.is_file() else {}

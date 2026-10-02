@@ -16,17 +16,25 @@
     "freeze SUITE_DISTILLATION_2V2_STAGE4_SPEC after the dual-branch deploy manifest exists",
     "collect Stage-4 dataset with --dataset-tag STAGE4 from the sealed dual-branch teachers only",
     "distill share_encoder, fully_shared (z+r), role_only under those teachers",
-    "post-hoc top-50 diagnostic eval of the dual-branch teachers and of the Stage-4 students",
+    "PRIMARY Stage-3: matched-128 on the historical SPENT block (external matched128_2v2 chain for the live suite)",
+    "secondary Stage-3: dual-branch own top-50 after matched-128 (CPU)",
+    "OPTIONAL provenance: historical Ours top-50 Separated diagnostic via --allow-historical-top50 (skipped by default)",
+    "Stage-4 student evals on own-top50 seeds when available (else historical provenance fallback)",
     "chain these stages inside 2v2/run_dual_branch_2v2.py after the dual-branch technical seal"
   ],
+  "STAGE3_HIERARCHY_locked": {
+    "matched_128": "PRIMARY evidence",
+    "own_top50_from_matched_128": "secondary descriptive view",
+    "historical_top50": "provenance / regression only; not paper evidence; skipped by default"
+  },
   "TEACHERS_locked": "dual-branch role composites from 2v2/dual_branch_deploy_manifest.json (ATTACK exports + DEFEND finals), not 1M foundations and not the historical defender-only symmetric run",
   "LADDER_locked": [
-    "Separated / Ours-Teachers",
+    "Separated / Ours-Teachers (scored primarily by matched-128; own top-50 secondary)",
     "Share-Encoder (comparison)",
     "Ours-Shared: Fully Shared+z+r := pi(a | o, z, r)",
     "Role-only := pi(a | o, r) (ablation of Ours-Shared)"
   ],
-  "DIAGNOSTIC_locked": "Frozen 2v2 top-50 is post-hoc. A bad Delta does not stop Phase 3.",
+  "DIAGNOSTIC_locked": "Historical top-50 is provenance only. Matched-128 is primary Stage-3. A bad Delta does not stop Stage 4.",
   "NOT_AUTHORIZED": [
     "a second copy of the live 2v2 dual-branch train while that chain is still running",
     "reusing historical Fully Shared+z / Generalist pi(a|o) as Stage 4",

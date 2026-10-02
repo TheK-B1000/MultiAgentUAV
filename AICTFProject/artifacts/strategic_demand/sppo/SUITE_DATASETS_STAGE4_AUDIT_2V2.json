@@ -1,0 +1,354 @@
+{
+  "record_id": "SUITE_DATASETS_STAGE4_AUDIT_2V2",
+  "utc": "2026-10-02T07:36:41Z",
+  "verdict": "GREEN",
+  "datasets": {
+    "2v2_stage4": "SUITE_DISTILLATION_2V2_STAGE4_DATASET.json"
+  },
+  "rows": {
+    "2v2_stage4": 35865
+  },
+  "checks": [
+    {
+      "scale": "2v2_stage4",
+      "check": "manifest_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_2V2_STAGE4_DATASET.json"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "spec_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_2V2_STAGE4_SPEC.json"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "construction_matches_family",
+      "ok": true,
+      "detail": "dual_branch"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "manifest_FROZEN_DATASET",
+      "ok": true,
+      "detail": "FROZEN_DATASET"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "spec_FROZEN",
+      "ok": true,
+      "detail": "FROZEN_BEFORE_COLLECTION"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "collector_recorded",
+      "ok": true,
+      "detail": {
+        "module": "experiments/collect_suite_distillation_states.py",
+        "spec": "SUITE_DISTILLATION_2V2_STAGE4_SPEC.json",
+        "spec_sha256": "57c483b58bafff09af9b029b5be5ac65487ec74ed7b2ae51548c9105610c6451",
+        "git_sha": "b7142a2152a85e473d0b545a705200227393e5bd",
+        "git_dirty": false,
+        "scientific_tree_sha256": "16d791407c3030522ba64b3e99e4810f9cf8a0e034a5d92bc48305b9ad089ce0"
+      }
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "spec_sha_matches_manifest",
+      "ok": true,
+      "detail": "57c483b58bafff09af9b029b5be5ac65487ec74ed7b2ae51548c9105610c6451"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "fingerprint_recorded",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "allocator_CD_k_fixed_H8",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 1,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8
+      }
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "spec_allocator_k",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 1,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8,
+        "source": "k = ceil(N/3) (DUAL_BRANCH_ROLE_COMPOSITE_V1)"
+      }
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pole_A_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+        "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad"
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pole_A_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {
+          "min_alive_for_defender": 2
+        },
+        {
+          "min_alive_for_defender": 2
+        }
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pole_B_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+        "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082"
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pole_B_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {},
+        {}
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "teachers_mode_dual_branch",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "acting_equals_teacher_halves",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_D_file_sha",
+      "ok": true,
+      "detail": "15ced67ab0f45e46"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_D_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_frozen_attack_file_sha",
+      "ok": true,
+      "detail": "7963a593dda91dcf"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_frozen_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_B_act_file_sha",
+      "ok": true,
+      "detail": "cdd1ad83b96835cb"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_B_act_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_DB_file_sha",
+      "ok": true,
+      "detail": "7dca0e2548279694"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_DB_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_A_kl_defend_file_sha",
+      "ok": true,
+      "detail": "15ced67ab0f45e46"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_A_kl_defend_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_A_kl_attack_file_sha",
+      "ok": true,
+      "detail": "7963a593dda91dcf"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_A_kl_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_B_kl_defend_file_sha",
+      "ok": true,
+      "detail": "7dca0e2548279694"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_B_kl_defend_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_B_kl_attack_file_sha",
+      "ok": true,
+      "detail": "cdd1ad83b96835cb"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "pin_pi_B_kl_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "shards_A_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        27000001,
+        27000096
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "registry_collection_A_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        27000001,
+        27000096
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "manifest_registry_collection_A",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "shards_B_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        27100001,
+        27100096
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "registry_collection_B_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        27100001,
+        27100096
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "manifest_registry_collection_B",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "manifest_fingerprint_collector_sha",
+      "ok": true,
+      "detail": [
+        "b7142a2152a85e473d0b545a705200227393e5bd",
+        "b7142a2152a85e473d0b545a705200227393e5bd"
+      ]
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "collector_clean_at_collection",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "manifest_scientific_tree_matches_git_sha",
+      "ok": true,
+      "detail": "16d791407c303052"
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "all_shard_files_present",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "every_shard_from_the_manifest_collector_commit",
+      "ok": true,
+      "detail": {
+        "foreign_shards": 0,
+        "sha": "b7142a2152a85e473d0b545a705200227393e5bd"
+      }
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "every_row_exactly_k_defenders",
+      "ok": true,
+      "detail": {
+        "rows": 35865,
+        "violations": 0
+      }
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "every_row_decision_eligible",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "entity_tensor_shapes_follow_N",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "2v2_stage4",
+      "check": "flags_decision_only_entities_roles",
+      "ok": true,
+      "detail": null
+    }
+  ]
+}

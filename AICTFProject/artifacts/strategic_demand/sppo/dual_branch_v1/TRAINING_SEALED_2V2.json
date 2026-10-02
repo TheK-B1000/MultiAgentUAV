@@ -1,0 +1,13 @@
+﻿{
+    "next":  "behavior checks then fresh diagnostic crossover (not asymmetric top-50)",
+    "utc":  "2026-10-02T03:54:46.3197070Z",
+    "B":  {
+              "sha256":  "7dca0e25482796943e97b4198836ee5a3845f855604a3d963a4b4b50540c5868",
+              "path":  "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_dual_branch_v1\\ckpts\\final_pi_B_specialist_2v2_dual_branch_v1.zip"
+          },
+    "record_id":  "DUAL_BRANCH_V1_2V2_TRAINING_SEALED",
+    "A":  {
+              "sha256":  "15ced67ab0f45e46d017885f35d6fb9cbaee0375a213ee157c937e470cbf8dd1",
+              "path":  "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_dual_branch_v1\\ckpts\\final_pi_A_specialist_2v2_dual_branch_v1.zip"
+          }
+}

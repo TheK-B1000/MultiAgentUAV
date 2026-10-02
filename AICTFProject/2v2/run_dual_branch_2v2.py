@@ -702,7 +702,8 @@ def stage4_evals() -> None:
         ("role_only", "role_only"),
     ):
         lab = P4.labels(2)[label_key]
-        result = PROJ / "artifacts/strategic_demand/sppo" / f"{lab}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+        # eval_suite_sharing_crossover writes {label}_CROSSOVER_EVAL_RESULT.json (not SPECIALIST_)
+        result = PROJ / "artifacts/strategic_demand/sppo" / f"{lab}_CROSSOVER_EVAL_RESULT.json"
         if result.is_file():
             log(f"Stage4 eval {arm} already sealed")
             continue

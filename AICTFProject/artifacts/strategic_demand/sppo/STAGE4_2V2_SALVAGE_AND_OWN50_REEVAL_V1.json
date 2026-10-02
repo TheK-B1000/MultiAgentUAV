@@ -1,0 +1,58 @@
+{
+  "record_id": "STAGE4_2V2_SALVAGE_AND_OWN50_REEVAL_V1",
+  "status": "LOCKED",
+  "utc": "2026-10-02T14:40:00Z",
+  "classification": "INTERPRETATION + EVALUATION-ONLY FOLLOW-UP. Not PAPER-FAITHFUL. Not a license to retrain.",
+  "decided_by": "PI, 2026-10-02: 2v2 is scientifically salvageable without retraining. Do not restart the suite.",
+  "AUDIT_VERDICT": "2v2 is scientifically salvageable without retraining. Stage-3 will be clean once matched-128 finishes. The currently running Stage-4 evaluation remains a historical-seed diagnostic, and the frozen students can later be re-evaluated on the new current seed set. 4v4 and 6v6 now follow the clean pipeline by default.",
+  "TRAINING_VS_EVAL_LOCKED": {
+    "principle": "rerun the exam, not the students' education",
+    "teachers": "NEW dual-branch Ours-Teachers — do not retrain",
+    "stage4_dataset": "dedicated collection blocks 27000001.. / 27100001.. under dual_branch_teachers; NOT built from 2v2_ours_top50_seed_ids.json — do not recollect",
+    "students": "Share-Encoder / Ours-Shared / Role-only trained from that dataset — do not retrain; finish Role-only if still running",
+    "historical_part": "evaluation seed list only (STANDARDIZED_2V2_STAGE4_SHARING_EVAL_SPEC.json → symmetric_role_top50/2v2_ours_top50_seed_ids.json)"
+  },
+  "LIVE_2V2_STATUS": {
+    "do_not_restart": true,
+    "matched_128_teachers": "clean PRIMARY Stage-3 result once sealed",
+    "own_top50_from_matched_128": "clean SECONDARY Stage-3 view once sealed (CPU; no new episodes)",
+    "historical_seed_stage4_eval": {
+      "status": "DIAGNOSTIC ONLY",
+      "why": "STANDARDIZED_2V2_STAGE4_SHARING_EVAL_SPEC.json was already sealed to the historical Ours top-50 seed list before own-top50 existed",
+      "watching": "dual_branch_stage4_eval_*.log.err is evaluation of frozen students, not retraining",
+      "artifacts_preserved": true,
+      "not_the_clean_final_2v2_sharing_result": true
+    }
+  },
+  "FOLLOW_UP_LOCKED": {
+    "when": "after OWN_TOP50_DONE.txt under dual_branch_v1/matched128_2v2/",
+    "what": "evaluation-only re-score of already-frozen Share-Encoder / Ours-Shared / Role-only students on the current dual-branch own-top50 seeds",
+    "no_retraining": true,
+    "no_recollecting_dataset": true,
+    "no_re_freezing_students": true,
+    "no_touching_historical_stage4_eval_artifacts": true,
+    "new_spec": "STANDARDIZED_2V2_STAGE4_OWN50_SHARING_EVAL_SPEC.json",
+    "new_labels": [
+      "OWN50_2V2_STAGE4_SHARE_ENCODER",
+      "OWN50_2V2_STAGE4_FULLY_SHARED_ZR",
+      "OWN50_2V2_STAGE4_ROLE_ONLY"
+    ],
+    "runner": "experiments/reeval_stage4_on_own_top50.py --team-size 2",
+    "chain": "dual_branch_v1/matched128_2v2/run_own_top50_after.ps1 continues into the re-eval after OWN_TOP50_DONE"
+  },
+  "FUTURE_SCALES_LOCKED": {
+    "4v4_and_6v6": [
+      "Matched-128 (PRIMARY Stage-3)",
+      "Own top-50 from matched-128 (SECONDARY Stage-3)",
+      "Stage-4 dataset/training",
+      "Stage-4 eval on current own-top50 (preferred; historical seed list is provenance fallback only)"
+    ]
+  },
+  "NOT_AUTHORIZED": [
+    "restarting the live 2v2 suite to 'clean up' orchestration history",
+    "deleting or overwriting TOP50_2V2_STAGE4_* historical-seed Stage-4 results",
+    "retraining Stage-4 students for the own-top50 comparison",
+    "recollecting the Stage-4 dataset because the eval freeze used historical seeds",
+    "calling the live historical-seed Stage-4 eval the clean final 2v2 sharing result"
+  ]
+}

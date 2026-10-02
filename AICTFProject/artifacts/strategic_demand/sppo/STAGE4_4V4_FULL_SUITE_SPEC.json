@@ -11,8 +11,20 @@
     "STAGE4_6V6_SCHOOL_SUITE_SPEC.json"
   ],
   "SCALE": {"N": 4, "k_defend": 2, "k_rule": "ceil(N/3)"},
+  "AUTHORIZES": [
+    "PRIMARY Stage-3: matched-128 on the historical SPENT block after dual-branch teachers seal",
+    "secondary Stage-3: dual-branch own top-50 after matched-128 (CPU)",
+    "OPTIONAL provenance: historical Ours top-50 Separated diagnostic via --allow-historical-top50 (skipped by default)",
+    "Stage-4 student evals on own-top50 seeds when available (else historical provenance fallback)",
+    "chain matched-128 -> own top-50 -> Stage 4 inside 4v4/run_dual_branch_4v4.py"
+  ],
+  "STAGE3_HIERARCHY_locked": {
+    "matched_128": "PRIMARY evidence",
+    "own_top50_from_matched_128": "secondary descriptive view",
+    "historical_top50": "provenance / regression only; not paper evidence; skipped by default"
+  },
   "LADDER_locked": [
-    "Separated / Ours-Teachers",
+    "Separated / Ours-Teachers (scored primarily by matched-128; own top-50 secondary)",
     "Share-Encoder (comparison)",
     "Ours-Shared: Fully Shared+z+r := pi(a | o, z, r)",
     "Role-only := pi(a | o, r) (ablation of Ours-Shared)"
@@ -20,7 +32,8 @@
   "NOT_AUTHORIZED": [
     "Generalist pi(a|o) as a Stage-4 rung",
     "calling Ours-Shared a neutral baseline",
-    "foundation specialists as KL teachers"
+    "foundation specialists as KL teachers",
+    "spending historical top-50 Separated diagnostics by default"
   ],
   "LAUNCH": {
     "after_2v2_suite": "4v4/run_dual_branch_4v4.py waits for 2v2/manifests/phase6_package.json",

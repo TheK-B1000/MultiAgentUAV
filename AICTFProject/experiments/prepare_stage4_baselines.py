@@ -9,6 +9,7 @@ composites (role-gated ATTACK+DEFEND), not the 1M foundations. Students:
     python experiments/prepare_stage4_baselines.py --team-size 6 --collection
     python experiments/prepare_stage4_baselines.py --team-size 6 --sharing
     python experiments/prepare_stage4_baselines.py --team-size 6 --eval
+    python experiments/prepare_stage4_baselines.py --team-size 2 --own50-eval
 
 Authorized per scale by STAGE4_<N>V<N>_FULL_SUITE_SPEC.json (6v6: STAGE4_6V6_SCHOOL_SUITE_SPEC.json).
 Same ladder at 2v2, 4v4, and 6v6. Only N, k=ceil(N/3), checkpoints, and seeds differ.
@@ -333,8 +334,10 @@ def sharing_spec(n: int) -> Path:
             "training": {bl[a][0]: _rng(bl[a]) for a in ARMS},
             "evaluation": {
                 "mode": (
-                    f"POST-HOC on the frozen Ours top-50 seeds "
-                    f"(STANDARDIZED_{n}V{n}_{TAG}_SHARING_EVAL_SPEC.json); no fresh evaluation block"
+                    "POST-HOC on dual-branch own top-50 seeds when matched128/"
+                    f"DUAL_BRANCH_{n}V{n}_OWN_TOP50_seed_ids.json exists; else historical "
+                    f"Ours top-50 provenance fallback (STANDARDIZED_{n}V{n}_{TAG}_SHARING_EVAL_SPEC.json); "
+                    "no fresh evaluation block"
                 ),
             },
             "all_must_be": "training blocks registered and RESERVED at preflight",
@@ -367,15 +370,41 @@ def labels(n: int) -> dict:
     }
 
 
+def own50_labels(n: int) -> dict:
+    """Distinct labels for evaluation-only re-score on dual-branch own top-50 seeds."""
+    p = f"OWN50_{n}V{n}_{TAG}"
+    return {
+        "share_encoder": f"{p}_SHARE_ENCODER",
+        "fully_shared": f"{p}_FULLY_SHARED_ZR",
+        "role_only": f"{p}_ROLE_ONLY",
+    }
+
+
 def eval_spec(n: int) -> Path:
-    """Post-hoc top-50 eval for Stage-4 students (diagnostic). Pins must already be frozen."""
+    """Post-hoc top-50 eval for Stage-4 students (diagnostic). Pins must already be frozen.
+
+    Prefer dual-branch own top-50 seed ids (derived from matched-128) when present.
+    Fall back to the frozen historical Ours top-50 list only as provenance when own
+    top-50 has not been produced yet (e.g. a mid-flight suite that froze earlier).
+    """
     parent_name = f"STANDARDIZED_{n}V{n}_SHARING_EVAL_SPEC.json"
     parent = _load(SD / parent_name)
-    # Same frozen Ours top-50 seed list the dual-branch diagnostic uses.
-    seeds_file = ROOT / f"artifacts/strategic_demand/sppo/symmetric_role_top50/{n}v{n}_ours_top50_seed_ids.json"
-    if not seeds_file.is_file():
-        raise SystemExit(f"REFUSING: {seeds_file} missing")
+    own = (
+        ROOT / "artifacts/strategic_demand/sppo/dual_branch_v1"
+        / f"matched128_{n}v{n}" / f"DUAL_BRANCH_{n}V{n}_OWN_TOP50_seed_ids.json"
+    )
+    hist = ROOT / f"artifacts/strategic_demand/sppo/symmetric_role_top50/{n}v{n}_ours_top50_seed_ids.json"
+    if own.is_file():
+        seeds_file = own
+        seed_source = "dual_branch_own_top50_from_matched128"
+    elif hist.is_file():
+        seeds_file = hist
+        seed_source = "historical_ours_top50_provenance_fallback"
+    else:
+        raise SystemExit(f"REFUSING: neither own-top50 ({own.name}) nor historical ({hist.name}) seed list exists")
     seed_ids = sorted(int(s) for s in json.loads(seeds_file.read_text(encoding="utf-8")))
+    if len(seed_ids) != 50:
+        raise SystemExit(f"REFUSING: {seeds_file.name} must list exactly 50 seeds (got {len(seed_ids)})")
     reg_id, primary = SPENT_EVAL[n]
     # Block range from the SPENT Separated eval registry entry.
     from experiments import seed_registry as SR
@@ -383,6 +412,8 @@ def eval_spec(n: int) -> Path:
     if b is None:
         raise SystemExit(f"REFUSING: {reg_id} not registered")
     block = f"{b['lo']}..{b['hi']}"
+    if not all(int(b["lo"]) <= s <= int(b["hi"]) for s in seed_ids):
+        raise SystemExit(f"REFUSING: seed ids in {seeds_file.name} are not inside {block}")
     lab = labels(n)
     arm_dir = {
         "share_encoder": "share_encoder",
@@ -429,7 +460,10 @@ def eval_spec(n: int) -> Path:
         "arm": "POST_HOC_ABLATION",
         "confirmatory": False,
         "utc": _now(),
-        "classification": "DIAGNOSTIC Stage-4 student crossover on frozen top-50 seeds. Not confirmatory.",
+        "classification": (
+            f"DIAGNOSTIC Stage-4 student crossover on frozen top-50 seeds "
+            f"({seed_source}). Not confirmatory."
+        ),
         "decided_by": AUTH_FOR[n].name,
         "parent": [parent_name, f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_SPEC.json", AUTH_FOR[n].name],
         "ARMS": arms,
@@ -438,6 +472,7 @@ def eval_spec(n: int) -> Path:
             "block": block,
             "n": len(seed_ids),
             "seed_class": "post_hoc",
+            "seed_source": seed_source,
             "seed_ids_file": _rel(seeds_file.relative_to(ROOT)),
             "seed_ids_sha256": _sha(seeds_file),
         },
@@ -460,6 +495,117 @@ def eval_spec(n: int) -> Path:
     return _write_frozen(SD / name, doc)
 
 
+def own_top50_eval_spec(n: int) -> Path:
+    """Evaluation-only Stage-4 re-score on dual-branch own top-50 seeds.
+
+    Pins the SAME frozen student checkpoints as the historical-seed Stage-4 eval.
+    Writes a NEW spec / NEW labels so sealed TOP50_* results are never touched.
+    Requires matched128/{DUAL_BRANCH_NvN_OWN_TOP50_seed_ids.json}.
+    """
+    hist_spec_p = SD / f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_EVAL_SPEC.json"
+    if not hist_spec_p.is_file():
+        raise SystemExit(
+            f"REFUSING: need sealed historical Stage-4 eval spec {hist_spec_p.name} "
+            f"(students must already be frozen and the diagnostic path must exist)"
+        )
+    hist = _load(hist_spec_p)
+    own = (
+        ROOT / "artifacts/strategic_demand/sppo/dual_branch_v1"
+        / f"matched128_{n}v{n}" / f"DUAL_BRANCH_{n}V{n}_OWN_TOP50_seed_ids.json"
+    )
+    if not own.is_file():
+        raise SystemExit(f"REFUSING: own-top50 seed list missing: {own.relative_to(ROOT)}")
+    seed_ids = sorted(int(s) for s in json.loads(own.read_text(encoding="utf-8")))
+    if len(seed_ids) != 50:
+        raise SystemExit(f"REFUSING: {own.name} must list exactly 50 seeds (got {len(seed_ids)})")
+    reg_id, primary = SPENT_EVAL[n]
+    from experiments import seed_registry as SR
+    b = next((x for x in SR.load()["blocks"] if x["experiment_id"] == reg_id), None)
+    if b is None:
+        raise SystemExit(f"REFUSING: {reg_id} not registered")
+    block = f"{b['lo']}..{b['hi']}"
+    if not all(int(b["lo"]) <= s <= int(b["hi"]) for s in seed_ids):
+        raise SystemExit(f"REFUSING: own-top50 seeds are not inside {block}")
+    lab = own50_labels(n)
+    arms = {}
+    for key, arm in (hist.get("ARMS") or {}).items():
+        # Re-pin and re-hash so a drifted checkpoint refuses.
+        ck = ROOT / arm["checkpoint"]
+        if not ck.is_file():
+            raise SystemExit(f"REFUSING: Stage-4 student missing: {arm['checkpoint']}")
+        got = _sha(ck)
+        if got != arm["sha256"]:
+            raise SystemExit(f"REFUSING: {arm['checkpoint']} sha drifted vs sealed Stage-4 eval pin")
+        a_name = {
+            "share_encoder": "share_encoder",
+            "fully_shared_z_r": "fully_shared",
+            "role_only": "role_only",
+        }[key]
+        arms[key] = {
+            "label": lab[a_name],
+            "checkpoint": arm["checkpoint"],
+            "sha256": got,
+            "format": arm["format"],
+            "same_student_as": hist["ARMS"][key]["label"],
+        }
+    base = {
+        "registry_experiment_id": reg_id,
+        "block": block,
+        "primary_record": primary,
+        "seed_ids": seed_ids,
+        "seed_ids_file": _rel(own.relative_to(ROOT)),
+    }
+    post_hoc = {lab[a]: {**base, "system": a} for a in ARMS}
+    name = f"STANDARDIZED_{n}V{n}_{TAG}_OWN50_SHARING_EVAL_SPEC.json"
+    doc = {
+        "record_id": name[:-5],
+        "status": "FROZEN_BEFORE_EVAL",
+        "arm": "POST_HOC_ABLATION",
+        "confirmatory": False,
+        "utc": _now(),
+        "classification": (
+            "EVALUATION-ONLY Stage-4 re-score of already-frozen students on dual-branch own "
+            "top-50 seeds. Clean Stage-4 comparison for the current method. Does NOT replace "
+            "or delete the historical-seed Stage-4 diagnostic. Not confirmatory."
+        ),
+        "decided_by": "STAGE4_2V2_SALVAGE_AND_OWN50_REEVAL_V1.json" if n == 2 else AUTH_FOR[n].name,
+        "parent": [
+            hist_spec_p.name,
+            f"STAGE4_{n}V{n}_SALVAGE_AND_OWN50_REEVAL_V1.json" if n == 2 else AUTH_FOR[n].name,
+            AUTH_FOR[n].name,
+        ],
+        "seed_source": "dual_branch_own_top50_from_matched128",
+        "historical_stage4_eval_is": "DIAGNOSTIC_ONLY_preserved",
+        "ARMS": arms,
+        "SEEDS": {
+            "registry_experiment_id": reg_id,
+            "block": block,
+            "n": len(seed_ids),
+            "seed_class": "post_hoc",
+            "seed_source": "dual_branch_own_top50_from_matched128",
+            "seed_ids_file": _rel(own.relative_to(ROOT)),
+            "seed_ids_sha256": _sha(own),
+        },
+        "POST_HOC_MATCHED_ROLE_ABLATIONS": post_hoc,
+        "POLES": hist["POLES"],
+        "EVALUATION": hist.get("EVALUATION", {}),
+        "LAUNCH": {
+            a: (
+                f".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py "
+                f"--team-size {n} --arm {a} --spec-tag STAGE4_OWN50 --device cuda --resume"
+            )
+            for a in ARMS
+        },
+        "NOT_AUTHORIZED_BY_THIS_SPEC": [
+            "retraining any Stage-4 student",
+            "overwriting TOP50_* historical-seed Stage-4 results",
+            "fresh seed spend",
+            "claiming confirmatory status",
+        ],
+    }
+    return _write_frozen(SD / name, doc)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--reserve", action="store_true")
@@ -467,13 +613,21 @@ def main() -> int:
     ap.add_argument("--collection", action="store_true")
     ap.add_argument("--sharing", action="store_true")
     ap.add_argument("--eval", action="store_true")
+    ap.add_argument(
+        "--own50-eval",
+        action="store_true",
+        help="freeze evaluation-only Stage-4 re-score spec on dual-branch own top-50 seeds "
+             "(new OWN50_* labels; does not touch sealed TOP50_* historical-seed results)",
+    )
     a = ap.parse_args()
     if a.reserve:
         done = reserve()
         print(f"reserved {len(done)} blocks: {done or '(already present)'}")
         return 0
     if a.team_size is None:
-        raise SystemExit("need --team-size N with --collection / --sharing / --eval, or --reserve")
+        raise SystemExit(
+            "need --team-size N with --collection / --sharing / --eval / --own50-eval, or --reserve"
+        )
     n = int(a.team_size)
     if a.collection:
         p = collection_spec(n)
@@ -484,7 +638,10 @@ def main() -> int:
     if a.eval:
         p = eval_spec(n)
         print(f"froze {p.name}")
-    if not (a.collection or a.sharing or a.eval):
+    if a.own50_eval:
+        p = own_top50_eval_spec(n)
+        print(f"froze {p.name}")
+    if not (a.collection or a.sharing or a.eval or a.own50_eval):
         raise SystemExit("nothing to do")
     return 0
 
