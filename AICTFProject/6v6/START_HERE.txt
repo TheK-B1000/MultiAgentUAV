@@ -1,21 +1,26 @@
-SEND THIS TO YOUR PROFESSOR
-===========================
+ZIP FOR_PROFESSOR AND SEND IT
+=============================
 
-Preferred file (after the dual-branch + Stage-4 run finishes):
+When the dual-branch + Stage-4 run finishes, do this in File Explorer:
 
-  dual_branch_6v6_results.zip
+  1. Open:
+       AICTFProject\6v6\
 
-Or the unpacked folder:
+  2. Right-click the folder:
+       FOR_PROFESSOR
 
-  FOR_PROFESSOR/
+  3. Choose:
+       Compress to ZIP file
+       (or Send to > Compressed (zipped) folder)
 
-How to rebuild the zip anytime:
+  4. Send that ZIP (email / Drive / USB).
 
-  powershell -ExecutionPolicy Bypass -File experiments/pack_6v6_handoff.ps1
+No PowerShell. No rebuild script. Do not open the artifacts tree.
 
-While the run is in progress, progress lives in:
+Inside FOR_PROFESSOR, open START_HERE.txt then SUMMARY\SUMMARY.txt.
 
+Rule: if it is not inside FOR_PROFESSOR/, the professor does not need it.
+
+While the run is still going, watch:
   dual_branch_OVERALL.log.err
-  dual_branch_OVERALL_PROGRESS.json
-
-Full map: README.md
+FOR_PROFESSOR/ appears only when the pipeline finishes (READY_TO_ZIP.txt inside).

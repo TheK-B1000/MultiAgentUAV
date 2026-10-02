@@ -662,75 +662,170 @@ def stage4_evals() -> None:
         log("Stage4 eval CLI unavailable; evals deferred to post-bundle tooling")
 
 
-def bundle() -> None:
-    """Build the professor package under 6v6/FOR_PROFESSOR/ and zip it."""
+def _cp_file(src: Path, dst_dir: Path) -> None:
     import shutil
+    if src.is_file():
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst_dir / src.name)
+
+
+def _write_summary(out: Path) -> None:
+    """Plain-text summary a professor can open first."""
+    sd = PROJ / "artifacts" / "strategic_demand" / "sppo"
+    lines = [
+        "6v6 dual-branch + Stage-4 summary",
+        "=================================",
+        f"written_utc: {now()}",
+        f"k_defend: {K}  (= ceil(6/3))",
+        "pipeline: smoke -> dual-branch train A/B -> export ATTACK -> technical seal",
+        "          -> Stage-3 top-50 diagnostic -> Stage-4 dataset/students/evals",
+        "",
+        "Rule: if it is not in this FOR_PROFESSOR folder, you do not need it.",
+        "",
+    ]
+    result = sd / f"{EVAL_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    if result.is_file():
+        rec = json.loads(result.read_text(encoding="utf-8"))
+        gate = rec.get("PRIMARY_GATE") or {}
+        dA = (gate.get("delta_A") or {})
+        dB = (gate.get("delta_B") or {})
+        lines += [
+            "Stage-3 diagnostic (post-hoc top-50; not a redesign gate)",
+            f"  status: {rec.get('status')}",
+            f"  Delta_A mean: {dA.get('mean')}",
+            f"  Delta_B mean: {dB.get('mean')}",
+            f"  record: {result.name}",
+            "",
+        ]
+    if SEAL.is_file():
+        seal = json.loads(SEAL.read_text(encoding="utf-8"))
+        lines += [
+            "Technical seal",
+            f"  status: {seal.get('status')}",
+            f"  file: {SEAL.name}",
+            "",
+        ]
+    arms_dir = sd / "suite_sharing_std" / "6v6_stage4"
+    if arms_dir.is_dir():
+        lines.append("Stage-4 students")
+        for arm_dir in sorted(arms_dir.glob("*")):
+            if not arm_dir.is_dir():
+                continue
+            fr = arm_dir / "STUDENT_FROZEN.json"
+            st = "?"
+            if fr.is_file():
+                st = json.loads(fr.read_text(encoding="utf-8")).get("status", "?")
+            lines.append(f"  {arm_dir.name}: {st}")
+        lines.append("")
+    lines += [
+        "Folders",
+        "  TEACHERS/            dual-branch DEFEND finals + exported ATTACK branches",
+        "  STAGE3_EVALUATION/   top-50 four-cell diagnostic result / rows / audit",
+        "  STAGE4_SHARING/      Share-Encoder, Fully Shared+z+r, Role-only + dataset",
+        "  SEALS/               technical seal, teacher seal, deploy manifest",
+        "  PROVENANCE/          STATE, overall progress logs, pipeline log",
+        "  SUMMARY/             this file",
+        "",
+    ]
+    (out / "SUMMARY").mkdir(parents=True, exist_ok=True)
+    (out / "SUMMARY" / "SUMMARY.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def bundle() -> None:
+    """Populate 6v6/FOR_PROFESSOR/ so the professor can zip that folder in File Explorer."""
+    import shutil
+
     out = PROJ / "6v6" / "FOR_PROFESSOR"
     if out.exists():
         shutil.rmtree(out)
-    out.mkdir(parents=True)
+    for name in ("SUMMARY", "TEACHERS", "STAGE3_EVALUATION", "STAGE4_SHARING", "SEALS", "PROVENANCE"):
+        (out / name).mkdir(parents=True)
+
+    # Teachers: dual-branch DEFEND finals + exported ATTACK branches.
     for pol, r in RUNS.items():
-        dst = out / "checkpoints" / pol
+        dst = out / "TEACHERS" / pol
         dst.mkdir(parents=True)
         shutil.copy2(PROJ / r["final"], dst / Path(r["final"]).name)
         shutil.copy2(PROJ / r["attack"], dst / Path(r["attack"]).name)
-    ev = out / "evaluation"
-    ev.mkdir()
+
     sd = PROJ / "artifacts" / "strategic_demand" / "sppo"
+    # Stage-3 diagnostic eval artifacts.
     for f in sd.glob(f"{EVAL_LABEL}*"):
-        if f.is_file():
-            shutil.copy2(f, ev / f.name)
-    for f in sd.glob("TOP50_6V6_STAGE4*"):
-        if f.is_file():
-            shutil.copy2(f, ev / f.name)
-    for f in sd.glob("*STAGE4*6V6*"):
-        if f.is_file() and f.suffix == ".json":
-            shutil.copy2(f, ev / f.name)
-    seals = out / "seals"
-    seals.mkdir()
-    shutil.copy2(PROJ / MANIFEST, seals / Path(MANIFEST).name)
-    if SEAL.is_file():
-        shutil.copy2(SEAL, seals / SEAL.name)
-    if STAGE4_TEACHERS.is_file():
-        shutil.copy2(STAGE4_TEACHERS, seals / STAGE4_TEACHERS.name)
-    if STATE.is_file():
-        shutil.copy2(STATE, seals / STATE.name)
-    s4 = out / "stage4"
-    s4.mkdir()
+        _cp_file(f, out / "STAGE3_EVALUATION")
+    # Stage-4 sharing students + dataset + their evals.
     for arm_dir in (sd / "suite_sharing_std" / "6v6_stage4").glob("*"):
         if arm_dir.is_dir():
-            shutil.copytree(arm_dir, s4 / arm_dir.name, dirs_exist_ok=True)
-    man = sd / "SUITE_DISTILLATION_6V6_STAGE4_DATASET.json"
-    if man.is_file():
-        shutil.copy2(man, s4 / man.name)
-    prog = out / "progress"
-    prog.mkdir()
+            shutil.copytree(arm_dir, out / "STAGE4_SHARING" / arm_dir.name, dirs_exist_ok=True)
+    for name in (
+        "SUITE_DISTILLATION_6V6_STAGE4_DATASET.json",
+        "SUITE_DISTILLATION_6V6_STAGE4_SPEC.json",
+        "STANDARDIZED_6V6_STAGE4_SHARING_SPEC.json",
+        "STANDARDIZED_6V6_STAGE4_SHARING_EVAL_SPEC.json",
+        "SUITE_DATASETS_STAGE4_AUDIT_6V6.json",
+    ):
+        _cp_file(sd / name, out / "STAGE4_SHARING")
+    for f in sd.glob("TOP50_6V6_STAGE4*"):
+        _cp_file(f, out / "STAGE4_SHARING")
+
+    # Seals / pins.
+    _cp_file(PROJ / MANIFEST, out / "SEALS")
+    _cp_file(SEAL, out / "SEALS")
+    _cp_file(STAGE4_TEACHERS, out / "SEALS")
+    _cp_file(PROJ / AUTH, out / "SEALS")
+    _cp_file(PROJ / SPEC, out / "SEALS")
+
+    # Provenance.
+    _cp_file(STATE, out / "PROVENANCE")
     for p in (OVERALL_ERR, OVERALL_JSON, LOG):
-        if p.is_file():
-            shutil.copy2(p, prog / p.name)
-    (out / "README.txt").write_text(
-        "6v6 dual-branch + Stage 4 — professor package\n"
-        "================================================\n"
-        "This folder (and dual_branch_6v6_results.zip) is what to send.\n\n"
-        "checkpoints/   dual-branch DEFEND finals + exported ATTACK branches (A and B)\n"
-        "evaluation/    top-50 diagnostic + Stage-4 student eval records\n"
-        "seals/         technical seal, teacher seal, deploy manifest, STATE\n"
-        "stage4/        Share-Encoder / Fully Shared+z+r / Role-only students + dataset\n"
-        "progress/      overall ETA log snapshot\n\n"
-        "k=ceil(6/3)=2. Generalist pi(a|o) is NOT part of Stage 4.\n"
-        "Ugly Delta on the diagnostic does not invalidate the sealed package.\n",
+        _cp_file(p, out / "PROVENANCE")
+    for tag_log in (PROJ / "6v6").glob("dual_branch_*.log*"):
+        _cp_file(tag_log, out / "PROVENANCE" / "logs")
+
+    _write_summary(out)
+
+    (out / "START_HERE.txt").write_text(
+        "ZIP THIS FOLDER AND SEND IT\n"
+        "===========================\n\n"
+        "In File Explorer:\n"
+        "  1. Go up one level to AICTFProject\\6v6\\\n"
+        "  2. Right-click the FOR_PROFESSOR folder\n"
+        "  3. Choose Compress to ZIP file (or Send to > Compressed folder)\n"
+        "  4. Email / Drive / USB that ZIP\n\n"
+        "Open SUMMARY\\SUMMARY.txt next for the short readout.\n"
+        "Everything you need is inside this folder. Ignore the rest of the repo.\n",
         encoding="utf-8",
     )
-    # Keep a stable alias name for older docs / scripts.
-    alias = PROJ / "6v6" / "dual_branch_6v6_bundle"
-    if alias.exists():
-        shutil.rmtree(alias)
-    shutil.copytree(out, alias)
+    (out / "README.txt").write_text(
+        "6v6 dual-branch + Stage 4 — professor package\n"
+        "==============================================\n\n"
+        "This folder is complete. Zip FOR_PROFESSOR in File Explorer and send it.\n"
+        "No PowerShell. No rebuild script. Do not dig in artifacts/.\n\n"
+        "TEACHERS/              dual-branch DEFEND finals + exported ATTACK (A and B)\n"
+        "STAGE3_EVALUATION/     top-50 four-cell diagnostic (RESULT / rows / audit)\n"
+        "STAGE4_SHARING/        Share-Encoder, Fully Shared+z+r, Role-only + dataset/evals\n"
+        "SEALS/                 technical seal, teacher seal, deploy manifest, auth specs\n"
+        "PROVENANCE/            STATE, overall progress, per-stage logs\n"
+        "SUMMARY/SUMMARY.txt    short human readout\n\n"
+        f"k = ceil(6/3) = {K}. Generalist pi(a|o) is not part of Stage 4.\n"
+        "Ugly Delta on the Stage-3 diagnostic does not invalidate this package.\n",
+        encoding="utf-8",
+    )
+    (out / "READY_TO_ZIP.txt").write_text(
+        f"READY {now()}\nZip this FOR_PROFESSOR folder in File Explorer and send it.\n",
+        encoding="utf-8",
+    )
+
+    # Optional convenience zip next to the folder (professor still can Explorer-zip).
     if BUNDLE.exists():
         BUNDLE.unlink()
-    shutil.make_archive(str(BUNDLE.with_suffix("")), "zip", out)
-    log(f"bundled professor package -> {BUNDLE}")
-    log(f"unpacked copy -> {out.relative_to(PROJ)}")
+    try:
+        shutil.make_archive(str(BUNDLE.with_suffix("")), "zip", out)
+        log(f"optional convenience zip -> {BUNDLE.name}")
+    except Exception as exc:  # noqa: BLE001
+        log(f"optional zip skipped ({exc}); FOR_PROFESSOR/ is still complete")
+
+    log(f"FOR_PROFESSOR ready -> {out.relative_to(PROJ)}")
+    log("Professor: right-click 6v6/FOR_PROFESSOR -> Compress to ZIP file -> send")
 
 
 def main() -> int:
@@ -877,6 +972,7 @@ def main() -> int:
             state(step="bundle", status="DONE_CORE_ONLY")
             _advance_bookkeeping("bundle")
         log("DONE core ( --skip-stage4 ). Stage 4 not run.")
+        log("Professor: right-click 6v6/FOR_PROFESSOR -> Compress to ZIP file -> send")
         return 0
 
     # ---- Phase 3: Stage 4 dataset ----
@@ -903,7 +999,8 @@ def main() -> int:
         bundle()
         state(step="bundle", status="DONE")
         _advance_bookkeeping("bundle")
-    log("DONE -- full frozen pipeline. Send 6v6/dual_branch_6v6_results.zip")
+    log("DONE -- full frozen pipeline.")
+    log("Professor: right-click 6v6/FOR_PROFESSOR -> Compress to ZIP file -> send")
     return 0
 
 

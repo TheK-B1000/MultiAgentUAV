@@ -1,10 +1,13 @@
 # School-PC handoff: 6v6 dual-branch + Stage-4 suite
 #
-# PROFESSOR PACKAGE (after the run finishes):
-#   6v6/dual_branch_6v6_results.zip
-#   or the unpacked folder 6v6/FOR_PROFESSOR/
-# Pack anytime with:
-#   powershell -ExecutionPolicy Bypass -File experiments/pack_6v6_handoff.ps1
+# WHEN DONE — professor workflow (File Explorer only):
+#   1. Open AICTFProject\6v6\
+#   2. Right-click FOR_PROFESSOR
+#   3. Compress to ZIP file
+#   4. Send that ZIP
+#
+# FOR_PROFESSOR/ is populated by the pipeline at the end (see READY_TO_ZIP.txt).
+# Rule: if it is not inside FOR_PROFESSOR/, the professor does not need it.
 #
 # 1. git pull
 # 2. cd AICTFProject
@@ -14,21 +17,14 @@
 #      powershell -ExecutionPolicy Bypass -File 6v6\run_dual_branch_6v6.ps1
 # 5. Watch whole-suite ETA:
 #      Get-Content 6v6\dual_branch_OVERALL.log.err -Wait -Tail 5
-#    Per-stage PPO/eval:
-#      Get-Content 6v6\dual_branch_train_A.log.err -Wait -Tail 3
 #
-# What it runs, in order:
-#   smoke A, smoke B
-#   joint 200k dual-branch train A, then B
-#   export trained ATTACK branches + technical seal
-#   four-cell crossover on frozen top-50 seeds (post-hoc diagnostic)
-#   Stage-4 dataset under dual-branch teachers
-#   Share-Encoder -> Fully Shared+z+r -> Role-only
-#   Stage-4 evals -> 6v6/dual_branch_6v6_results.zip + 6v6/FOR_PROFESSOR/
+# Pipeline order:
+#   smoke A/B -> dual-branch train A/B -> export ATTACK -> technical seal
+#   -> Stage-3 top-50 diagnostic -> Stage-4 dataset/students/evals
+#   -> populate 6v6/FOR_PROFESSOR/
 #
 # Do NOT run 6v6\run_symmetric_6v6.ps1 unless you intentionally want the
 # defender-only ablation (it refuses without --allow-exploratory-ablation).
 #
 # Seeds: A=26900005, B=26900006
 # k = ceil(6/3) = 2
-# Foundations: repaired pi_A / pi_B c2 entity-repair zips (hashes in the V1 spec)

@@ -1,68 +1,51 @@
-# 6v6 — send this folder to your professor
+# 6v6 — professor handoff
 
-**One place for everything 6v6 related to the current school-PC run.**
+## What your professor does
 
-| What to send | Path |
-|---|---|
-| **Finished package (preferred)** | `6v6/dual_branch_6v6_results.zip` |
-| Unpacked copy of the same | `6v6/FOR_PROFESSOR/` |
-| While the run is still going | watch `6v6/dual_branch_OVERALL.log.err` |
+1. Open `AICTFProject\6v6\`
+2. Right-click **`FOR_PROFESSOR`**
+3. **Compress to ZIP file**
+4. Send that ZIP
 
-Pack command (from `AICTFProject`):
+No PowerShell. No packing script. No `artifacts/` tree.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File experiments/pack_6v6_handoff.ps1
-```
+**Rule: if it is not inside `FOR_PROFESSOR/`, the professor does not need it.**
 
-That writes a dated zip under `6v6/` from `FOR_PROFESSOR/` (or the dual-branch bundle if present).
-
----
-
-## Current pipeline (what the school PC is running)
-
-Launcher: `6v6/run_dual_branch_6v6.ps1`  
-Spec: dual-branch ATTACK+DEFEND teachers → top-50 diagnostic → Stage-4 sharing ladder.
-
-When the run finishes, `FOR_PROFESSOR/` contains:
+`FOR_PROFESSOR/` is created when `run_dual_branch_6v6.py` finishes. Look for `FOR_PROFESSOR/READY_TO_ZIP.txt`.
 
 ```text
-FOR_PROFESSOR/
-  README.txt
-  checkpoints/A/   dual-branch DEFEND + exported ATTACK (Pole A)
-  checkpoints/B/   dual-branch DEFEND + exported ATTACK (Pole B)
-  evaluation/      crossover RESULT / AUDIT / rows / STATE
-  seals/           technical seal + Stage-4 teacher seal + deploy manifest
-  stage4/          Share-Encoder, Fully Shared+z+r, Role-only students + dataset manifest
-  progress/        overall ETA snapshot
+6v6/
+├── START_HERE.txt              <- you are here
+├── FOR_PROFESSOR/              <- ZIP THIS FOLDER
+│   ├── START_HERE.txt
+│   ├── README.txt
+│   ├── READY_TO_ZIP.txt
+│   ├── SUMMARY/
+│   │   └── SUMMARY.txt
+│   ├── TEACHERS/               dual-branch DEFEND + ATTACK (A and B)
+│   ├── STAGE3_EVALUATION/      top-50 four-cell diagnostic
+│   ├── STAGE4_SHARING/         Share-Encoder / Fully Shared+z+r / Role-only
+│   ├── SEALS/
+│   └── PROVENANCE/
+├── dual_branch_OVERALL.log.err <- watch while running
+└── run_dual_branch_6v6.ps1     <- school-PC launcher
 ```
 
----
+## Launch (school PC)
 
-## Where files live on disk (canonical vs handoff)
+```powershell
+cd AICTFProject
+.\.venv\Scripts\python.exe 6v6\run_dual_branch_6v6.py --check
+powershell -ExecutionPolicy Bypass -File 6v6\run_dual_branch_6v6.ps1
+```
 
-| Content | Canonical training location (large) | Copied into handoff |
-|---|---|---|
-| Dual-branch PPO runs | `artifacts/scale_6v6_specialists/pi_*_dual_branch_v1/` | checkpoints in `FOR_PROFESSOR/` |
-| Stage-4 students | `artifacts/strategic_demand/sppo/suite_sharing_std/6v6_stage4/` | `FOR_PROFESSOR/stage4/` |
-| Sealed eval JSON/CSV | `artifacts/strategic_demand/sppo/DUAL_BRANCH_*` and `TOP50_6V6_STAGE4*` | `FOR_PROFESSOR/evaluation/` |
-| Suite progress / logs | `6v6/dual_branch_*.log(.err)`, `dual_branch_OVERALL*` | `FOR_PROFESSOR/progress/` + logs stay in `6v6/` |
-| Historical split-k=1 repair handoff (Sept) | also under `6v6/models|results|seals/` | **old**; not the current dual-branch package |
-
-Professor does **not** need the full `artifacts/` tree. Send the zip.
-
----
-
-## Watch progress
+Watch:
 
 ```powershell
 Get-Content 6v6\dual_branch_OVERALL.log.err -Wait -Tail 5
-Get-Content 6v6\dual_branch_OVERALL_PROGRESS.json
-Get-Content 6v6\dual_branch_<stage>.log.err -Wait -Tail 3   # e.g. train_A, eval, stage4_share_encoder_train
 ```
-
----
 
 ## Do not confuse with
 
-- `run_symmetric_6v6.ps1` — older defender-only ablation (refuses unless explicitly allowed).
-- `6v6/models/final_pi_*_repair.zip` — earlier school-PC split-k=1 handoff, not dual-branch V1.
+- `6v6/models|results|seals` — older Sept split-k=1 handoff, not the current dual-branch package
+- `run_symmetric_6v6.ps1` — defender-only ablation; not the main send package
