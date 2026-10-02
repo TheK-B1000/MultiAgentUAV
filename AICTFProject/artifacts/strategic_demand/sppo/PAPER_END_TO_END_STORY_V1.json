@@ -99,6 +99,25 @@
     "treating historical sharing-ladder runs (defender-only teachers, k=N/2 at 4v4) as this paper's Stage 4"
   ],
 
+  "HISTORICAL_VS_CURRENT_locked": {
+    "conceptual_backbone_still_holds": "Different opponent regimes can call for different team strategies; explicit organization can help those strategies remain coherent as N grows; parameter sharing may erase strategically useful distinctions even when raw win rate stays high.",
+    "historical_evidence_status": "MOTIVATION AND PROVENANCE ONLY. Old sealed n=128 numbers (asymmetric A=role-composite vs B=plain specialist; Share-Encoder -> Fully Shared+z -> Generalist) established useful facts and motivated the redesign. They are not automatically the final paper numbers.",
+    "historical_facts_that_still_motivate": [
+      "Pole A and Pole B can induce different useful responses",
+      "plain specialists can collapse toward one broadly useful behavior",
+      "role organization can change team-level complementarity",
+      "high raw win rate does not necessarily mean multiple selectable strategies",
+      "scaling 2v2 to 6v6 changes the difficulty of maintaining strategic distinction"
+    ],
+    "reviewer_crack_closed_by_redesign": "Why does A get role machinery while B does not? Both strategies now receive the same foundation procedure, same ATTACK/DEFEND split, same k=ceil(N/3), same 200k joint role training.",
+    "live_method": "DUAL_BRANCH_ROLE_COMPOSITE_V1 teachers -> Stage 3 diagnostics -> Stage 4 ladder Separated / Share-Encoder / Fully Shared+z+r / Role-only r",
+    "sharper_Stage4_question": "After organization is controlled through r, does z still carry strategic information?",
+    "success_criterion_not": "Roles restore positive Delta_A, Delta_B (too narrow as sole definition)",
+    "success_criterion_preferred": "Explicit role organization provides a common coordination scaffold under which opponent-conditioned strategic modes can remain behaviorally distinct as team size increases. We then test whether those distinctions survive parameter sharing and whether a separate strategic representation z is needed beyond role information r. Crossover and Delta are evidence of functional relevance, not the sole definition of strategy.",
+    "remaining_work": "finish frozen runs -> measure behavior -> run new sharing ladder -> write",
+    "not_remaining_work": "presentation discipline alone / treating the old sealed architecture as already the final result"
+  },
+
   "HISTORICAL_SHARING_SPECS": {
     "status": "exploratory provenance under earlier teachers; not Stage 4 of this story",
     "examples": [

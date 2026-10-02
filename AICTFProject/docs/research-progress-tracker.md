@@ -16,7 +16,10 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-26 (evening) — **2v2 foundation pair VERIFIED 82/82 and SPENT (`af6dab79`);
+> **Last updated:** 2026-10-02 — **Paper status split: historical n=128 vs live dual-branch + Stage 4.** The conceptual backbone still holds (opponent demand → organization → shared strategic representation). Old sealed asymmetric / Fully Shared+z / Generalist numbers are **motivation and provenance only**, not automatic final paper numbers. Live method: `DUAL_BRANCH_ROLE_COMPOSITE_V1` (same ATTACK/DEFEND construction on A and B, k=⌈N/3⌉) then Stage 4 ladder Separated → Share-Encoder → Fully Shared+z+r → Role-only. Success is behavioral strategic distinction under controlled r, with Δ as functional evidence — not “roles restore positive Δ” alone. Remaining work: finish frozen runs → measure behavior → new sharing ladder → write. Locked in `PAPER_END_TO_END_STORY_V1.json#HISTORICAL_VS_CURRENT_locked`; school-PC 6v6 chains the full pipeline after technical seal only (`48daf74b`).
+>
+> ---
+>> **Last updated:** 2026-09-26 (evening) — **2v2 foundation pair VERIFIED 82/82 and SPENT (`af6dab79`);
 > entity repair: premature launch contained, relaunch pending.** Finals pinned: π_A `5b01de6b…`, π_B
 > `dc3e9ba4…` (1,001,472 steps each, both recorded trainer git `ca52a24b`). Starting the entity-repair
 > stage, a launcher guard test ran the real launcher; its uncommitted-spec check (`git diff HEAD`) is silent
