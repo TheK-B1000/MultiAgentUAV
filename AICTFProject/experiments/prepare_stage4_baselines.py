@@ -341,28 +341,95 @@ def labels(n: int) -> dict:
 
 
 def eval_spec(n: int) -> Path:
-    """Post-hoc top-50 eval for Stage-4 students (diagnostic)."""
+    """Post-hoc top-50 eval for Stage-4 students (diagnostic). Pins must already be frozen."""
     parent_name = f"STANDARDIZED_{n}V{n}_SHARING_EVAL_SPEC.json"
     parent = _load(SD / parent_name)
-    share = _load(SD / f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_SPEC.json")
-    name = f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_EVAL_SPEC.json"
+    # Same frozen Ours top-50 seed list the dual-branch diagnostic uses.
+    seeds_file = ROOT / f"artifacts/strategic_demand/sppo/symmetric_role_top50/{n}v{n}_ours_top50_seed_ids.json"
+    if not seeds_file.is_file():
+        raise SystemExit(f"REFUSING: {seeds_file} missing")
+    seed_ids = sorted(int(s) for s in json.loads(seeds_file.read_text(encoding="utf-8")))
+    reg_id = f"STANDARDIZED_{n}V{n}_SEPARATED_EVAL"
+    # Block range from the SPENT Separated eval registry entry.
+    from experiments import seed_registry as SR
+    b = next((x for x in SR.load()["blocks"] if x["experiment_id"] == reg_id), None)
+    if b is None:
+        raise SystemExit(f"REFUSING: {reg_id} not registered")
+    block = f"{b['lo']}..{b['hi']}"
     lab = labels(n)
-    doc = copy.deepcopy(parent)
-    doc.update({
+    arm_dir = {
+        "share_encoder": "share_encoder",
+        "fully_shared": "fully_shared_z_r",
+        "role_only": "role_only",
+    }
+    arm_key = {
+        "share_encoder": "share_encoder",
+        "fully_shared": "fully_shared_z_r",
+        "role_only": "role_only",
+    }
+    fmt = {
+        "share_encoder": "sharing_ladder_rung1_v1",
+        "fully_shared": "suite_fully_shared_z_r_v1",
+        "role_only": "suite_role_only_v1",
+    }
+    arms = {}
+    for a in ARMS:
+        tag = arm_dir[a]
+        fz = SD / "suite_sharing_std" / f"{n}v{n}_stage4" / tag / "STUDENT_FROZEN.json"
+        if not fz.is_file():
+            raise SystemExit(f"REFUSING: {a} not frozen ({fz.relative_to(ROOT)})")
+        ck = SD / "suite_sharing_std" / f"{n}v{n}_stage4" / tag / "ckpts" / f"final_{tag}_{n}v{n}.pt"
+        if not ck.is_file():
+            raise SystemExit(f"REFUSING: {ck.relative_to(ROOT)} missing")
+        arms[arm_key[a]] = {
+            "label": lab[a],
+            "checkpoint": _rel(ck.relative_to(ROOT)),
+            "sha256": _sha(ck),
+            "format": fmt[a],
+        }
+    base = {
+        "registry_experiment_id": reg_id,
+        "block": block,
+        "primary_record": f"DUAL_BRANCH_{n}V{n}_ROLE_COMPOSITE_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+        "seed_ids": seed_ids,
+        "seed_ids_file": _rel(seeds_file.relative_to(ROOT)),
+    }
+    post_hoc = {lab[a]: {**base, "system": a} for a in ARMS}
+    name = f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_EVAL_SPEC.json"
+    doc = {
         "record_id": name[:-5],
         "status": "FROZEN_BEFORE_EVAL",
+        "arm": "POST_HOC_ABLATION",
+        "confirmatory": False,
         "utc": _now(),
-        "classification": "POST-HOC diagnostic Stage-4 student crossover on frozen top-50 seeds.",
+        "classification": "DIAGNOSTIC Stage-4 student crossover on frozen top-50 seeds. Not confirmatory.",
+        "decided_by": "STAGE4_6V6_SCHOOL_SUITE_SPEC.json",
         "parent": [parent_name, f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_SPEC.json", AUTH.name],
-        "LABELS_locked": lab,
-        "STUDENTS_locked": {
-            "share_encoder": share["ARMS_locked"]["share_encoder"],
-            "fully_shared_z_r": share["ARMS_locked"]["fully_shared"],
-            "role_only": share["ARMS_locked"]["role_only"],
+        "ARMS": arms,
+        "SEEDS": {
+            "registry_experiment_id": reg_id,
+            "block": block,
+            "n": len(seed_ids),
+            "seed_class": "post_hoc",
+            "seed_ids_file": _rel(seeds_file.relative_to(ROOT)),
+            "seed_ids_sha256": _sha(seeds_file),
         },
-        "registry_experiment_id": f"STANDARDIZED_{n}V{n}_SEPARATED_EVAL",
-        "note": "Reuses the SPENT Separated eval block as a post-hoc seed list only; no new confirmatory block.",
-    })
+        "POST_HOC_MATCHED_ROLE_ABLATIONS": post_hoc,
+        "POLES": parent["POLES"],
+        "EVALUATION": parent.get("EVALUATION", {}),
+        "LAUNCH": {
+            a: (
+                f".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py "
+                f"--team-size {n} --arm {a} --spec-tag {TAG} --device cuda --resume"
+            )
+            for a in ARMS
+        },
+        "NOT_AUTHORIZED_BY_THIS_SPEC": [
+            "fresh seed spend",
+            "Generalist as a Stage-4 rung",
+            "claiming confirmatory status",
+        ],
+    }
     return _write_frozen(SD / name, doc)
 
 

@@ -2669,9 +2669,69 @@
       "spec": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-10-02T01:56:11Z"
+    },
+    {
+      "experiment_id": "STAGE4_6V6_SUITE_DATASET_POLE_A",
+      "purpose": "Stage-4 dual-branch sharing suite 6v6: collection_A",
+      "seed_class": "exploratory",
+      "lo": 27002001,
+      "hi": 27002096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:21:46Z"
+    },
+    {
+      "experiment_id": "STAGE4_6V6_SUITE_DATASET_POLE_B",
+      "purpose": "Stage-4 dual-branch sharing suite 6v6: collection_B",
+      "seed_class": "exploratory",
+      "lo": 27102001,
+      "hi": 27102096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:21:46Z"
+    },
+    {
+      "experiment_id": "STAGE4_6V6_SHARE_ENCODER_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 6v6: share_encoder",
+      "seed_class": "exploratory",
+      "lo": 27202001,
+      "hi": 27202002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:21:46Z"
+    },
+    {
+      "experiment_id": "STAGE4_6V6_FULLY_SHARED_ZR_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 6v6: fully_shared",
+      "seed_class": "exploratory",
+      "lo": 27302001,
+      "hi": 27302001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:21:46Z"
+    },
+    {
+      "experiment_id": "STAGE4_6V6_ROLE_ONLY_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 6v6: role_only",
+      "seed_class": "exploratory",
+      "lo": 27402001,
+      "hi": 27402001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:21:46Z"
     }
   ],
-  "updated_utc": "2026-10-02T01:56:11Z",
+  "updated_utc": "2026-10-02T02:21:46Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

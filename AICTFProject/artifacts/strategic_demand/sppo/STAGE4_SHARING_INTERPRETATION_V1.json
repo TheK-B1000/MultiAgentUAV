@@ -70,8 +70,8 @@
   "PROTECT": "No more conceptual reshuffling of Stage 4 unless the frozen experiment reveals an implementation flaw rather than merely an unfavorable result.",
 
   "NOT_AUTHORIZED_BY_THIS_RECORD": [
-    "launching distillation or evaluation",
     "editing GENERALIST_DEFINITION_V1 production recipe in place (historical freeze stays)",
     "presenting historical suite Generalist / Fully Shared+z as Stage 4 of PAPER_END_TO_END_STORY_V1"
-  ]
+  ],
+  "AUTHORIZED_SEPARATELY": "STAGE4_6V6_SCHOOL_SUITE_SPEC.json authorizes the school-PC 6v6 Stage-4 chain after dual-branch technical seal; this interpretation record still does not itself launch training."
 }

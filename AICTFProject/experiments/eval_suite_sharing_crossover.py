@@ -52,6 +52,7 @@ SUPPORTED_TEAM_SIZES = (2, 4, 6)
 ARM_KEY = {
     "fully_shared": "fully_shared_z",
     "generalist": "generalist",
+    "role_only": "role_only",
     "share_encoder": "share_encoder",
     "share_backbone": "share_backbone",
     "share_macro": "share_macro",
@@ -63,6 +64,8 @@ def _spec_path(n: int, tag: str = "") -> Path:
 
 
 def _family(n: int, tag: str = "") -> str:
+    if tag == "STAGE4":
+        return f"{n}v{n}_stage4"
     return f"{n}v{n}" + (f"_{tag.lower()}" if tag else "")
 
 
@@ -136,12 +139,14 @@ def main() -> int:
     ap.add_argument("--resume", action="store_true",
                     help="continue an interrupted run of this arm from its PARTIAL rows file "
                          "(fingerprint must match); with no PARTIAL file it starts fresh")
-    ap.add_argument("--spec-tag", default="", choices=("", "SYM"),
-                    help="SYM = the symmetric-role family (STANDARDIZED_<N>V<N>_SYM_SHARING_EVAL_SPEC.json)")
+    ap.add_argument("--spec-tag", default="", choices=("", "SYM", "STAGE4"),
+                    help="SYM = symmetric-role family; STAGE4 = dual-branch z+r / role-only")
     args = ap.parse_args()
 
     N_AGENTS = int(args.team_size)
     STAG = str(args.spec_tag)
+    if STAG == "STAGE4" and args.arm == "generalist":
+        raise SystemExit("REFUSING: Stage 4 forbids Generalist; use --arm role_only")
     SPEC_PATH = _spec_path(N_AGENTS, STAG)
     if not SPEC_PATH.is_file():
         raise SystemExit(
@@ -153,10 +158,14 @@ def main() -> int:
         raise SystemExit(f"REFUSING: {SPEC_PATH.name} not frozen: {spec.get('status')!r}")
 
     arm_key = ARM_KEY[args.arm]
+    if STAG == "STAGE4" and args.arm == "fully_shared":
+        arm_key = "fully_shared_z_r"
     if arm_key not in spec["ARMS"]:
         raise SystemExit(f"REFUSING: SPEC missing ARMS[{arm_key!r}] — pin after distill freeze")
     arm = spec["ARMS"][arm_key]
     is_generalist = args.arm == "generalist"
+    is_role_only = args.arm == "role_only"
+    no_z = is_generalist or is_role_only
     label = str(arm["label"])
     rsd = resolve_seeds(spec, label)
     REG_ID, seed_class, lo, hi, seeds = rsd["reg_id"], rsd["seed_class"], rsd["lo"], rsd["hi"], rsd["seeds"]
@@ -166,7 +175,8 @@ def main() -> int:
     ROWS_CSV = SD / f"{label.lower()}_crossover_eval_rows.csv"
     PARTIAL = SD / f"{label.lower()}_crossover_eval_rows.PARTIAL.jsonl"
     PREAUDIT_FLAG = SD / f"{label}_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json"
-    LOG = SD / "suite_sharing_std" / _family(N_AGENTS, STAG) / ARM_KEY[args.arm] / "crossover_eval.log"
+    log_arm = arm_key
+    LOG = SD / "suite_sharing_std" / _family(N_AGENTS, STAG) / log_arm / "crossover_eval.log"
     EXP_ID = label
 
     ck = ROOT / arm["checkpoint"]
@@ -243,14 +253,19 @@ def main() -> int:
         raise SystemExit(f"FAIL-CLOSED: env agent dim != {N_AGENTS}")
     probe.close()
 
-    if args.arm in ("fully_shared", "generalist"):
+    if args.arm in ("fully_shared", "generalist", "role_only"):
         from rl.custom_ppo.inference_policy import CustomPPOInferencePolicy
         from rl import suite_fully_shared_distill as FS
 
-        loader = FS.load_generalist if is_generalist else FS.load_fully_shared
+        if is_role_only:
+            loader = FS.load_role_only
+        elif is_generalist:
+            loader = FS.load_generalist
+        else:
+            loader = FS.load_fully_shared
         model, payload = loader(str(ck), obs_space, act_space, device=device)
         cfg = dict(payload.get("cfg") or {})
-        if not is_generalist:
+        if not no_z:
             cfg["fixed_latent_strategy"] = True
         policy = CustomPPOInferencePolicy(model, device=device, cfg=cfg)
         needs_entity = getattr(model, "entity_encoder", None) is not None
@@ -267,23 +282,46 @@ def main() -> int:
         policy = L1.make_dispatch_policy(model, branch_cfg, device=device)
         needs_entity = bool(getattr(model, "entity_repair_enabled", False))
 
-    want_k = 0 if is_generalist else 2
+    want_k = 0 if no_z else 2
     if int(getattr(model, "latent_k", 0) or 0) != want_k:
         raise SystemExit(f"REFUSING: latent_k must be {want_k}; got {getattr(model, 'latent_k', None)}")
     if not needs_entity:
         raise SystemExit(f"REFUSING: suite {N_AGENTS}v{N_AGENTS} students are entity-repair; refusing non-entity eval")
 
+    needs_roles = bool(getattr(model, "role_conditioning_enabled", False)) or (
+        hasattr(model, "branch") and any(
+            bool(getattr(model.branch[z], "role_conditioning_enabled", False)) for z in ("z0", "z1")
+        )
+    )
+    if STAG == "STAGE4" and not needs_roles:
+        raise SystemExit("REFUSING: Stage-4 students require role_conditioning_enabled")
+    k_defend = -(-N_AGENTS // 3) if STAG in ("SYM", "STAGE4") else {2: 1, 4: 2, 6: 1}[N_AGENTS]
+
+    def _attach_roles(obs, core, hold, *, force: bool):
+        from rl.custom_ppo.rule_role_assignment import roles_from_core
+        roles = roles_from_core(core, hold, force=force, advance_age=True)
+        out = dict(obs)
+        out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
+        return out
+
     def force_z(z: int) -> None:
-        if is_generalist:
-            return                   # pi_G(a|o): there is no z to force
+        if no_z:
+            return                   # pi(a|o) or pi(a|o,r): there is no z to force
         policy.fixed_latent_strategy = True
         policy.fixed_latent_strategy_id = int(z)
         if hasattr(policy, "reset_strategy"):
             policy.reset_strategy()
 
     def run_cell(z: int, pole: str, seed: int) -> dict:
+        from rl.custom_ppo.rule_role_assignment import RoleHoldState
         env = R2.build_env(device, seed)
         core = env.core
+        role_hold = None
+        if needs_roles:
+            role_hold = RoleHoldState(
+                int(env.num_envs), N_AGENTS, hold_ticks=8, device=device,
+                fixed_for_episode=True, k_defend=k_defend,
+            )
         try:
             force_z(z)
             core._bt_profile_override = None
@@ -296,6 +334,8 @@ def main() -> int:
             obs = env.reset()
             obs["global_state"] = env.state()
             obs = augment_obs_with_entities(obs, core, side="blue")
+            if needs_roles:
+                obs = _attach_roles(obs, core, role_hold, force=True)
             assert_live_opponent_batch(
                 core, genomes, allowed_keys=(key,),
                 context=f"{label} z{z}@Pole{pole} seed {seed}",
@@ -307,7 +347,6 @@ def main() -> int:
                 raise SystemExit(
                     f"FAIL-CLOSED: pole {pole} min_alive_for_defender={got_val}, expected {N_AGENTS}"
                 )
-            # min_alive is 4 on BOTH plain OP7 and certified B3-3, so it is not a pole check.
             assert_live_matches_identity(core, POLE_IDENTITY[pole],
                                          context=f"{label} z{z}@Pole{pole} seed {seed}")
             terminal = None
@@ -317,6 +356,8 @@ def main() -> int:
                 obs, _r, done, info = env.step_wait()
                 obs["global_state"] = env.state()
                 obs = augment_obs_with_entities(obs, core, side="blue")
+                if needs_roles:
+                    obs = _attach_roles(obs, core, role_hold, force=False)
                 if bool(np.asarray(done).any()):
                     i0 = info[0] if isinstance(info, (list, tuple)) else info
                     res = (i0 or {}).get("episode_result") or {}
@@ -334,6 +375,7 @@ def main() -> int:
 
     if args.dry_run:
         # One smoke step to prove entity+predict path (z forced for the sharing arms).
+        from rl.custom_ppo.rule_role_assignment import RoleHoldState
         env = R2.build_env(device, 99_991_004)
         try:
             core = env.core
@@ -343,6 +385,10 @@ def main() -> int:
             obs = env.reset()
             obs["global_state"] = env.state()
             obs = augment_obs_with_entities(obs, core, side="blue")
+            if needs_roles:
+                hold = RoleHoldState(int(env.num_envs), N_AGENTS, hold_ticks=8, device=device,
+                                     fixed_for_episode=True, k_defend=k_defend)
+                obs = _attach_roles(obs, core, hold, force=True)
             force_z(0)
             action, _ = policy.predict(obs, deterministic=True)
             print(f"  dry-run predict OK  action_shape={np.asarray(action).shape}")
@@ -378,11 +424,12 @@ def main() -> int:
                 team_size=N_AGENTS, arm=args.arm)
 
     LOG.parent.mkdir(parents=True, exist_ok=True)
-    zs = (0,) if is_generalist else (0, 1)
+    zs = (0,) if no_z else (0, 1)
     cells = [(z, pole, seed) for z in zs for pole in ("A", "B") for seed in seeds]
     fingerprint = {"label": label, "arm": args.arm, "team_size": N_AGENTS, "checkpoint_sha256": ck_sha,
                    "seeds": [lo, hi], "spec_sha256": _sha(SPEC_PATH),
-                   "poles": {p: POLE_IDENTITY[p]["pole_config_hash"] for p in ("A", "B")}}
+                   "poles": {p: POLE_IDENTITY[p]["pole_config_hash"] for p in ("A", "B")},
+                   "stage4": STAG == "STAGE4", "k_defend": k_defend if needs_roles else None}
     if posthoc is not None:          # only present when used, so earlier PARTIAL files still resume
         fingerprint["seed_ids"] = seeds
     done = load_partial(PARTIAL, fingerprint) if PARTIAL.is_file() else {}
@@ -404,7 +451,8 @@ def main() -> int:
         rows.append({k: row[k] for k in ("z", "pole", "seed", "blue", "red", "win", "margin")})
         if seed == seeds[-1]:
             wr = float(np.mean([r["win"] for r in rows if r["z"] == z and r["pole"] == pole]))
-            print(f"  {'pi_G' if is_generalist else f'z{z}'} on Pole {pole}: win rate {wr:.4f}", flush=True)
+            tag = "role_only" if is_role_only else ("pi_G" if is_generalist else f"z{z}")
+            print(f"  {tag} on Pole {pole}: win rate {wr:.4f}", flush=True)
 
     with ROWS_CSV.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
@@ -416,16 +464,20 @@ def main() -> int:
         return np.array([by[s] for s in seeds], dtype=np.float64)
 
     tie_or_reversal: list = []
-    if is_generalist:
+    if no_z:
         v_a, v_b = _mean_ci(wins(0, "A")), _mean_ci(wins(0, "B"))
-        print(f"\n  V(pi_G, A) {v_a['mean']:.4f} [{v_a['lcb95']:.4f}, {v_a['ucb95']:.4f}]")
-        print(f"  V(pi_G, B) {v_b['mean']:.4f} [{v_b['lcb95']:.4f}, {v_b['ucb95']:.4f}]")
+        name = "role_only" if is_role_only else "pi_G"
+        print(f"\n  V({name}, A) {v_a['mean']:.4f} [{v_a['lcb95']:.4f}, {v_a['ucb95']:.4f}]")
+        print(f"  V({name}, B) {v_b['mean']:.4f} [{v_b['lcb95']:.4f}, {v_b['ucb95']:.4f}]")
         claims = [rs.Claim(name=f"V_pole_{p}", recorded={k: v[k] for k in ("mean", "lcb95", "ucb95")},
                            minuend={"z": 0, "pole": p}, value_field="win")
                   for p, v in (("A", v_a), ("B", v_b))]
         primary = {"V_pole_A": v_a, "V_pole_B": v_b,
-                   "note": "no crossover delta for a single policy; Delta_G is formed against the "
-                           "Separated reference sealed on the same seeds (GENERALIST_DEFINITION_V1)"}
+                   "note": ("Role-only has no z; report per-pole value. Strategy preservation is "
+                            "read from behavioral signatures vs Fully Shared+z+r, not from Delta.")
+                   if is_role_only else
+                   ("no crossover delta for a single policy; Delta_G is formed against the "
+                    "Separated reference sealed on the same seeds (GENERALIST_DEFINITION_V1)")}
         gate_passes = None
     else:
         delta_a = _mean_ci(wins(0, "A") - wins(1, "A"))

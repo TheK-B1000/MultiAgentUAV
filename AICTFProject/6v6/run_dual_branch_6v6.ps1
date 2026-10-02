@@ -1,9 +1,15 @@
-# 6v6 DUAL_BRANCH_ROLE_COMPOSITE_V1 (school PC). Detached; safe to close the window.
+# 6v6 DUAL_BRANCH + STAGE4 frozen pipeline (school PC). Detached; safe to close the window.
 #   powershell -ExecutionPolicy Bypass -File <repo>\AICTFProject\6v6\run_dual_branch_6v6.ps1
 $proj = Split-Path -Parent $PSScriptRoot
 Set-Location $proj
 $env:FOR_DISABLE_CONSOLE_CTRL_HANDLER = '1'
 $py = Join-Path $proj '.venv\Scripts\python.exe'
+
+& $py 'experiments\prepare_stage4_baselines.py' --reserve
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "`nNot started: Stage4 seed reserve failed."
+  exit 1
+}
 
 & $py '6v6\run_dual_branch_6v6.py' --check
 if ($LASTEXITCODE -ne 0) {
@@ -13,9 +19,12 @@ if ($LASTEXITCODE -ne 0) {
 
 $p = Start-Process -FilePath $py -ArgumentList '6v6\run_dual_branch_6v6.py' -WorkingDirectory $proj -WindowStyle Hidden -PassThru `
      -RedirectStandardOutput '6v6\dual_branch_6v6.stdout' -RedirectStandardError '6v6\dual_branch_6v6.stderr'
-Write-Host "Started dual-branch 6v6 suite (pid $($p.Id))."
-Write-Host "  smoke A/B -> 200k A -> 200k B -> export ATTACK branches -> top-50 crossover -> zip"
+Write-Host "Started dual-branch + Stage4 6v6 pipeline (pid $($p.Id))."
+Write-Host "  Phase1: smoke -> 200k A/B -> export -> TECHNICAL SEAL"
+Write-Host "  Phase2: top-50 diagnostic (ugly Delta does NOT stop the run)"
+Write-Host "  Phase3-4: Stage4 dataset + Share-Encoder / FullyShared+z+r / Role-only"
+Write-Host "  Phase5-6: Stage4 evals + zip"
 Write-Host "  Get-Content $proj\6v6\dual_branch_6v6.log -Wait -Tail 20"
 Write-Host "Zip when finished: $proj\6v6\dual_branch_6v6_results.zip"
-Write-Host "If the PC restarts, run this same command again -- it continues where it stopped."
+Write-Host "If the PC restarts, run this same command again -- it resumes from STATE.json."
 Write-Host "Do not run run_symmetric_6v6.ps1 (defender-only ablation)."

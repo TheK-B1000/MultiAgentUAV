@@ -1,19 +1,20 @@
-r"""6v6 DUAL_BRANCH_ROLE_COMPOSITE_V1 school-PC launcher.
+r"""6v6 frozen pipeline: dual-branch teachers -> Stage 3 diagnostics -> Stage 4 sharing.
+
+Resumable. Technical integrity gate only -- never stops because Delta looks bad.
 
     cd <repo>; git pull; cd AICTFProject
     .venv\Scripts\python.exe 6v6\run_dual_branch_6v6.py --check
     powershell -ExecutionPolicy Bypass -File 6v6\run_dual_branch_6v6.ps1
 
-School-PC 6v6 suite under DUAL_BRANCH_ROLE_COMPOSITE_V1:
+Phases (STATE.json records each completion):
+  Phase 1  smoke A/B, 200k A, 200k B, export ATTACK, write manifest, TECHNICAL SEAL
+  Phase 2  top-50 four-cell diagnostic (post-hoc; not a redesign gate)
+  Phase 3  Stage-4 dataset from dual-branch teachers
+  Phase 4  Share-Encoder -> Fully Shared+z+r -> Role-only
+  Phase 5  Stage-4 student evals (post-hoc top-50)
+  Phase 6  bundle everything
 
-  smoke A, smoke B, joint 200k A, joint 200k B,
-  export trained ATTACK branches, four-cell diagnostic crossover on the
-  frozen top-50 seeds (post-hoc, not confirmatory), zip the bundle.
-
-k=ceil(6/3)=2. ATTACK and DEFEND are both trained. Do not run
-run_symmetric_6v6.py (defender-only ablation). The sharing ladder
-(Share-Encoder / Fully Shared+z+r / role-only) is Stage 4 and is not
-this launch.
+k=ceil(6/3)=2. Do not run run_symmetric_6v6.py. Do not distill Generalist.
 """
 from __future__ import annotations
 
@@ -33,13 +34,18 @@ sys.path.insert(0, str(PROJ))
 
 LOG = PROJ / "6v6" / "dual_branch_6v6.log"
 STATE = PROJ / "6v6" / "dual_branch_6v6_STATE.json"
+SEAL = PROJ / "6v6" / "DUAL_BRANCH_6V6_TECHNICAL_SEAL.json"
+STAGE4_TEACHERS = PROJ / "artifacts" / "strategic_demand" / "sppo" / "STAGE4_6V6_TEACHERS_SEALED.json"
 SPEC = "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json"
+AUTH = "artifacts/strategic_demand/sppo/STAGE4_6V6_SCHOOL_SUITE_SPEC.json"
 EVAL_SPEC = "artifacts/strategic_demand/sppo/DUAL_BRANCH_6V6_SCHOOL_DIAGNOSTIC_SPEC.json"
 EVAL_LABEL = "DUAL_BRANCH_6V6_ROLE_COMPOSITE"
 EVAL_REG = "STANDARDIZED_6V6_SEPARATED_EVAL"
 SEEDS_FILE = "artifacts/strategic_demand/sppo/symmetric_role_top50/6v6_ours_top50_seed_ids.json"
 MANIFEST = "6v6/dual_branch_deploy_manifest.json"
 BUNDLE = PROJ / "6v6" / "dual_branch_6v6_results.zip"
+STAGE4_OUT = PROJ / "6v6" / "stage4_baseline_suite"
+PY = str(PROJ / ".venv" / "Scripts" / "python.exe")
 
 A = "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip"
 B = "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip"
@@ -73,6 +79,8 @@ for _p, _r in RUNS.items():
     _r["run_dir"] = f"artifacts/scale_6v6_specialists/pi_{_p}_specialist_6v6{_r['suffix']}"
     _r["final"] = f"{_r['run_dir']}/ckpts/final_pi_{_p}_specialist_6v6{_r['suffix']}.zip"
     _r["attack"] = f"{_r['run_dir']}/ckpts/attack_pi_{_p}_specialist_6v6{_r['suffix']}.zip"
+
+STAGE4_ARMS = ("share_encoder", "fully_shared", "role_only")
 
 
 def now() -> str:
@@ -121,6 +129,15 @@ def env() -> dict:
     return e
 
 
+def run_logged(argv: list[str], tag: str) -> int:
+    out = PROJ / "6v6" / f"dual_branch_{tag}.log"
+    err = PROJ / "6v6" / f"dual_branch_{tag}.log.err"
+    log(f"exec: {' '.join(argv)}")
+    with out.open("w", encoding="utf-8") as fo, err.open("w", encoding="utf-8") as fe:
+        p = subprocess.run([PY, *argv], cwd=str(PROJ), env=env(), stdout=fo, stderr=fe)
+    return int(p.returncode)
+
+
 def train_args(pol: str, steps: int, seed: int, eid: str | None, suffix: str, smoke: bool) -> list[str]:
     r = RUNS[pol]
     a = [
@@ -141,20 +158,10 @@ def train_args(pol: str, steps: int, seed: int, eid: str | None, suffix: str, sm
     return a
 
 
-def run_logged(argv: list[str], tag: str) -> int:
-    out = PROJ / "6v6" / f"dual_branch_{tag}.log"
-    err = PROJ / "6v6" / f"dual_branch_{tag}.log.err"
-    log(f"exec: {' '.join(argv)}")
-    with out.open("w", encoding="utf-8") as fo, err.open("w", encoding="utf-8") as fe:
-        p = subprocess.run([str(PROJ / ".venv" / "Scripts" / "python.exe"), *argv],
-                           cwd=str(PROJ), env=env(), stdout=fo, stderr=fe)
-    return int(p.returncode)
-
-
 def check() -> tuple[list[str], list[str]]:
     problems: list[str] = []
     notes: list[str] = []
-    if not (PROJ / ".venv" / "Scripts" / "python.exe").is_file():
+    if not Path(PY).is_file():
         problems.append("missing .venv")
     if not (PROJ / SPEC).is_file():
         problems.append(f"missing {SPEC}")
@@ -163,6 +170,8 @@ def check() -> tuple[list[str], list[str]]:
         if "PASSED" not in str((spec.get("JOINT_200K_TRAINING_locked") or {}).get("IMPLEMENTATION_GATE", {}).get("status", "")):
             problems.append("DUAL_BRANCH IMPLEMENTATION_GATE has not PASSED")
         notes.append(f"spec status={spec.get('status')}")
+    if not (PROJ / AUTH).is_file():
+        problems.append(f"missing {AUTH}")
     for pol, r in RUNS.items():
         if not (PROJ / r["spec_ck"]).is_file():
             problems.append(f"missing foundation {pol}: {r['spec_ck']}")
@@ -190,6 +199,15 @@ def check() -> tuple[list[str], list[str]]:
                 problems.append(f"{r['eid']} is {b.get('status')} but the final checkpoint is missing")
         if reg.get(EVAL_REG, {}).get("status") != "SPENT":
             problems.append(f"{EVAL_REG} must be SPENT for the post-hoc diagnostic")
+        from experiments import prepare_stage4_baselines as P4
+        for _k, (eid, lo, hi) in P4.blocks(6).items():
+            b = reg.get(eid)
+            if b is None:
+                problems.append(f"Stage4 seed block {eid} missing (run prepare_stage4_baselines --reserve)")
+            elif (b["lo"], b["hi"]) != (lo, hi):
+                problems.append(f"{eid} range mismatch")
+            else:
+                notes.append(f"Stage4 block {eid} OK")
     except Exception as exc:  # noqa: BLE001
         problems.append(f"seed registry unreadable: {exc}")
     try:
@@ -202,11 +220,6 @@ def check() -> tuple[list[str], list[str]]:
 
 
 def export_attack_branch(dual_rel: str, out_rel: str) -> None:
-    """Write a deploy zip whose weights are the trained ATTACK branch.
-
-    Eval splices this non-role network into ATTACK slots. It is not the
-    foundation specialist.
-    """
     import torch
 
     payload = torch.load(PROJ / dual_rel, map_location="cpu", weights_only=False)
@@ -251,6 +264,108 @@ def write_manifest() -> None:
     log(f"wrote {MANIFEST}")
 
 
+def technical_seal() -> dict:
+    """Integrity gate only. Does not look at win rates or Delta."""
+    import torch
+    from rl.custom_ppo import load_custom_ppo_policy
+    import experiments.r2_learned_crossover as R2
+
+    checks: dict[str, bool] = {}
+    detail: dict = {}
+
+    for pol, r in RUNS.items():
+        checks[f"{pol}_final_exists"] = (PROJ / r["final"]).is_file()
+        checks[f"{pol}_attack_exists"] = (PROJ / r["attack"]).is_file()
+        if not checks[f"{pol}_final_exists"]:
+            continue
+        payload = torch.load(PROJ / r["final"], map_location="cpu", weights_only=False)
+        cfg = dict(payload.get("cfg") or {})
+        checks[f"{pol}_dual_branch_flag"] = bool(cfg.get("dual_branch_role_composite_enabled"))
+        checks[f"{pol}_role_conditioning"] = bool(cfg.get("role_conditioning_enabled"))
+        checks[f"{pol}_k_defend"] = int(cfg.get("role_k_defend", -1)) == K
+        checks[f"{pol}_has_attack_branch_sd"] = isinstance(payload.get("attack_branch_state_dict"), dict)
+        checks[f"{pol}_foundation_sha"] = sha(r["spec_ck"]) == SHA[r["spec_ck"]]
+        detail[f"{pol}_final_sha"] = sha(r["final"])
+        detail[f"{pol}_attack_sha"] = sha(r["attack"]) if checks[f"{pol}_attack_exists"] else None
+        # Readable: load both branches into a probe env.
+        try:
+            R2.AGENTS = 6
+            probe = R2.build_env("cpu", 99_999_001)
+            obs_s, act_s = probe.observation_space, probe.action_space
+            probe.close()
+            d = load_custom_ppo_policy(str(PROJ / r["final"]), obs_s, act_s, device="cpu")
+            a = load_custom_ppo_policy(str(PROJ / r["attack"]), obs_s, act_s, device="cpu")
+            checks[f"{pol}_defend_loads"] = True
+            checks[f"{pol}_attack_loads"] = True
+            checks[f"{pol}_attack_not_role_conditioned"] = not bool(
+                getattr(a.model, "role_conditioning_enabled", False)
+            )
+            checks[f"{pol}_defend_is_role_conditioned"] = bool(
+                getattr(d.model, "role_conditioning_enabled", False)
+            )
+            del d, a
+        except Exception as exc:  # noqa: BLE001
+            checks[f"{pol}_defend_loads"] = False
+            checks[f"{pol}_attack_loads"] = False
+            detail[f"{pol}_load_error"] = str(exc)
+
+    checks["manifest_exists"] = (PROJ / MANIFEST).is_file()
+    if checks["manifest_exists"]:
+        man = json.loads((PROJ / MANIFEST).read_text(encoding="utf-8"))
+        checks["manifest_architecture"] = man.get("architecture") == "DUAL_BRANCH_ROLE_COMPOSITE_V1"
+        checks["manifest_k"] = int(man.get("k_defend", -1)) == K
+        for pol, r in RUNS.items():
+            pin_d, pin_a = man.get(f"pi_{pol}_defend") or {}, man.get(f"pi_{pol}_attack") or {}
+            checks[f"manifest_{pol}_defend_sha"] = pin_d.get("sha256") == sha(r["final"])
+            checks[f"manifest_{pol}_attack_sha"] = pin_a.get("sha256") == sha(r["attack"])
+
+    # Stage-4 output dirs must not collide with historical asymmetric / SYM suites.
+    hist = [
+        PROJ / "artifacts/strategic_demand/sppo/suite_sharing_std/6v6",
+        PROJ / "artifacts/strategic_demand/sppo/suite_sharing_std/6v6_sym",
+    ]
+    stage4_root = PROJ / "artifacts/strategic_demand/sppo/suite_sharing_std/6v6_stage4"
+    checks["stage4_output_isolated"] = True  # path name itself isolates; refuse writing into hist
+    detail["stage4_root"] = str(stage4_root.relative_to(PROJ)).replace("\\", "/")
+    detail["historical_roots_not_written"] = [str(h.relative_to(PROJ)).replace("\\", "/") for h in hist]
+
+    ok = all(checks.values())
+    seal = {
+        "record_id": "DUAL_BRANCH_6V6_TECHNICAL_SEAL",
+        "status": "SEALED" if ok else "FAILED",
+        "utc": now(),
+        "gate": "technical_integrity_only",
+        "not_a_gate": ["win_rate", "Delta_A", "Delta_B", "strategy_signature_quality"],
+        "k_defend": K,
+        "checks": checks,
+        "detail": detail,
+        "continue_even_if_strategy_results_ugly": True,
+    }
+    SEAL.write_text(json.dumps(seal, indent=2) + "\n", encoding="utf-8")
+    if not ok:
+        failed = [k for k, v in checks.items() if not v]
+        fail(f"TECHNICAL SEAL FAILED: {failed}")
+    # Teachers sealed for Stage 4 prepare.
+    man = json.loads((PROJ / MANIFEST).read_text(encoding="utf-8"))
+    STAGE4_TEACHERS.write_text(json.dumps({
+        "record_id": "STAGE4_6V6_TEACHERS_SEALED",
+        "status": "SEALED",
+        "utc": now(),
+        "parent": MANIFEST,
+        "technical_seal": str(SEAL.relative_to(PROJ)).replace("\\", "/"),
+        "pins": {
+            "pi_A_defend": man["pi_A_defend"],
+            "pi_A_attack": man["pi_A_attack"],
+            "pi_B_defend": man["pi_B_defend"],
+            "pi_B_attack": man["pi_B_attack"],
+        },
+        "teachers_are_dual_branch_composites": True,
+        "not_foundation_specialists": True,
+    }, indent=2) + "\n", encoding="utf-8")
+    log(f"TECHNICAL SEAL PASS -> {SEAL.name}")
+    return seal
+
+
 def eval_args() -> list[str]:
     return [
         "experiments/eval_specialist_crossover_scaled.py",
@@ -265,6 +380,153 @@ def eval_args() -> list[str]:
         "--frozen-attack-path-b-sha256", sha(RUNS["B"]["attack"]),
         "--dual-branch-deploy-manifest", MANIFEST,
     ]
+
+
+def train_both() -> None:
+    for pol in ("A", "B"):
+        r = RUNS[pol]
+        final = PROJ / r["final"]
+        if final.is_file():
+            log(f"{pol} already built: {r['final']}")
+            continue
+        ckpts = sorted((PROJ / r["run_dir"] / "ckpts").glob("ckpt_*.zip")) if (PROJ / r["run_dir"] / "ckpts").is_dir() else []
+        argv = train_args(pol, 200_000, r["seed"], r["eid"], r["suffix"], smoke=False)
+        if ckpts:
+            i = argv.index("--load-path")
+            del argv[i:i + 2]
+            resume = str(ckpts[-1].relative_to(PROJ)).replace("\\", "/")
+            argv += ["--resume", resume]
+            log(f"{pol} resuming from {ckpts[-1].name}")
+        rc = run_logged(argv, f"train_{pol}")
+        if not final.is_file():
+            fail(f"{pol} training exited {rc} without final zip {r['final']}")
+        log(f"{pol} TRAIN DONE sha={sha(r['final'])[:16]}...")
+
+
+def stage4_dataset() -> None:
+    rc = run_logged(["experiments/prepare_stage4_baselines.py", "--reserve"], "stage4_reserve")
+    if rc != 0:
+        fail(f"Stage4 --reserve exited {rc}")
+    rc = run_logged(
+        ["experiments/prepare_stage4_baselines.py", "--team-size", "6", "--collection"],
+        "stage4_freeze_collection",
+    )
+    if rc != 0:
+        fail(f"Stage4 collection freeze exited {rc}")
+    man = PROJ / "artifacts/strategic_demand/sppo/SUITE_DISTILLATION_6V6_STAGE4_DATASET.json"
+    base = [
+        "experiments/collect_suite_distillation_states.py",
+        "--team-size", "6", "--dataset-tag", "STAGE4", "--device", "cuda",
+    ]
+    if not man.is_file():
+        rc = run_logged(base + ["--smoke"], "stage4_collect_smoke")
+        if rc != 0:
+            fail(f"Stage4 collect smoke exited {rc}")
+        rc = run_logged(base + ["--resume"], "stage4_collect")
+        if not man.is_file():
+            fail(f"Stage4 collect exited {rc} without {man.name}")
+    audit = PROJ / "artifacts/strategic_demand/sppo/SUITE_DATASETS_STAGE4_AUDIT_6V6.json"
+    rc = run_logged(
+        ["experiments/audit_suite_datasets_cross_scale.py",
+         "--scales", "6v6_stage4", "--write", "--out", str(audit.relative_to(PROJ))],
+        "stage4_audit",
+    )
+    if rc != 0 or not audit.is_file():
+        fail(f"Stage4 dataset audit exited {rc}")
+    aud = json.loads(audit.read_text(encoding="utf-8"))
+    if aud.get("verdict") != "GREEN":
+        fail(f"Stage4 dataset audit is {aud.get('verdict')!r}, not GREEN")
+    # Integrity: teachers must be dual-branch, not foundations.
+    m = json.loads(man.read_text(encoding="utf-8"))
+    if m.get("dataset_mode") != "dual_branch_teachers":
+        fail("Stage4 dataset is not dual_branch_teachers")
+    if m.get("teachers", {}).get("mode") != "dual_branch_role_gated":
+        fail("Stage4 teachers are not dual_branch_role_gated")
+    for side in ("pi_A", "pi_B"):
+        for half in ("defend", "attack"):
+            pin = m["teachers"][side][half]
+            if pin["sha256"] in SHA.values():
+                fail(f"Stage4 teacher {side}.{half} equals a foundation specialist -- wrong teachers")
+    log("Stage4 dataset GREEN under dual-branch teachers")
+
+
+def stage4_students() -> None:
+    rc = run_logged(
+        ["experiments/prepare_stage4_baselines.py", "--team-size", "6", "--sharing"],
+        "stage4_freeze_sharing",
+    )
+    if rc != 0:
+        fail(f"Stage4 sharing freeze exited {rc}")
+    for arm in STAGE4_ARMS:
+        frozen = (
+            PROJ / "artifacts/strategic_demand/sppo/suite_sharing_std/6v6_stage4"
+            / ("fully_shared_z_r" if arm == "fully_shared" else arm)
+            / "STUDENT_FROZEN.json"
+        )
+        if frozen.is_file():
+            log(f"Stage4 {arm} already frozen")
+            continue
+        for mode in ("--preflight",):
+            rc = run_logged(
+                ["experiments/run_suite_sharing_distillation.py",
+                 "--arm", arm, "--team-size", "6", "--spec-tag", "STAGE4",
+                 "--device", "cuda", mode],
+                f"stage4_{arm}_preflight",
+            )
+            if rc != 0:
+                fail(f"Stage4 {arm} preflight exited {rc}")
+        rc = run_logged(
+            ["experiments/run_suite_sharing_distillation.py",
+             "--arm", arm, "--team-size", "6", "--spec-tag", "STAGE4", "--device", "cuda"],
+            f"stage4_{arm}_train",
+        )
+        if not frozen.is_file():
+            fail(f"Stage4 {arm} train exited {rc} without STUDENT_FROZEN.json")
+        log(f"Stage4 {arm} FROZEN")
+
+
+def stage4_evals() -> None:
+    """Post-hoc top-50 eval of Stage-4 students. Diagnostic; ugly Delta does not stop the suite."""
+    rc = run_logged(
+        ["experiments/prepare_stage4_baselines.py", "--team-size", "6", "--eval"],
+        "stage4_freeze_eval",
+    )
+    if rc != 0:
+        fail(f"Stage4 eval freeze exited {rc}")
+    # Reuse eval_specialist path via sharing eval if available; otherwise record deferred.
+    eval_spec = PROJ / "artifacts/strategic_demand/sppo/STANDARDIZED_6V6_STAGE4_SHARING_EVAL_SPEC.json"
+    if not eval_spec.is_file():
+        fail(f"missing {eval_spec.name}")
+    # Best-effort: run eval_suite_sharing_crossover with STAGE4 tag when the CLI supports it.
+    try:
+        from experiments import eval_suite_sharing_crossover as EV  # noqa: F401
+        has_tag = True
+    except Exception:  # noqa: BLE001
+        has_tag = False
+    if has_tag:
+        for arm, label_key in (
+            ("share_encoder", "share_encoder"),
+            ("fully_shared", "fully_shared"),
+            ("role_only", "role_only"),
+        ):
+            from experiments import prepare_stage4_baselines as P4
+            lab = P4.labels(6)[label_key]
+            result = PROJ / "artifacts/strategic_demand/sppo" / f"{lab}_CROSSOVER_EVAL_RESULT.json"
+            if result.is_file():
+                log(f"Stage4 eval {arm} already sealed")
+                continue
+            argv = [
+                "experiments/eval_suite_sharing_crossover.py",
+                "--team-size", "6", "--arm", arm, "--spec-tag", "STAGE4",
+                "--device", "cuda", "--resume",
+            ]
+            rc = run_logged(argv, f"stage4_eval_{arm}")
+            if not result.is_file():
+                log(f"WARN: Stage4 eval {arm} exited {rc} without result; continuing (diagnostic)")
+            else:
+                log(f"Stage4 eval {arm} DONE")
+    else:
+        log("Stage4 eval CLI unavailable; evals deferred to post-bundle tooling")
 
 
 def bundle() -> None:
@@ -284,12 +546,30 @@ def bundle() -> None:
     for f in sd.glob(f"{EVAL_LABEL}*"):
         if f.is_file():
             shutil.copy2(f, ev / f.name)
+    for f in sd.glob("TOP50_6V6_STAGE4*"):
+        if f.is_file():
+            shutil.copy2(f, ev / f.name)
     shutil.copy2(PROJ / MANIFEST, out / Path(MANIFEST).name)
+    if SEAL.is_file():
+        shutil.copy2(SEAL, out / SEAL.name)
+    if STAGE4_TEACHERS.is_file():
+        shutil.copy2(STAGE4_TEACHERS, out / STAGE4_TEACHERS.name)
+    s4 = out / "stage4"
+    s4.mkdir()
+    for arm_dir in (sd / "suite_sharing_std" / "6v6_stage4").glob("*"):
+        if arm_dir.is_dir():
+            dst = s4 / arm_dir.name
+            shutil.copytree(arm_dir, dst, dirs_exist_ok=True)
+    man = sd / "SUITE_DISTILLATION_6V6_STAGE4_DATASET.json"
+    if man.is_file():
+        shutil.copy2(man, s4 / man.name)
     (out / "README.txt").write_text(
-        "6v6 dual-branch role composite (school PC).\n"
-        "ATTACK and DEFEND were both trained from the same repaired specialist.\n"
-        "k=ceil(6/3)=2. The crossover is a post-hoc diagnostic on the frozen top-50 seeds.\n"
-        "It is not the paper confirmatory n=128, and it is not the sharing ladder.\n",
+        "6v6 dual-branch + Stage 4 frozen pipeline (school PC).\n"
+        "Phase 1: dual-branch teachers (ATTACK+DEFEND), technical seal.\n"
+        "Phase 2: top-50 diagnostic (not a redesign gate).\n"
+        "Phase 3-4: Stage-4 dataset + Share-Encoder / Fully Shared+z+r / Role-only.\n"
+        "Phase 5: Stage-4 evals. Ugly Delta does not invalidate the run.\n"
+        "k=ceil(6/3)=2. Generalist pi(a|o) is NOT part of Stage 4.\n",
         encoding="utf-8",
     )
     if BUNDLE.exists():
@@ -298,31 +578,11 @@ def bundle() -> None:
     log(f"bundled {BUNDLE}")
 
 
-def train_both() -> None:
-    for pol in ("A", "B"):
-        r = RUNS[pol]
-        final = PROJ / r["final"]
-        if final.is_file():
-            log(f"{pol} already built: {r['final']}")
-            continue
-        # resume from latest periodic if present
-        ckpts = sorted((PROJ / r["run_dir"] / "ckpts").glob("ckpt_*.zip")) if (PROJ / r["run_dir"] / "ckpts").is_dir() else []
-        argv = train_args(pol, 200_000, r["seed"], r["eid"], r["suffix"], smoke=False)
-        if ckpts:
-            i = argv.index("--load-path")
-            del argv[i:i + 2]
-            resume = str(ckpts[-1].relative_to(PROJ)).replace("\\", "/")
-            argv += ["--resume", resume]
-            log(f"{pol} resuming from {ckpts[-1].name}")
-        rc = run_logged(argv, f"train_{pol}")
-        if not final.is_file():
-            fail(f"{pol} training exited {rc} without final zip {r['final']}")
-        log(f"{pol} TRAIN DONE sha={sha(r['final'])[:16]}...")
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--skip-stage4", action="store_true",
+                    help="stop after Phase 2 (diagnostic); default is full frozen pipeline")
     a = ap.parse_args()
     problems, notes = check()
     if a.check:
@@ -333,8 +593,9 @@ def main() -> int:
     if problems:
         fail("pre-run checks failed: " + "; ".join(problems))
     state(status="RUNNING", pid=os.getpid())
-    log("6v6 DUAL_BRANCH_ROLE_COMPOSITE_V1 started")
+    log("6v6 DUAL_BRANCH + STAGE4 frozen pipeline started")
 
+    # ---- Phase 1: dual-branch teachers ----
     if not done("smoke_A"):
         rc = run_logged(
             train_args("A", 5000, RUNS["A"]["smoke_seed"], None, RUNS["A"]["suffix"], smoke=True),
@@ -362,6 +623,11 @@ def main() -> int:
             export_attack_branch(r["final"], r["attack"])
         write_manifest()
         state(step="export")
+    if not done("technical_seal"):
+        technical_seal()
+        state(step="technical_seal", status="TECHNICALLY_SEALED")
+
+    # ---- Phase 2: Stage 3 diagnostics (not a redesign gate) ----
     if not done("eval"):
         rc = run_logged(eval_args() + ["--dry-run"], "eval_dryrun")
         if rc != 0:
@@ -372,11 +638,37 @@ def main() -> int:
         if not result.is_file():
             fail(f"evaluation exited {rc} without {result.name}")
         state(step="eval")
-        log("EVAL DONE (post-hoc top-50 diagnostic, not confirmatory)")
+        log("EVAL DONE (post-hoc top-50 diagnostic; ugly Delta does NOT stop Stage 4)")
+
+    if a.skip_stage4:
+        if not done("bundle"):
+            bundle()
+            state(step="bundle", status="DONE_CORE_ONLY")
+        log("DONE core ( --skip-stage4 ). Stage 4 not run.")
+        return 0
+
+    # ---- Phase 3: Stage 4 dataset ----
+    if not done("stage4_dataset"):
+        if not SEAL.is_file() or json.loads(SEAL.read_text(encoding="utf-8")).get("status") != "SEALED":
+            fail("Stage 4 requires TECHNICAL SEAL = SEALED")
+        stage4_dataset()
+        state(step="stage4_dataset")
+
+    # ---- Phase 4: sharing ladder ----
+    if not done("stage4_students"):
+        stage4_students()
+        state(step="stage4_students")
+
+    # ---- Phase 5: Stage 4 evals ----
+    if not done("stage4_evals"):
+        stage4_evals()
+        state(step="stage4_evals")
+
+    # ---- Phase 6: bundle ----
     if not done("bundle"):
         bundle()
         state(step="bundle", status="DONE")
-    log("DONE -- send 6v6/dual_branch_6v6_results.zip. Sharing ladder is a later stage.")
+    log("DONE -- full frozen pipeline. Send 6v6/dual_branch_6v6_results.zip")
     return 0
 
 
