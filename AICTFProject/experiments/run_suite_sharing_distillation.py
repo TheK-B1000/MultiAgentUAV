@@ -317,7 +317,12 @@ def main() -> int:
                                        "stage4": stag == "STAGE4"})
 
         def load_student(path):
-            return load_fn(path, obs_space, act_space, device=device)
+            out = load_fn(path, obs_space, act_space, device=device)
+            # load_role_only -> (model, cfg, payload); load_fully_shared/generalist -> (model, payload).
+            if len(out) == 3:
+                model, _cfg, payload = out
+                return model, payload
+            return out
 
         def unique_count(m, actor):
             return sum(int(p.numel()) for _, p in actor)
