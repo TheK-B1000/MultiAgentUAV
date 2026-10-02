@@ -23,8 +23,8 @@ No PowerShell. No packing script. No `artifacts/` tree.
 │   ├── SUMMARY/
 │   │   └── SUMMARY.txt
 │   ├── TEACHERS/               Ours-Teachers: dual-branch DEFEND + ATTACK (A and B)
-│   ├── STAGE3_EVALUATION/      old top-50 four-cell diagnostic
-│   ├── MATCHED128/             matched-128 fair comparison + dual-branch own top-50
+│   ├── STAGE3_EVALUATION/      optional historical top-50 provenance (opt-in only)
+│   ├── MATCHED128/             PRIMARY matched-128 + dual-branch own top-50
 │   ├── STAGE4_SHARING/         Strategic Representation Under Parameter Sharing:
 │   │                             Share-Encoder / Ours-Shared Fully Shared+z+r / Role-only
 │   ├── SEALS/
@@ -32,6 +32,17 @@ No PowerShell. No packing script. No `artifacts/` tree.
 ├── dual_branch_OVERALL.log.err <- watch while running
 └── run_dual_branch_6v6.ps1     <- school-PC launcher
 ```
+
+## Stage-3 hierarchy
+
+```text
+Matched-128              -> PRIMARY evidence
+Own top-50 from that 128 -> secondary descriptive
+Historical top-50        -> provenance only (skipped by default)
+```
+
+Default suite path: matched-128 → own top-50 → Stage 4.  
+Opt-in provenance spend: `--allow-historical-top50` / `-AllowHistoricalTop50` (frozen seed lists kept; not paper evidence).
 
 ## Launch (school PC)
 

@@ -123,14 +123,23 @@ def frac(name: str) -> tuple[float, str]:
         return ((0.5 if exp else 0.0) + (0.5 if seal else 0.0),
                 "sealed" if seal else ("export" if exp else "export+seal"))
     if name == "diagnostic":
-        if (MANIFESTS / "phase2_diagnostic.json").is_file():
-            return 1.0, "diagnostic done"
+        if (MANIFESTS / "phase2_diagnostic.json").is_file() or (
+            MANIFESTS / "phase2_historical_top50_SKIPPED.json"
+        ).is_file():
+            return 1.0, "diagnostic done/skipped"
+        if (MANIFESTS / "matched128.json").is_file():
+            return 1.0, "matched128 done"
+        text = tail(PROJ / SCALE / "dual_branch_matched128.log.err").replace("\r", "\n")
+        hits = re.findall(r"(\d+)\s*/\s*(\d+)", text)
+        if hits:
+            a, b = int(hits[-1][0]), max(1, int(hits[-1][1]))
+            return min(1.0, a / b), f"matched128 {a}/{b}"
         text = tail(PROJ / SCALE / "dual_branch_eval.log.err").replace("\r", "\n")
         hits = re.findall(r"(\d+)\s*/\s*(\d+)", text)
         if hits:
             a, b = int(hits[-1][0]), max(1, int(hits[-1][1]))
             return min(1.0, a / b), f"diagnostic {a}/{b}"
-        return 0.0, "diagnostic"
+        return 0.0, "matched128/diagnostic"
     if name == "dataset":
         if (MANIFESTS / "phase3_dataset.json").is_file():
             return 1.0, "dataset done"

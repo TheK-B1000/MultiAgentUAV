@@ -3,6 +3,11 @@ r"""4v4 frozen pipeline: Ours-Teachers -> Stage 3 -> Stage 4 Ours-Shared. k=ceil
 Starts only after the 2v2 suite writes 2v2/manifests/phase6_package.json.
 Resumable. Technical integrity only -- a bad Delta does not stop the chain.
 
+Stage-3 hierarchy (paper does NOT depend on historical top-50):
+  Matched-128              -> primary evidence
+  Own top-50 from that 128 -> secondary descriptive
+  Historical top-50        -> provenance only; skipped by default (--allow-historical-top50)
+
     cd AICTFProject
     .venv\Scripts\python.exe 4v4\run_dual_branch_4v4.py --check
     powershell -ExecutionPolicy Bypass -File 4v4\run_dual_branch_4v4.ps1
@@ -35,6 +40,13 @@ EVAL_LABEL = "DUAL_BRANCH_4V4_ROLE_COMPOSITE"
 EVAL_REG = "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_EVAL"
 PRIMARY = "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
 SEEDS_FILE = "artifacts/strategic_demand/sppo/symmetric_role_top50/4v4_ours_top50_seed_ids.json"
+MATCHED128_SPEC = "artifacts/strategic_demand/sppo/DUAL_BRANCH_4V4_POSTHOC_MATCHED128_SPEC.json"
+MATCHED128_LABEL = "POSTHOC_MATCHED128_4V4_DUAL_BRANCH"
+MATCHED128_DIR = "artifacts/strategic_demand/sppo/dual_branch_v1/matched128_4v4"
+MATCHED128_SEED_BASE = 21800001
+MATCHED128_N = 128
+OWN_TOP50_LABEL = "DUAL_BRANCH_4V4_OWN_TOP50"
+OLD_OURS_ROWS = "artifacts/strategic_demand/sppo/defend_attack_split_policy_a_v1_confirmatory_v1_specialist_crossover_eval_rows.csv"
 MANIFEST = "4v4/dual_branch_deploy_manifest.json"
 BUNDLE = PROJ / "4v4" / "dual_branch_4v4_full_suite.zip"
 PY = str(PROJ / ".venv" / "Scripts" / "python.exe")
@@ -349,21 +361,32 @@ def check() -> tuple[list[str], list[str]]:
         problems.append(f"k_defend {K} != ceil(4/3)")
     else:
         notes.append("k_defend=2 = ceil(4/3)")
-    if not (PROJ / EVAL_SPEC).is_file():
-        problems.append(f"missing {EVAL_SPEC}")
+    if not (PROJ / EVAL_SPEC).is_file() or not (PROJ / SEEDS_FILE).is_file():
+        notes.append("historical top-50 provenance artifacts missing (ok unless --allow-historical-top50)")
     else:
         entry = json.loads((PROJ / EVAL_SPEC).read_text(encoding="utf-8"))
         entry = (entry.get("POST_HOC_MATCHED_ROLE_ABLATIONS") or {}).get(EVAL_LABEL) or {}
-        seeds = json.loads((PROJ / SEEDS_FILE).read_text(encoding="utf-8")) if (PROJ / SEEDS_FILE).is_file() else []
+        seeds = json.loads((PROJ / SEEDS_FILE).read_text(encoding="utf-8"))
         if [int(s) for s in entry.get("seed_ids") or []] != [int(s) for s in seeds]:
-            problems.append("diagnostic spec seed_ids != frozen 4v4 top-50 file")
+            problems.append("historical top-50 provenance: diagnostic seed_ids != frozen file")
         else:
-            notes.append(f"top-50 diagnostic seeds n={len(seeds)}")
-    if not (PROJ / SEEDS_FILE).is_file():
-        problems.append(f"missing {SEEDS_FILE}")
+            notes.append(f"historical top-50 provenance available (n={len(seeds)}; skipped by default)")
     primary = PROJ / "artifacts/strategic_demand/sppo" / PRIMARY
     if not primary.is_file():
         problems.append(f"missing post-hoc primary record {PRIMARY}")
+    if not (PROJ / OLD_OURS_ROWS).is_file():
+        problems.append(f"missing old Ours 128 rows {Path(OLD_OURS_ROWS).name}")
+    try:
+        rc = subprocess.run(
+            [PY, "experiments/select_own_top50.py", "--verify-historical", "--scale", "4"],
+            cwd=str(PROJ), capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        if rc.returncode != 0:
+            problems.append(f"own-top50 historical rule failed for 4v4: {(rc.stderr or rc.stdout)[:200]}")
+        else:
+            notes.append("own-top50 rule reproduces frozen 4v4 list (CPU; regression check)")
+    except Exception as exc:  # noqa: BLE001
+        problems.append(f"own-top50 verify failed: {exc}")
     try:
         from experiments import seed_registry as SR
         from experiments import prepare_stage4_baselines as P4
@@ -378,9 +401,13 @@ def check() -> tuple[list[str], list[str]]:
                 notes.append(f"{r['eid']} {b.get('status')}")
         ev = reg.get(EVAL_REG)
         if ev is None or ev.get("status") != "SPENT":
-            problems.append(f"{EVAL_REG} must be SPENT for the post-hoc diagnostic")
+            problems.append(f"{EVAL_REG} must be SPENT for matched-128 / provenance reuse")
         else:
             notes.append(f"{EVAL_REG} SPENT {ev['lo']}..{ev['hi']}")
+            if (int(ev["lo"]), int(ev["hi"])) != (MATCHED128_SEED_BASE, MATCHED128_SEED_BASE + MATCHED128_N - 1):
+                problems.append(
+                    f"{EVAL_REG} range is not {MATCHED128_SEED_BASE}..{MATCHED128_SEED_BASE + MATCHED128_N - 1}"
+                )
         for _k, (eid, lo, hi) in P4.blocks(4).items():
             b = reg.get(eid)
             if b is None:
@@ -548,6 +575,161 @@ def eval_args() -> list[str]:
         "--frozen-attack-path-b-sha256", sha(RUNS["B"]["attack"]),
         "--dual-branch-deploy-manifest", MANIFEST,
     ]
+
+
+def write_matched128_spec() -> None:
+    man = json.loads((PROJ / MANIFEST).read_text(encoding="utf-8"))
+    hi = MATCHED128_SEED_BASE + MATCHED128_N - 1
+    rows = f"artifacts/strategic_demand/sppo/{MATCHED128_LABEL.lower()}_specialist_crossover_eval_rows.csv"
+    doc = {
+        "record_id": "DUAL_BRANCH_4V4_POSTHOC_MATCHED128_SPEC",
+        "status": "FROZEN_DIAGNOSTIC",
+        "arm": "POST_HOC_ABLATION",
+        "confirmatory": False,
+        "utc": now(),
+        "classification": (
+            "POST-HOC MATCHED EVALUATION ON THE HISTORICAL 128-SEED 4V4 BLOCK. PRIMARY Stage-3 evidence. "
+            "Not confirmatory. Not PAPER-FAITHFUL. Historical top-50 is provenance only."
+        ),
+        "decided_by": (
+            "PI, 2026-10-02: matched-128 = primary; own top-50 = secondary; historical top-50 = "
+            "provenance only (skipped by default)."
+        ),
+        "governed_by": [
+            "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+            "DUAL_BRANCH_4V4_DIAGNOSTIC_SPEC.json",
+            "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json",
+        ],
+        "THE_QUESTION": (
+            "On the identical 128 historical 4v4 seeds, how do the dual-branch role composite's "
+            "crossover deltas compare with the old asymmetric Ours sealed on that block?"
+        ),
+        "SYSTEM_locked": {
+            "deploy_manifest": MANIFEST,
+            "pi_A_defend": man["pi_A_defend"],
+            "pi_A_attack": man["pi_A_attack"],
+            "pi_B_defend": man["pi_B_defend"],
+            "pi_B_attack": man["pi_B_attack"],
+            "k_defend": K,
+            "allocator": f"CLOSEST_DEFENDS(k={K}), roles fixed for the episode",
+        },
+        "POST_HOC_MATCHED_ROLE_ABLATIONS": {
+            MATCHED128_LABEL: {
+                "registry_experiment_id": EVAL_REG,
+                "block": f"{MATCHED128_SEED_BASE}..{hi}",
+                "primary_record": PRIMARY,
+                "system": "dual-branch role composite",
+                "frozen_attack_A": man["pi_A_attack"],
+                "frozen_attack_B": man["pi_B_attack"],
+                "episodes": MATCHED128_N * 4,
+                "note": "PRIMARY Stage-3 evidence on the full SPENT block; no seed spent.",
+            }
+        },
+        "READING": {
+            "hierarchy": (
+                "Matched-128 = primary evidence; own top-50 = secondary descriptive; "
+                "historical top-50 = provenance only."
+            ),
+        },
+        "LAUNCH": {
+            "when": "inside 4v4/run_dual_branch_4v4.py after technical seal (default Stage-3)",
+            "eval": (
+                f".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py "
+                f"--team-size 4 --spec {MATCHED128_SPEC} --post-hoc-ablation-spec {MATCHED128_SPEC} "
+                f"--seed-base {MATCHED128_SEED_BASE} --n-seeds {MATCHED128_N} "
+                f"--registry-experiment-id {EVAL_REG} --label {MATCHED128_LABEL} --device cuda "
+                f"--pi-a-path {RUNS['A']['final']} --pi-b-path {RUNS['B']['final']} "
+                f"--role-fixed-for-episode --role-k-defend {K} "
+                f"--frozen-attack-path {RUNS['A']['attack']} "
+                f"--frozen-attack-path-sha256 {man['pi_A_attack']['sha256']} "
+                f"--frozen-attack-path-b {RUNS['B']['attack']} "
+                f"--frozen-attack-path-b-sha256 {man['pi_B_attack']['sha256']} "
+                f"--dual-branch-deploy-manifest {MANIFEST} --resume"
+            ),
+            "readout": (
+                f".venv/Scripts/python.exe experiments/readout_posthoc_matched_crossover.py "
+                f"--spec {MATCHED128_SPEC}"
+            ),
+            "own_top50": (
+                f".venv/Scripts/python.exe experiments/select_own_top50.py --rows {rows} "
+                f"--label {OWN_TOP50_LABEL} --out {MATCHED128_DIR} --scale 4"
+            ),
+        },
+        "READOUT_SYSTEMS": {"dual_branch": rows, "old_asymmetric_ours": OLD_OURS_ROWS},
+        "READOUT_OUT": f"{MATCHED128_DIR}/MATCHED128_4V4_READOUT",
+    }
+    out = PROJ / MATCHED128_SPEC
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    (PROJ / MATCHED128_DIR).mkdir(parents=True, exist_ok=True)
+    log(f"wrote {MATCHED128_SPEC}")
+
+
+def matched128_args() -> list[str]:
+    return [
+        "experiments/eval_specialist_crossover_scaled.py",
+        "--team-size", "4", "--spec", MATCHED128_SPEC, "--post-hoc-ablation-spec", MATCHED128_SPEC,
+        "--seed-base", str(MATCHED128_SEED_BASE), "--n-seeds", str(MATCHED128_N),
+        "--registry-experiment-id", EVAL_REG, "--label", MATCHED128_LABEL, "--device", "cuda",
+        "--pi-a-path", RUNS["A"]["final"], "--pi-b-path", RUNS["B"]["final"],
+        "--role-fixed-for-episode", "--role-k-defend", str(K),
+        "--frozen-attack-path", RUNS["A"]["attack"],
+        "--frozen-attack-path-sha256", sha(RUNS["A"]["attack"]),
+        "--frozen-attack-path-b", RUNS["B"]["attack"],
+        "--frozen-attack-path-b-sha256", sha(RUNS["B"]["attack"]),
+        "--dual-branch-deploy-manifest", MANIFEST,
+    ]
+
+
+def matched128_eval() -> None:
+    write_matched128_spec()
+    result = PROJ / "artifacts/strategic_demand/sppo" / f"{MATCHED128_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    done_mark = PROJ / MATCHED128_DIR / "MATCHED128_DONE.txt"
+    if not result.is_file():
+        rc = run_logged(matched128_args() + ["--dry-run"], "matched128_dryrun")
+        if rc != 0:
+            fail(f"matched-128 dry-run failed exit {rc}")
+        log("matched-128 dry-run passed")
+        rc = run_logged(matched128_args() + ["--resume"], "matched128")
+        if not result.is_file():
+            fail(f"matched-128 exited {rc} without {result.name}")
+    else:
+        log(f"matched-128 already sealed: {result.name}")
+    rc = run_logged(
+        ["experiments/readout_posthoc_matched_crossover.py", "--spec", MATCHED128_SPEC],
+        "matched128_readout",
+    )
+    if rc != 0:
+        fail(f"matched-128 readout failed exit {rc}")
+    done_mark.write_text(f"DONE {now()}\n", encoding="utf-8")
+    log(f"MATCHED128 DONE -> {MATCHED128_DIR}/MATCHED128_4V4_READOUT.md")
+
+
+def own_top50() -> None:
+    rows = PROJ / "artifacts/strategic_demand/sppo" / f"{MATCHED128_LABEL.lower()}_specialist_crossover_eval_rows.csv"
+    if not rows.is_file():
+        fail(f"own-top50 needs matched-128 rows: {rows.name}")
+    out_dir = PROJ / MATCHED128_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
+    md = out_dir / f"{OWN_TOP50_LABEL}.md"
+    done_mark = out_dir / "OWN_TOP50_DONE.txt"
+    if md.is_file() and done_mark.is_file():
+        log(f"own-top50 already written: {md.name}")
+        return
+    rc = run_logged(
+        [
+            "experiments/select_own_top50.py",
+            "--rows", str(rows.relative_to(PROJ)).replace("\\", "/"),
+            "--label", OWN_TOP50_LABEL,
+            "--out", MATCHED128_DIR,
+            "--scale", "4",
+        ],
+        "own_top50",
+    )
+    if rc != 0 or not md.is_file():
+        fail(f"own-top50 selection failed exit {rc}")
+    done_mark.write_text(f"DONE {now()}\n", encoding="utf-8")
+    log(f"OWN_TOP50 DONE -> {MATCHED128_DIR}/{OWN_TOP50_LABEL}.md")
 
 
 def train_both() -> None:
@@ -805,6 +987,12 @@ def bundle() -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true")
+    ap.add_argument(
+        "--allow-historical-top50",
+        action="store_true",
+        help="OPTIONAL provenance/regression: Separated teachers on frozen historical Ours top-50. "
+             "Skipped by default. Existing results are never deleted.",
+    )
     a = ap.parse_args()
     problems, notes = check()
     if a.check:
@@ -814,6 +1002,9 @@ def main() -> int:
         return 0 if not problems else 1
     if problems:
         fail("pre-run checks failed: " + "; ".join(problems))
+    if a.allow_historical_top50:
+        if not (PROJ / EVAL_SPEC).is_file() or not (PROJ / SEEDS_FILE).is_file():
+            fail("--allow-historical-top50 requires EVAL_SPEC and SEEDS_FILE on disk")
     claim_single_orchestrator()
     state(status="WAITING_FOR_2V2", pid=os.getpid(), k_defend=K)
     log("4v4 DUAL_BRANCH + STAGE4 frozen pipeline started (k=2)")
@@ -865,19 +1056,41 @@ def main() -> int:
         manifest("phase1_technical_seal", seal=str(SEAL.relative_to(PROJ)).replace("\\", "/"))
         state(status="TECHNICALLY_SEALED")
 
-    if not done("phase2_diagnostic"):
+    # Stage-3 PRIMARY: matched-128 -> own top-50. Historical top-50 is opt-in only.
+    if not done("matched128"):
+        matched128_eval()
+        state(step="matched128")
+        manifest("matched128", label="PRIMARY_STAGE3", stops_the_chain=False)
+        log("MATCHED128 DONE (PRIMARY Stage-3 evidence)")
+    if not done("own_top50"):
+        own_top50()
+        state(step="own_top50")
+        manifest("own_top50", label="SECONDARY_DESCRIPTIVE", stops_the_chain=False)
+        log("OWN_TOP50 DONE (secondary descriptive; CPU; no new episodes)")
+
+    if a.allow_historical_top50 and not done("phase2_diagnostic"):
         result = PROJ / "artifacts/strategic_demand/sppo" / f"{EVAL_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
         if not result.is_file():
             rc = run_logged(eval_args() + ["--dry-run"], "eval_dryrun")
             if rc != 0:
-                fail(f"evaluation dry-run failed exit {rc}")
-            log("evaluation dry-run passed")
+                fail(f"historical top-50 dry-run failed exit {rc}")
+            log("historical top-50 dry-run passed (provenance path)")
             rc = run_logged(eval_args() + ["--resume"], "eval")
             if not result.is_file():
-                fail(f"evaluation exited {rc} without {result.name}")
+                fail(f"historical top-50 exited {rc} without {result.name}")
         write_phase2_diagnostic(result)
-        manifest("phase2_diagnostic", label="POST_HOC_DIAGNOSTIC", stops_the_chain=False)
-        log("EVAL DONE (post-hoc top-50 diagnostic; ugly Delta does NOT stop Stage 4)")
+        manifest("phase2_diagnostic", label="PROVENANCE_ONLY", stops_the_chain=False)
+        log("HISTORICAL TOP-50 DONE (provenance/regression only; not primary evidence)")
+    elif not done("phase2_diagnostic"):
+        skip = MANIFESTS / "phase2_historical_top50_SKIPPED.json"
+        skip.write_text(json.dumps({
+            "step": "phase2_historical_top50_SKIPPED",
+            "utc": now(),
+            "reason": "historical top-50 is provenance only; default suite skips the spend",
+            "opt_in": "--allow-historical-top50",
+            "existing_results_preserved": True,
+        }, indent=2) + "\n", encoding="utf-8")
+        log("skipping historical top-50 (provenance only; pass --allow-historical-top50 to spend it)")
 
     if not done("phase3_dataset"):
         if not SEAL.is_file() or json.loads(SEAL.read_text(encoding="utf-8")).get("status") != "SEALED":

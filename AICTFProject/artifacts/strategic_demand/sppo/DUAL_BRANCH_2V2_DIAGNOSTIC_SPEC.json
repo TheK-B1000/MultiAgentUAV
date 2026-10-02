@@ -3,7 +3,16 @@
   "status": "FROZEN_DIAGNOSTIC",
   "utc": "2026-10-02T02:25:00Z",
   "confirmatory": false,
-  "classification": "Post-hoc diagnostic on the already-spent 2v2 top-50. Not confirmatory n=128. A bad Delta does not stop Stage 4. ATTACK weights are the trained dual-branch exports, attested by 2v2/dual_branch_deploy_manifest.json after training.",
+  "classification": "PROVENANCE / REGRESSION ONLY. Optional Separated-teacher eval on the frozen historical Ours top-50. Not primary Stage-3 evidence. Not paper evidence. Default suite skips this spend (--allow-historical-top50 to opt in). Existing sealed results are never deleted.",
+  "ROLE_IN_STAGE3_HIERARCHY": {
+    "matched_128": "PRIMARY evidence",
+    "own_top50_from_matched_128": "secondary descriptive view",
+    "this_historical_top50": "provenance / regression only"
+  },
+  "LAUNCH": {
+    "default_suite": "skipped",
+    "opt_in": "2v2/run_dual_branch_2v2.py --allow-historical-top50  (or .ps1 -AllowHistoricalTop50)"
+  },
   "governed_by": "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
   "k_defend": 1,
   "POST_HOC_MATCHED_ROLE_ABLATIONS": {

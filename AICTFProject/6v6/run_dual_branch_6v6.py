@@ -9,13 +9,18 @@ Resumable. Technical integrity gate only -- never stops because Delta looks bad.
 Phases (STATE.json records each completion):
   Phase 1  smoke A/B, 200k A, 200k B, export ATTACK, write manifest, TECHNICAL SEAL
            (= Ours-Teachers)
-  Phase 2  old top-50 four-cell diagnostic (post-hoc; not a redesign gate)
-  Phase 2b post-hoc matched-128 on historical block 25800001..25800128
-  Phase 2c dual-branch own top-50 (historical rule; CPU; no new episodes)
+  Phase 2  matched-128 on historical block 25800001..25800128  (= PRIMARY Stage-3 evidence)
+  Phase 2b dual-branch own top-50 from those 128 (CPU; secondary descriptive)
+  Phase 2c OPTIONAL provenance: old historical top-50 (--allow-historical-top50)
   Phase 3  Stage-4 dataset from dual-branch teachers
   Phase 4  Share-Encoder -> Ours-Shared Fully Shared+z+r -> Role-only ablation
   Phase 5  Stage-4 student evals (post-hoc top-50)
   Phase 6  populate 6v6/FOR_PROFESSOR/
+
+Stage-3 hierarchy (paper does NOT depend on historical top-50):
+  Matched-128              -> primary evidence
+  Own top-50 from that 128 -> secondary descriptive view
+  Historical top-50        -> provenance / regression only (skipped by default)
 
 k=ceil(6/3)=2. Do not run run_symmetric_6v6.py. Do not distill Generalist.
 Framing: EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json
@@ -104,9 +109,9 @@ STAGE4_ARMS = ("share_encoder", "fully_shared", "role_only")
 # Weighted units for the suite-level ETA bar (roughly proportional to wall time).
 W_SMOKE = 5_000
 W_TRAIN = 200_000
-W_EVAL_CELLS = 50 * 4          # old top-50 four-cell diagnostic
-W_MATCHED128 = 128 * 4         # post-hoc matched-128 (fair overall comparison)
+W_MATCHED128 = 128 * 4         # primary Stage-3 evidence (matched-128)
 W_OWN_TOP50 = 1                # CPU re-rank of sealed matched-128 rows
+W_HIST_TOP50 = 50 * 4          # OPTIONAL provenance-only historical top-50
 W_COLLECT = 96 * 2             # Stage-4 dataset episodes
 W_DISTILL = 20                # distillation epochs per arm
 W_STAGE4_EVAL = 3 * (50 * 4)  # three student arms
@@ -314,10 +319,12 @@ def check() -> tuple[list[str], list[str]]:
                 problems.append(f"foundation hash mismatch {pol}: {got} != {SHA[r['spec_ck']]}")
             else:
                 notes.append(f"foundation {pol} sha OK")
-    if not (PROJ / EVAL_SPEC).is_file():
-        problems.append(f"missing {EVAL_SPEC}")
-    if not (PROJ / SEEDS_FILE).is_file():
-        problems.append(f"missing {SEEDS_FILE}")
+    # Historical top-50 artifacts stay on disk for provenance / --allow-historical-top50;
+    # they are not required for the default Stage-3 path (matched-128 -> own top-50).
+    if (PROJ / EVAL_SPEC).is_file() and (PROJ / SEEDS_FILE).is_file():
+        notes.append("historical top-50 provenance path available (--allow-historical-top50)")
+    else:
+        notes.append("historical top-50 provenance artifacts missing (ok unless --allow-historical-top50)")
     primary = PROJ / PRIMARY_6V6
     if not primary.is_file():
         problems.append(f"missing post-hoc primary record {Path(PRIMARY_6V6).name}")
@@ -331,7 +338,7 @@ def check() -> tuple[list[str], list[str]]:
         if rc.returncode != 0:
             problems.append(f"own-top50 historical rule failed for 6v6: {(rc.stderr or rc.stdout)[:200]}")
         else:
-            notes.append("own-top50 historical rule reproduces frozen 6v6 list")
+            notes.append("own-top50 rule reproduces frozen 6v6 list (CPU selector; regression check)")
     except Exception as exc:  # noqa: BLE001
         problems.append(f"own-top50 verify failed: {exc}")
     try:
@@ -583,8 +590,8 @@ def write_matched128_spec() -> None:
             "k_defend": K,
             "allocator": f"CLOSEST_DEFENDS(k={K}), roles fixed for the episode",
             "unchanged_from_top50_diagnostic": (
-                "every flag of the DUAL_BRANCH_6V6_ROLE_COMPOSITE command except the seeds "
-                "(full block instead of --seed-list) and the label"
+                "same dual-branch deploy pins and CLOSEST_DEFENDS(k) as any provenance "
+                "historical-top50 run; seeds are the full SPENT block (not a seed-list subset)"
             ),
         },
         "POST_HOC_MATCHED_ROLE_ABLATIONS": {
@@ -597,12 +604,16 @@ def write_matched128_spec() -> None:
                 "frozen_attack_B": man["pi_B_attack"],
                 "episodes": MATCHED128_N * 4,
                 "note": (
-                    "all four cells (A@A, B@A, A@B, B@B) on all 128 seeds of the SPENT block; "
-                    "no seed spent, block status unchanged"
+                    "PRIMARY Stage-3 evidence: all four cells on all 128 seeds of the SPENT block; "
+                    "no seed spent, block status unchanged. Historical top-50 is provenance only."
                 ),
             }
         },
         "READING": {
+            "hierarchy": (
+                "Matched-128 = primary evidence; own top-50 derived from these rows = secondary "
+                "descriptive; historical top-50 = provenance/regression only (not required for claims)."
+            ),
             "per_system": (
                 "V(A,A), V(B,A), V(A,B), V(B,B); Delta_A = V(A,A) - V(B,A); "
                 "Delta_B = V(B,B) - V(A,B); the same deltas on score margin (blue - red)"
@@ -617,11 +628,11 @@ def write_matched128_spec() -> None:
             ),
             "own_top50": (
                 "after this seal, experiments/select_own_top50.py --scale 6 applies the historical "
-                "rule to these rows (best-case capability; not an unbiased estimate)"
+                "selection rule to these rows (best-case capability; not an unbiased estimate)"
             ),
         },
         "LAUNCH": {
-            "when": "inside 6v6/run_dual_branch_6v6.py after the technical seal and old top-50 diagnostic",
+            "when": "inside 6v6/run_dual_branch_6v6.py after the technical seal (default Stage-3 path)",
             "eval": eval_cmd,
             "readout": (
                 f".venv/Scripts/python.exe experiments/readout_posthoc_matched_crossover.py "
@@ -909,16 +920,17 @@ def _write_summary(out: Path) -> None:
         f"written_utc: {now()}",
         f"k_defend: {K}  (= ceil(6/3))",
         "pipeline: smoke -> dual-branch train A/B -> export ATTACK -> technical seal",
-        "          -> Stage-3 old top-50 -> matched-128 -> own top-50",
+        "          -> Stage-3 matched-128 (PRIMARY) -> own top-50 (secondary)",
         "          -> Stage-4 dataset/students/evals",
+        "          (historical top-50 is provenance only; skipped unless --allow-historical-top50)",
         "",
         "Rule: if it is not in this FOR_PROFESSOR folder, you do not need it.",
         "",
-        "Three Stage-3 views (same rule as 2v2):",
-        "  old top-50          provenance / matched diagnostic on the old system's best 50",
-        "  dual-branch own-50  best-case strategic capability (A@A/B@B pushed toward 1 by construction;",
+        "Stage-3 hierarchy:",
+        "  matched 128         PRIMARY evidence (same 128 for dual-branch vs old Ours)",
+        "  dual-branch own-50  secondary descriptive (A@A/B@B pushed toward 1 by construction;",
         "                      informative cells are B@A and A@B)",
-        "  matched 128         fair overall comparison on the identical historical block",
+        "  historical top-50   provenance / regression only (not paper evidence)",
         "",
     ]
     result = sd / f"{EVAL_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
@@ -928,7 +940,7 @@ def _write_summary(out: Path) -> None:
         dA = (gate.get("delta_A") or {})
         dB = (gate.get("delta_B") or {})
         lines += [
-            "Stage-3 old top-50 diagnostic (post-hoc; not a redesign gate)",
+            "Stage-3 historical top-50 (PROVENANCE ONLY; not primary evidence)",
             f"  status: {rec.get('status')}",
             f"  Delta_A mean: {dA.get('mean')}",
             f"  Delta_B mean: {dB.get('mean')}",
@@ -972,8 +984,8 @@ def _write_summary(out: Path) -> None:
     lines += [
         "Folders",
         "  TEACHERS/            dual-branch DEFEND finals + exported ATTACK branches",
-        "  STAGE3_EVALUATION/   old top-50 four-cell diagnostic result / rows / audit",
-        "  MATCHED128/          matched-128 readout + dual-branch own top-50",
+        "  STAGE3_EVALUATION/   optional historical top-50 provenance (if --allow-historical-top50)",
+        "  MATCHED128/          PRIMARY matched-128 readout + dual-branch own top-50",
         "  STAGE4_SHARING/      Strategic Representation Under Parameter Sharing:\n"
         "                      Share-Encoder (comparison), Ours-Shared Fully Shared+z+r,\n"
         "                      Role-only ablation + dataset",
@@ -1067,8 +1079,8 @@ def bundle() -> None:
         "This folder is complete. Zip FOR_PROFESSOR in File Explorer and send it.\n"
         "No PowerShell. No rebuild script. Do not dig in artifacts/.\n\n"
         "TEACHERS/              Ours-Teachers: dual-branch DEFEND + ATTACK (A and B)\n"
-        "STAGE3_EVALUATION/     old top-50 four-cell diagnostic (RESULT / rows / audit)\n"
-        "MATCHED128/            matched-128 fair comparison + dual-branch own top-50\n"
+        "STAGE3_EVALUATION/     optional historical top-50 provenance (not primary evidence)\n"
+        "MATCHED128/            PRIMARY matched-128 + dual-branch own top-50\n"
         "STAGE4_SHARING/        Strategic Representation Under Parameter Sharing:\n"
         "                       Share-Encoder (comparison), Ours-Shared Fully Shared+z+r,\n"
         "                       Role-only ablation + dataset/evals\n"
@@ -1077,8 +1089,7 @@ def bundle() -> None:
         "SUMMARY/SUMMARY.txt    short human readout\n\n"
         f"k = ceil(6/3) = {K}. Generalist pi(a|o) is not part of Stage 4.\n"
         "Ours-Shared is part of the proposed framework, not a neutral baseline.\n"
-        "Ugly Delta on Stage-3 diagnostics does not invalidate this package.\n"
-        "Own top-50 is best-case capability, not an unbiased estimate.\n",
+        "Paper Stage-3 evidence is matched-128; own top-50 is secondary; historical top-50 is provenance only.\n",
         encoding="utf-8",
     )
     (out / "READY_TO_ZIP.txt").write_text(
@@ -1102,8 +1113,16 @@ def bundle() -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true")
+    ap.add_argument(
+        "--allow-historical-top50",
+        "--run-historical-top50",
+        dest="allow_historical_top50",
+        action="store_true",
+        help="OPTIONAL provenance/regression: Separated teachers on frozen historical Ours top-50. "
+             "Skipped by default — not primary evidence. Existing results are never deleted.",
+    )
     ap.add_argument("--skip-stage4", action="store_true",
-                    help="stop after Phase 2 (diagnostic); default is full frozen pipeline")
+                    help="stop after Stage-3 (matched-128 + own top-50); default is full pipeline")
     a = ap.parse_args()
     problems, notes = check()
     if a.check:
@@ -1113,6 +1132,9 @@ def main() -> int:
         return 0 if not problems else 1
     if problems:
         fail("pre-run checks failed: " + "; ".join(problems))
+    if a.allow_historical_top50:
+        if not (PROJ / EVAL_SPEC).is_file() or not (PROJ / SEEDS_FILE).is_file():
+            fail("--allow-historical-top50 requires EVAL_SPEC and SEEDS_FILE on disk")
 
     # Remaining weighted work (already-finished STATE steps are omitted so ETA is honest on resume).
     plan: list[tuple[str, int]] = []
@@ -1127,12 +1149,13 @@ def main() -> int:
         plan.append(("export", W_BOOKKEEP))
     if not done("technical_seal"):
         plan.append(("technical_seal", W_BOOKKEEP))
-    if not done("eval"):
-        plan.append(("eval", W_EVAL_CELLS))
+    # Default Stage-3: matched-128 (PRIMARY) -> own top-50. Historical top-50 is opt-in only.
     if not done("matched128"):
         plan.append(("matched128", W_MATCHED128))
     if not done("own_top50"):
         plan.append(("own_top50", W_OWN_TOP50))
+    if a.allow_historical_top50 and not done("eval"):
+        plan.append(("eval_historical_top50", W_HIST_TOP50))
     if not a.skip_stage4:
         if not done("stage4_dataset"):
             plan.append(("stage4_dataset", W_COLLECT))
@@ -1219,37 +1242,39 @@ def main() -> int:
         state(step="technical_seal", status="TECHNICALLY_SEALED")
         _advance_bookkeeping("technical_seal")
 
-    # ---- Phase 2: Stage 3 diagnostics (not a redesign gate) ----
-    if not done("eval"):
+    # ---- Stage 3 PRIMARY: matched-128 + own top-50 (no historical top-50 by default) ----
+    if not done("matched128"):
+        matched128_eval()
+        state(step="matched128")
+        log("MATCHED128 DONE (PRIMARY Stage-3 evidence on historical 128)")
+    if not done("own_top50"):
+        own_top50()
+        state(step="own_top50")
+        log("OWN_TOP50 DONE (secondary descriptive; CPU; no new episodes)")
+
+    # ---- OPTIONAL provenance: historical top-50 (not paper evidence) ----
+    if a.allow_historical_top50 and not done("eval"):
         rc = run_logged(eval_args() + ["--dry-run"], "eval_dryrun")
         if rc != 0:
-            fail(f"evaluation dry-run failed exit {rc}")
-        log("evaluation dry-run passed")
+            fail(f"historical top-50 dry-run failed exit {rc}")
+        log("historical top-50 dry-run passed (provenance path)")
         base = int(PROGRESS["base"])
         rc = run_logged(
             eval_args() + ["--resume"],
             "eval",
-            weight=W_EVAL_CELLS,
+            weight=W_HIST_TOP50,
             overall_base=base,
             overall_total=overall_total,
             overall_bar=overall_bar,
         )
-        PROGRESS["base"] = base + W_EVAL_CELLS
+        PROGRESS["base"] = base + W_HIST_TOP50
         result = PROJ / "artifacts/strategic_demand/sppo" / f"{EVAL_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
         if not result.is_file():
-            fail(f"evaluation exited {rc} without {result.name}")
+            fail(f"historical top-50 exited {rc} without {result.name}")
         state(step="eval")
-        log("EVAL DONE (post-hoc old top-50 diagnostic; ugly Delta does NOT stop Stage 4)")
-
-    # ---- Phase 2b/2c: matched-128 + dual-branch own top-50 ----
-    if not done("matched128"):
-        matched128_eval()
-        state(step="matched128")
-        log("MATCHED128 DONE (fair overall comparison on historical 128)")
-    if not done("own_top50"):
-        own_top50()
-        state(step="own_top50")
-        log("OWN_TOP50 DONE (best-case capability; historical rule; no new episodes)")
+        log("HISTORICAL TOP-50 DONE (provenance/regression only; not primary evidence)")
+    elif not a.allow_historical_top50 and not done("eval"):
+        log("skipping historical top-50 (provenance only; pass --allow-historical-top50 to spend it)")
 
     if a.skip_stage4:
         if not done("bundle"):

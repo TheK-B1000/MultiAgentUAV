@@ -104,8 +104,10 @@ def frac(name: str) -> tuple[float, str]:
         seal = (MANIFESTS / "phase1_technical_seal.json").is_file()
         return ((0.5 if exp else 0.0) + (0.5 if seal else 0.0), "export+seal" if not seal else "sealed")
     if name == "diagnostic":
-        if (MANIFESTS / "phase2_diagnostic.json").is_file():
-            return 1.0, "diagnostic done"
+        if (MANIFESTS / "phase2_diagnostic.json").is_file() or (
+            MANIFESTS / "phase2_historical_top50_SKIPPED.json"
+        ).is_file():
+            return 1.0, "diagnostic done/skipped"
         text = tail(PROJ / "2v2/dual_branch_eval.log.err")
         hits = re.findall(r"(\d+)\s*/\s*(\d+)", text)
         if hits:

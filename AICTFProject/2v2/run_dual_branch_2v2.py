@@ -3,13 +3,18 @@ r"""2v2 frozen pipeline: Ours-Teachers -> Stage 3 -> Stage 4 Ours-Shared. k=ceil
 Resumable. Technical integrity only -- a bad Delta does not stop the chain.
 Does not start a second copy of a live Phase-1 train.
 
+Stage-3 hierarchy (paper does NOT depend on historical top-50):
+  Matched-128              -> primary evidence (dual_branch_v1/matched128_2v2/)
+  Own top-50 from that 128 -> secondary descriptive
+  Historical top-50        -> provenance only; skipped by default (--allow-historical-top50)
+
     cd AICTFProject
     .venv\Scripts\python.exe 2v2\run_dual_branch_2v2.py --check
     powershell -ExecutionPolicy Bypass -File 2v2\run_dual_branch_2v2.ps1
 
 If artifacts/.../dual_branch_v1/run_2v2_dual_branch_sequential.ps1 is already
 training, this process waits for SYM_DUAL_BRANCH_2V2_TRAIN_DONE.txt, then
-exports ATTACK branches and continues Phase 2 through the zip.
+exports ATTACK branches and continues Stage 4 (historical top-50 not spent).
 """
 from __future__ import annotations
 
@@ -313,21 +318,31 @@ def check() -> tuple[list[str], list[str]]:
         problems.append(f"k_defend {K} != ceil(2/3)")
     else:
         notes.append("k_defend=1 = ceil(2/3)")
-    if not (PROJ / EVAL_SPEC).is_file():
-        problems.append(f"missing {EVAL_SPEC}")
-    else:
+    # Historical top-50 is provenance only (opt-in --allow-historical-top50); keep artifacts check soft.
+    if (PROJ / EVAL_SPEC).is_file() and (PROJ / SEEDS_FILE).is_file():
         entry = json.loads((PROJ / EVAL_SPEC).read_text(encoding="utf-8"))
         entry = (entry.get("POST_HOC_MATCHED_ROLE_ABLATIONS") or {}).get(EVAL_LABEL) or {}
-        seeds = json.loads((PROJ / SEEDS_FILE).read_text(encoding="utf-8")) if (PROJ / SEEDS_FILE).is_file() else []
+        seeds = json.loads((PROJ / SEEDS_FILE).read_text(encoding="utf-8"))
         if [int(s) for s in entry.get("seed_ids") or []] != [int(s) for s in seeds]:
-            problems.append("diagnostic spec seed_ids != frozen 2v2 top-50 file")
+            problems.append("historical top-50 provenance: diagnostic seed_ids != frozen file")
         else:
-            notes.append(f"top-50 diagnostic seeds n={len(seeds)}")
-    if not (PROJ / SEEDS_FILE).is_file():
-        problems.append(f"missing {SEEDS_FILE}")
+            notes.append(f"historical top-50 provenance available (n={len(seeds)}; skipped by default)")
+    else:
+        notes.append("historical top-50 provenance artifacts missing (ok unless --allow-historical-top50)")
     primary = PROJ / "artifacts/strategic_demand/sppo" / PRIMARY
     if not primary.is_file():
         problems.append(f"missing post-hoc primary record {PRIMARY}")
+    try:
+        rc = subprocess.run(
+            [PY, "experiments/select_own_top50.py", "--verify-historical", "--scale", "2"],
+            cwd=str(PROJ), capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        if rc.returncode != 0:
+            problems.append(f"own-top50 historical rule failed for 2v2: {(rc.stderr or rc.stdout)[:200]}")
+        else:
+            notes.append("own-top50 rule reproduces frozen 2v2 list (CPU; regression check)")
+    except Exception as exc:  # noqa: BLE001
+        problems.append(f"own-top50 verify failed: {exc}")
     try:
         from experiments import seed_registry as SR
         from experiments import prepare_stage4_baselines as P4
@@ -342,7 +357,7 @@ def check() -> tuple[list[str], list[str]]:
                 notes.append(f"{r['eid']} {b.get('status')}")
         ev = reg.get(EVAL_REG)
         if ev is None or ev.get("status") != "SPENT":
-            problems.append(f"{EVAL_REG} must be SPENT for the post-hoc diagnostic")
+            problems.append(f"{EVAL_REG} must be SPENT for matched-128 / provenance reuse")
         else:
             notes.append(f"{EVAL_REG} SPENT {ev['lo']}..{ev['hi']}")
         for _k, (eid, lo, hi) in P4.blocks(2).items():
@@ -766,6 +781,12 @@ def bundle() -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--check", action="store_true")
+    ap.add_argument(
+        "--allow-historical-top50",
+        action="store_true",
+        help="OPTIONAL provenance/regression: evaluate Separated teachers on the frozen historical "
+             "Ours top-50. Skipped by default — not primary evidence. Existing results are never deleted.",
+    )
     a = ap.parse_args()
     problems, notes = check()
     if a.check:
@@ -775,6 +796,9 @@ def main() -> int:
         return 0 if not problems else 1
     if problems:
         fail("pre-run checks failed: " + "; ".join(problems))
+    if a.allow_historical_top50:
+        if not (PROJ / EVAL_SPEC).is_file() or not (PROJ / SEEDS_FILE).is_file():
+            fail("--allow-historical-top50 requires EVAL_SPEC and SEEDS_FILE on disk")
     state(status="RUNNING", pid=os.getpid(), k_defend=K)
     log("2v2 DUAL_BRANCH + STAGE4 frozen pipeline started (k=1)")
     manifest("phase0_preflight", gate="IMPLEMENTATION_GATE", k_defend=K)
@@ -824,19 +848,32 @@ def main() -> int:
         manifest("phase1_technical_seal", seal=str(SEAL.relative_to(PROJ)).replace("\\", "/"))
         state(status="TECHNICALLY_SEALED")
 
-    if not done("phase2_diagnostic"):
+    # Historical top-50: provenance only. Never delete sealed results; do not spend by default.
+    if a.allow_historical_top50 and not done("phase2_diagnostic"):
         result = PROJ / "artifacts/strategic_demand/sppo" / f"{EVAL_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
         if not result.is_file():
             rc = run_logged(eval_args() + ["--dry-run"], "eval_dryrun")
             if rc != 0:
-                fail(f"evaluation dry-run failed exit {rc}")
-            log("evaluation dry-run passed")
+                fail(f"historical top-50 dry-run failed exit {rc}")
+            log("historical top-50 dry-run passed (provenance path)")
             rc = run_logged(eval_args() + ["--resume"], "eval")
             if not result.is_file():
-                fail(f"evaluation exited {rc} without {result.name}")
+                fail(f"historical top-50 exited {rc} without {result.name}")
         write_phase2_diagnostic(result)
-        manifest("phase2_diagnostic", label="POST_HOC_DIAGNOSTIC", stops_the_chain=False)
-        log("EVAL DONE (post-hoc top-50 diagnostic; ugly Delta does NOT stop Stage 4)")
+        manifest("phase2_diagnostic", label="PROVENANCE_ONLY", stops_the_chain=False)
+        log("HISTORICAL TOP-50 DONE (provenance/regression only; not primary evidence)")
+    elif not done("phase2_diagnostic"):
+        skip = MANIFESTS / "phase2_historical_top50_SKIPPED.json"
+        skip.write_text(json.dumps({
+            "step": "phase2_historical_top50_SKIPPED",
+            "utc": now(),
+            "reason": "historical top-50 is provenance only; default suite skips the spend",
+            "opt_in": "--allow-historical-top50",
+            "existing_results_preserved": True,
+        }, indent=2) + "\n", encoding="utf-8")
+        log("skipping historical top-50 (provenance only; pass --allow-historical-top50 to spend it)")
+    # Matched-128 + own top-50 are the primary Stage-3 path (external chain under
+    # dual_branch_v1/matched128_2v2/ for the live 2v2 suite; do not double-launch here).
 
     if not done("phase3_dataset"):
         if not SEAL.is_file() or json.loads(SEAL.read_text(encoding="utf-8")).get("status") != "SEALED":

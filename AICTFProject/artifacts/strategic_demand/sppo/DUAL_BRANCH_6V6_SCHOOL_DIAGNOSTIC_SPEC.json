@@ -1,11 +1,20 @@
 {
   "record_id": "DUAL_BRANCH_6V6_SCHOOL_DIAGNOSTIC_SPEC",
   "status": "FROZEN_DIAGNOSTIC",
-  "utc": "2026-10-02T02:10:00Z",
+  "utc": "2026-10-02T14:00:00Z",
   "confirmatory": false,
-  "classification": "Post-hoc diagnostic on the already-spent 6v6 top-50. Not the paper confirmatory n=128. ATTACK weights are the trained dual-branch exports, attested by 6v6/dual_branch_deploy_manifest.json after training.",
+  "classification": "PROVENANCE / REGRESSION ONLY. Optional evaluation of dual-branch Separated teachers on the already-spent historical Ours top-50. Not primary Stage-3 evidence. Not paper evidence. Not confirmatory. Kept so the frozen list and old workflow remain reproducible; default 6v6 suite skips this spend.",
   "governed_by": "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
   "k_defend": 2,
+  "ROLE_IN_STAGE3_HIERARCHY": {
+    "matched_128": "PRIMARY evidence",
+    "own_top50_from_matched_128": "secondary descriptive view",
+    "this_historical_top50": "provenance / regression only"
+  },
+  "LAUNCH": {
+    "default_suite": "skipped",
+    "opt_in": "6v6/run_dual_branch_6v6.py --allow-historical-top50  (or .ps1 -AllowHistoricalTop50)"
+  },
   "POST_HOC_MATCHED_ROLE_ABLATIONS": {
     "DUAL_BRANCH_6V6_ROLE_COMPOSITE": {
       "registry_experiment_id": "STANDARDIZED_6V6_SEPARATED_EVAL",
@@ -64,7 +73,7 @@
         25800053,
         25800054
       ],
-      "note": "Same frozen 50 seeds as the old symmetric diagnostic so the school PC can compare rows. Not confirmatory. Attack hashes are NOT the foundation specialists; eval must pass --dual-branch-deploy-manifest."
+      "note": "Frozen 50 seeds of the old asymmetric Ours top-50. Provenance path only. Primary Stage-3 spend is POSTHOC_MATCHED128_6V6_DUAL_BRANCH on the full block."
     }
   }
 }
