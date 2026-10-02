@@ -435,19 +435,36 @@ def main() -> int:
             train_idx.size > 0 and hold_idx.size > 0
             and (arr["pole"][train_idx] == 0).any() and (arr["pole"][train_idx] == 1).any()
         )
+        if dual_teachers:
+            checks["dataset_has_roles"] = bool("roles" in arr)
+            checks["student_role_conditioning"] = bool(
+                getattr(model, "role_conditioning_enabled", False)
+                or (hasattr(model, "branch") and all(
+                    getattr(model.branch[z], "role_conditioning_enabled", False) for z in ("z0", "z1")
+                ))
+            )
         with torch.no_grad():
-            la = TD.head_logits(teachers["pi_A"], obs0)
+            if dual_teachers:
+                la = TD.dual_branch_composite_logits(
+                    teachers["pi_A"]["defend"], teachers["pi_A"]["attack"], obs0
+                )
+            else:
+                la = TD.head_logits(teachers["pi_A"], obs0)
             self_kl, _ = TD.masked_mean(TD.kl_per_head(la, la), dm0)
             z0 = torch.zeros((int(dm0.shape[0]),), dtype=torch.long, device=device)
             z1 = torch.ones((int(dm0.shape[0]),), dtype=torch.long, device=device)
-            a = torch.cat([t.reshape(t.shape[0], -1) for t in TD.head_logits(model, obs0, z_idx=z0)], -1)
-            b = torch.cat([t.reshape(t.shape[0], -1) for t in TD.head_logits(model, obs0, z_idx=z1)], -1)
+            if arm == "role_only":
+                a = torch.cat([t.reshape(t.shape[0], -1) for t in TD.head_logits(model, obs0)], -1)
+                b = a
+            else:
+                a = torch.cat([t.reshape(t.shape[0], -1) for t in TD.head_logits(model, obs0, z_idx=z0)], -1)
+                b = torch.cat([t.reshape(t.shape[0], -1) for t in TD.head_logits(model, obs0, z_idx=z1)], -1)
         checks["teacher_self_kl_zero"] = bool(float(self_kl) == 0.0)
-        if arm == "generalist":   # pi_G(a|o): z must reach nothing (GENERALIST_DEFINITION_V1)
+        if arm in ("generalist", "role_only"):
             checks["z_has_no_pathway"] = bool(float((a - b).abs().max()) == 0.0)
         else:
             checks["z_changes_logits"] = bool(float((a - b).abs().max()) > 0.0)
-        if arm in ("fully_shared", "generalist"):
+        if arm in ("fully_shared", "generalist", "role_only"):
             checks["single_actor_no_second_branch"] = bool(not hasattr(model, "branch"))
         else:
             from rl import ladder_rung1 as L1
@@ -476,7 +493,7 @@ def main() -> int:
         opt.zero_grad(set_to_none=True)
         loss.backward()
         g = lambda ps: any(p.grad is not None and float(p.grad.abs().max()) > 0 for _, p in ps)
-        if arm in ("fully_shared", "generalist"):
+        if arm in ("fully_shared", "generalist", "role_only"):
             checks["grad_actor_not_critic"] = bool(g(actor) and not g(critic))
         else:
             shared = shared_params(model)
@@ -502,11 +519,16 @@ def main() -> int:
         with torch.no_grad():
             for z in (0, 1):
                 zt = torch.full((int(dm0.shape[0]),), z, dtype=torch.long, device=device)
-                for x, y in zip(
-                    TD.head_logits(model, obs0, z_idx=zt),
-                    TD.head_logits(loaded, obs0, z_idx=zt),
-                ):
+                if arm == "role_only":
+                    xs = TD.head_logits(model, obs0)
+                    ys = TD.head_logits(loaded, obs0)
+                else:
+                    xs = TD.head_logits(model, obs0, z_idx=zt)
+                    ys = TD.head_logits(loaded, obs0, z_idx=zt)
+                for x, y in zip(xs, ys):
                     worst = max(worst, float((x - y).abs().max()))
+                if arm == "role_only":
+                    break
         tmp.unlink(missing_ok=True)
         checks["roundtrip"] = bool(worst <= 1e-5)
         n_pass = sum(bool(v) for v in checks.values())
@@ -520,6 +542,7 @@ def main() -> int:
             "initial_loss": float(loss.detach()), "unique_actor_params": n_unique,
             "branch_seeds": list(branch_seeds) if branch_seeds else None,
             "rung": rung,
+            "stage4": stag == "STAGE4",
             "VERDICT": "PASS" if n_pass == len(checks) else "FAIL",
         }, indent=2), encoding="utf-8")
         print(f"  {n_pass}/{len(checks)} -> {paths['preflight']}")
