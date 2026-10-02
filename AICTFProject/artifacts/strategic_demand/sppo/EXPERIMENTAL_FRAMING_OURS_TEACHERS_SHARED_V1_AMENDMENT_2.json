@@ -1,0 +1,29 @@
+{
+  "record_id": "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1_AMENDMENT_2",
+  "status": "FROZEN_FRAMING_AMENDMENT",
+  "utc": "2026-10-02T19:15:00Z",
+  "amends": [
+    "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json",
+    "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1_AMENDMENT_1.json"
+  ],
+  "decided_by": "PI, 2026-10-02: distinguish PROPOSED from VALIDATED. Fully Shared+z+r is a proposed part of the framework, currently being evaluated; it is not a baseline, and its success is not yet established.",
+
+  "CLAIM_STATUS_locked": {
+    "Ours": {
+      "status": "proposed main dual-branch method",
+      "claims_allowed_only_from": "its sealed Stage-3 evaluations (matched-128 primary; own top-50 as best-case, labelled so)"
+    },
+    "Fully Shared+z+r": {
+      "status": "proposed fully shared latent-strategy realization of Ours, CURRENTLY BEING EVALUATED",
+      "rule": "describe it as proposed, never as validated, until its Stage-4 evaluation is sealed. Claim that it preserves the A/B latent strategies ONLY if that evaluation supports it; otherwise report the outcome as allowed by the parent (e.g. 'full sharing did not preserve the A/B distinction under these conditions') and keep it in the Proposed group -- it does not become a baseline after a weak result.",
+      "forbidden_until_supported": ["preserves", "retains", "successfully represents", "captures both strategies", "validated", "demonstrates"]
+    },
+    "Share-Encoder": {"status": "partial-sharing comparison architecture"},
+    "Role-only (r)": {"status": "ablation testing whether z is necessary"},
+    "No-Role Specialists": {"status": "baseline testing whether explicit roles are necessary"}
+  },
+
+  "REFERENCE_WORDING": "Fully Shared+z+r is part of the proposed framework, but we will only claim that it successfully preserves the latent A/B strategies if the Stage-4 evaluation supports that conclusion.",
+
+  "UNCHANGED": "all naming and table rules of AMENDMENT_1; every system, seed, metric and research question"
+}
