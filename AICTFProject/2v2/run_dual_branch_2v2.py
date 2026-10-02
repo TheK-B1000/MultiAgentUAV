@@ -98,7 +98,8 @@ def log(msg: str) -> None:
 
 
 def state(**kw) -> dict:
-    s = json.loads(STATE.read_text(encoding="utf-8")) if STATE.is_file() else {"steps": {}}
+    raw = STATE.read_text(encoding="utf-8-sig") if STATE.is_file() else ""
+    s = json.loads(raw) if raw.strip() else {"steps": {}}
     s.update({k: v for k, v in kw.items() if k != "step"})
     if "step" in kw:
         s.setdefault("steps", {})[kw["step"]] = now()
