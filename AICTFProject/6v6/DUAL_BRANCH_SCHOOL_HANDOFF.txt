@@ -19,9 +19,13 @@
 #      Get-Content 6v6\dual_branch_OVERALL.log.err -Wait -Tail 5
 #
 # Pipeline order:
-#   smoke A/B -> dual-branch train A/B -> export ATTACK -> technical seal
-#   -> Stage-3 top-50 diagnostic -> Stage-4 dataset/students/evals
+#   Ours-Teachers: smoke A/B -> dual-branch train A/B -> export ATTACK -> technical seal
+#   -> Stage-3 top-50 diagnostic -> Stage-4 dataset
+#   -> Share-Encoder (comparison) / Ours-Shared Fully Shared+z+r / Role-only ablation
 #   -> populate 6v6/FOR_PROFESSOR/
+#
+# Framing: Ours-Teachers = dual-branch teachers; Ours-Shared = Fully Shared+z+r
+# (EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json). Not "parameter-sharing baselines."
 #
 # Do NOT run 6v6\run_symmetric_6v6.ps1 unless you intentionally want the
 # defender-only ablation (it refuses without --allow-exploratory-ablation).

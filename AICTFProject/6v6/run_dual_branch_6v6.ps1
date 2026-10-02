@@ -20,11 +20,11 @@ if ($LASTEXITCODE -ne 0) {
 $p = Start-Process -FilePath $py -ArgumentList '6v6\run_dual_branch_6v6.py' -WorkingDirectory $proj -WindowStyle Hidden -PassThru `
      -RedirectStandardOutput '6v6\dual_branch_6v6.stdout' -RedirectStandardError '6v6\dual_branch_6v6.stderr'
 Write-Host "Started dual-branch + Stage4 6v6 pipeline (pid $($p.Id))."
-Write-Host "  Phase1: smoke -> 200k A/B -> export -> TECHNICAL SEAL"
+Write-Host "  Phase1: Ours-Teachers smoke -> 200k A/B -> export -> TECHNICAL SEAL"
 Write-Host "  Phase2: top-50 diagnostic (ugly Delta does NOT stop the run)"
-Write-Host "  Phase3-4: Stage4 dataset + Share-Encoder / FullyShared+z+r / Role-only"
-Write-Host "  Phase5-6: Stage4 evals + zip"
-Write-Host "  Get-Content $proj\6v6\dual_branch_6v6.log -Wait -Tail 20"
-Write-Host "Zip when finished: $proj\6v6\dual_branch_6v6_results.zip"
+Write-Host "  Phase3-4: Stage4 dataset + Share-Encoder / Ours-Shared z+r / Role-only"
+Write-Host "  Phase5-6: Stage4 evals + FOR_PROFESSOR/"
+Write-Host "  Get-Content $proj\6v6\dual_branch_OVERALL.log.err -Wait -Tail 5"
+Write-Host "When finished: zip 6v6\FOR_PROFESSOR in File Explorer (see START_HERE.txt)."
 Write-Host "If the PC restarts, run this same command again -- it resumes from STATE.json."
 Write-Host "Do not run run_symmetric_6v6.ps1 (defender-only ablation)."

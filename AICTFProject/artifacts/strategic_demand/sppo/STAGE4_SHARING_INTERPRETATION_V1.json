@@ -17,11 +17,20 @@
   },
 
   "FINAL_STAGE4_LADDER_locked": [
-    "Separated",
-    "Share-Encoder",
-    "Fully Shared+z+r  :=  pi(a | o, z, r)",
-    "Role-only r       :=  pi(a | o, r)"
+    "Separated / Ours-Teachers",
+    "Share-Encoder (comparison)",
+    "Ours-Shared: Fully Shared+z+r  :=  pi(a | o, z, r)",
+    "Role-only r       :=  pi(a | o, r)  (ablation of Ours-Shared)"
   ],
+
+  "OURS_SHARED_locked": {
+    "name": "Ours-Shared",
+    "policy": "Fully Shared+z+r := pi(a | o, z, r)",
+    "status": "proposed shared/latent realization of the framework; not a neutral baseline",
+    "critical_ablation": "Role-only pi(a | o, r)",
+    "section_title": "Strategic Representation Under Parameter Sharing",
+    "framing_record": "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json"
+  },
 
   "NOT_the_final_Stage4_ladder": [
     "Share-Encoder -> Fully Shared+z -> Generalist pi(a|o)"

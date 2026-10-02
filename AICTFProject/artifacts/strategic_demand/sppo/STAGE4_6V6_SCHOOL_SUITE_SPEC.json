@@ -7,25 +7,28 @@
   "parent": [
     "PAPER_END_TO_END_STORY_V1.json",
     "STAGE4_SHARING_INTERPRETATION_V1.json",
-    "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json"
+    "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+    "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json"
   ],
   "AUTHORIZES": [
     "reserve Stage-4 collection and student-init seed blocks for 6v6",
     "freeze SUITE_DISTILLATION_6V6_STAGE4_SPEC after dual-branch deploy manifest exists",
     "collect Stage-4 dataset with --dataset-tag STAGE4",
-    "distill share_encoder, fully_shared (z+r), role_only under dual-branch teachers",
+    "distill share_encoder, fully_shared (z+r)=Ours-Shared, role_only under dual-branch teachers",
     "post-hoc top-50 diagnostic eval of Stage-4 students",
     "chain these stages inside 6v6/run_dual_branch_6v6.py after the dual-branch core seals"
   ],
-  "TEACHERS_locked": "dual-branch role composites from 6v6/dual_branch_deploy_manifest.json (ATTACK exports + DEFEND finals), not 1M foundations",
+  "TEACHERS_locked": "Ours-Teachers: dual-branch role composites from 6v6/dual_branch_deploy_manifest.json (ATTACK exports + DEFEND finals), not 1M foundations",
   "LADDER_locked": [
-    "Separated (the dual-branch teachers themselves; already scored by the dual-branch diagnostic)",
-    "Share-Encoder",
-    "Fully Shared+z+r := pi(a | o, z, r)",
-    "Role-only := pi(a | o, r)"
+    "Separated / Ours-Teachers (already scored by the dual-branch diagnostic)",
+    "Share-Encoder (comparison)",
+    "Ours-Shared: Fully Shared+z+r := pi(a | o, z, r)",
+    "Role-only := pi(a | o, r) (ablation of Ours-Shared)"
   ],
+  "SECTION_NAMING_locked": "Strategic Representation Under Parameter Sharing (not Parameter-Sharing Baselines)",
   "NOT_AUTHORIZED": [
     "reusing SYM / historical Fully Shared+z / Generalist as Stage 4",
+    "calling Ours-Shared a neutral baseline",
     "foundation specialists as KL teachers",
     "claiming confirmatory n=128 status for Stage-4 student evals"
   ],

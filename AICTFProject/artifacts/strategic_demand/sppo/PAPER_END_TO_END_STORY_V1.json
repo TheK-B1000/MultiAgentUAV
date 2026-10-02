@@ -9,7 +9,21 @@
 
   "CENTRAL_CLAIM": "strategy != role. Roles answer who does what. z answers what overall team behavior is being executed.",
 
-  "PIPELINE_boxed": "opponent demand -> role-organized strategic teachers -> shared latent strategic representation",
+  "OURS_FORMS_locked": {
+    "Ours-Teachers": "dual-branch role-organized A/B teachers (main construction)",
+    "Ours-Shared": "Fully Shared+z+r := pi(a | o, z, r) distilled from sealed Ours-Teachers (shared latent-strategy realization of the framework; not a neutral baseline)",
+    "framing_record": "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json"
+  },
+
+  "RESEARCH_QUESTIONS_locked": {
+    "RQ1": "Strategic differentiation: does symmetric dual-branch produce reproducibly different opponent-conditioned team strategies at 2v2/4v4/6v6?",
+    "RQ2": "Role mechanism: does explicit ATTACK/DEFEND organization create/preserve distinctions absent or weaker in no-role specialists?",
+    "RQ3": "Shared latent representation: can teacher strategies survive inside a shared policy with explicit z and r?",
+    "RQ4": "Is z necessary: with r retained but z removed, does the A/B distinction collapse?",
+    "section_title_for_RQ3_RQ4": "Strategic Representation Under Parameter Sharing (not 'Parameter-Sharing Baselines')"
+  },
+
+  "PIPELINE_boxed": "opponent demand -> role-organized strategic teachers (Ours-Teachers) -> shared latent strategic representation (Ours-Shared)",
 
   "THE_QUESTION": "Can explicit role organization preserve distinct opponent-conditioned strategies as multi-agent teams scale, and can those strategies subsequently be represented within a shared policy through a compact latent strategic representation?",
 
@@ -65,11 +79,12 @@
       "what_this_tests": "Can one shared policy encode and preserve distinct strategic modes, and is z necessary once the agent already knows its role?",
       "naming": "latent strategic representation or strategy-conditioned latent mode. Do not say the network autonomously discovered two latent strategies.",
       "sharing_ladder_remove_information": [
-        "Separated: four teacher branches A_ATTACK, A_DEFEND, B_ATTACK, B_DEFEND",
-        "Share-Encoder",
-        "Fully shared + strategy z + role r: pi(a | o, z, r)",
-        "Role only: pi(a | o, r), strategy z removed"
+        "Separated / Ours-Teachers: four teacher branches A_ATTACK, A_DEFEND, B_ATTACK, B_DEFEND",
+        "Share-Encoder (comparison baseline)",
+        "Ours-Shared: Fully shared + strategy z + role r: pi(a | o, z, r)",
+        "Role only: pi(a | o, r), strategy z removed (critical ablation of Ours-Shared)"
       ],
+      "ours_shared_is_not_a_baseline": true,
       "role_only_question": "If the model still knows it is ATTACK or DEFEND but no longer knows Strategy A vs Strategy B, is role information enough, or is a distinct strategic representation necessary?",
       "fully_shared_question": "Can one network preserve both strategies when told which strategic mode to execute and which role this agent has?",
       "teachers_must_be": "the sealed dual-branch role composites from Stage 2, not historical frozen-ATTACK pi_DA / pi_DB"
@@ -110,8 +125,8 @@
       "scaling 2v2 to 6v6 changes the difficulty of maintaining strategic distinction"
     ],
     "reviewer_crack_closed_by_redesign": "Why does A get role machinery while B does not? Both strategies now receive the same foundation procedure, same ATTACK/DEFEND split, same k=ceil(N/3), same 200k joint role training.",
-    "live_method": "DUAL_BRANCH_ROLE_COMPOSITE_V1 teachers -> Stage 3 diagnostics -> Stage 4 ladder Separated / Share-Encoder / Fully Shared+z+r / Role-only r",
-    "sharper_Stage4_question": "After organization is controlled through r, does z still carry strategic information?",
+    "live_method": "DUAL_BRANCH_ROLE_COMPOSITE_V1 teachers (Ours-Teachers) -> Stage 3 diagnostics -> Stage 4 ladder Separated / Share-Encoder / Ours-Shared Fully Shared+z+r / Role-only r",
+    "sharper_Stage4_question": "After organization is controlled through r, does z still carry strategic information? Ours-Shared is the proposed shared realization; Role-only is the ablation.",
     "success_criterion_not": "Roles restore positive Delta_A, Delta_B (too narrow as sole definition)",
     "success_criterion_preferred": "Explicit role organization provides a common coordination scaffold under which opponent-conditioned strategic modes can remain behaviorally distinct as team size increases. We then test whether those distinctions survive parameter sharing and whether a separate strategic representation z is needed beyond role information r. Crossover and Delta are evidence of functional relevance, not the sole definition of strategy.",
     "remaining_work": "finish frozen runs -> measure behavior -> run new sharing ladder -> write",
@@ -134,9 +149,10 @@
     "fresh behavioral + crossover evaluation",
     "freeze A/B strategic teachers",
     "distillation dataset from both modes",
-    "Separated teachers; then Share-Encoder; Fully shared + z + r; role r only (no z)",
+    "Separated teachers; then Share-Encoder; Ours-Shared Fully shared + z + r; role r only (no z)",
     "evaluate behavioral strategy preservation plus crossover / win-rate / score evidence"
   ],
 
-  "STAGE4_INTERPRETATION": "STAGE4_SHARING_INTERPRETATION_V1.json (frozen wording: Role-only not Generalist; historical Fully Shared+z / Generalist suite is provenance only)"
+  "STAGE4_INTERPRETATION": "STAGE4_SHARING_INTERPRETATION_V1.json (frozen wording: Role-only not Generalist; historical Fully Shared+z / Generalist suite is provenance only)",
+  "EXPERIMENTAL_FRAMING": "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json (Ours-Teachers / Ours-Shared; RQ1-RQ4; section title Strategic Representation Under Parameter Sharing)"
 }

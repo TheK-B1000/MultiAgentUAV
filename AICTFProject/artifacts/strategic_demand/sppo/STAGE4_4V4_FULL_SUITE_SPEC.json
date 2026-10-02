@@ -1,8 +1,8 @@
 {
   "record_id": "STAGE4_4V4_FULL_SUITE_SPEC",
-  "status": "AUTHORIZED_NOT_LAUNCHED",
-  "utc": "2026-10-02T02:25:00Z",
-  "classification": "EXPERIMENTAL PROTOCOL. Same pipeline as 2v2 and 6v6. Not PAPER-FAITHFUL. Not confirmatory. Seed blocks may be reserved; do not launch 4v4 training from the 2v2 watcher.",
+  "status": "AUTHORIZED",
+  "utc": "2026-10-02T02:40:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL. Same pipeline as 2v2 and 6v6. Not PAPER-FAITHFUL. Not confirmatory. The 4v4 orchestrator waits until 2v2/manifests/phase6_package.json exists, then runs. It does not start while 2v2 still owns the GPU.",
   "decided_by": "PI, 2026-10-01: 2v2, 4v4, and 6v6 execute the same scientific pipeline. Only team size, k=ceil(N/3), checkpoints, and seeds differ.",
   "parent": [
     "STAGE4_SHARING_INTERPRETATION_V1.json",
@@ -12,14 +12,19 @@
   ],
   "SCALE": {"N": 4, "k_defend": 2, "k_rule": "ceil(N/3)"},
   "LADDER_locked": [
-    "Separated (the dual-branch teachers themselves)",
-    "Share-Encoder",
-    "Fully Shared+z+r := pi(a | o, z, r)",
-    "Role-only := pi(a | o, r)"
+    "Separated / Ours-Teachers",
+    "Share-Encoder (comparison)",
+    "Ours-Shared: Fully Shared+z+r := pi(a | o, z, r)",
+    "Role-only := pi(a | o, r) (ablation of Ours-Shared)"
   ],
   "NOT_AUTHORIZED": [
-    "launching 4v4 dual-branch training from 2v2/run_dual_branch_2v2.py",
     "Generalist pi(a|o) as a Stage-4 rung",
+    "calling Ours-Shared a neutral baseline",
     "foundation specialists as KL teachers"
-  ]
+  ],
+  "LAUNCH": {
+    "after_2v2_suite": "4v4/run_dual_branch_4v4.py waits for 2v2/manifests/phase6_package.json",
+    "check": ".venv/Scripts/python.exe 4v4/run_dual_branch_4v4.py --check",
+    "suite": "powershell -ExecutionPolicy Bypass -File 4v4/run_dual_branch_4v4.ps1"
+  }
 }

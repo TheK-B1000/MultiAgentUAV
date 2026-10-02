@@ -1,4 +1,4 @@
-r"""6v6 frozen pipeline: dual-branch teachers -> Stage 3 diagnostics -> Stage 4 sharing.
+r"""6v6 frozen pipeline: Ours-Teachers -> Stage 3 diagnostics -> Stage 4 Ours-Shared.
 
 Resumable. Technical integrity gate only -- never stops because Delta looks bad.
 
@@ -8,13 +8,15 @@ Resumable. Technical integrity gate only -- never stops because Delta looks bad.
 
 Phases (STATE.json records each completion):
   Phase 1  smoke A/B, 200k A, 200k B, export ATTACK, write manifest, TECHNICAL SEAL
+           (= Ours-Teachers)
   Phase 2  top-50 four-cell diagnostic (post-hoc; not a redesign gate)
   Phase 3  Stage-4 dataset from dual-branch teachers
-  Phase 4  Share-Encoder -> Fully Shared+z+r -> Role-only
+  Phase 4  Share-Encoder -> Ours-Shared Fully Shared+z+r -> Role-only ablation
   Phase 5  Stage-4 student evals (post-hoc top-50)
-  Phase 6  bundle everything
+  Phase 6  populate 6v6/FOR_PROFESSOR/
 
 k=ceil(6/3)=2. Do not run run_symmetric_6v6.py. Do not distill Generalist.
+Framing: EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json
 """
 from __future__ import annotations
 
@@ -721,7 +723,9 @@ def _write_summary(out: Path) -> None:
         "Folders",
         "  TEACHERS/            dual-branch DEFEND finals + exported ATTACK branches",
         "  STAGE3_EVALUATION/   top-50 four-cell diagnostic result / rows / audit",
-        "  STAGE4_SHARING/      Share-Encoder, Fully Shared+z+r, Role-only + dataset",
+        "  STAGE4_SHARING/      Strategic Representation Under Parameter Sharing:\n"
+        "                      Share-Encoder (comparison), Ours-Shared Fully Shared+z+r,\n"
+        "                      Role-only ablation + dataset",
         "  SEALS/               technical seal, teacher seal, deploy manifest",
         "  PROVENANCE/          STATE, overall progress logs, pipeline log",
         "  SUMMARY/             this file",
@@ -796,17 +800,20 @@ def bundle() -> None:
         encoding="utf-8",
     )
     (out / "README.txt").write_text(
-        "6v6 dual-branch + Stage 4 — professor package\n"
-        "==============================================\n\n"
+        "6v6 Ours-Teachers + Stage 4 (Ours-Shared) — professor package\n"
+        "=============================================================\n\n"
         "This folder is complete. Zip FOR_PROFESSOR in File Explorer and send it.\n"
         "No PowerShell. No rebuild script. Do not dig in artifacts/.\n\n"
-        "TEACHERS/              dual-branch DEFEND finals + exported ATTACK (A and B)\n"
+        "TEACHERS/              Ours-Teachers: dual-branch DEFEND + ATTACK (A and B)\n"
         "STAGE3_EVALUATION/     top-50 four-cell diagnostic (RESULT / rows / audit)\n"
-        "STAGE4_SHARING/        Share-Encoder, Fully Shared+z+r, Role-only + dataset/evals\n"
+        "STAGE4_SHARING/        Strategic Representation Under Parameter Sharing:\n"
+        "                       Share-Encoder (comparison), Ours-Shared Fully Shared+z+r,\n"
+        "                       Role-only ablation + dataset/evals\n"
         "SEALS/                 technical seal, teacher seal, deploy manifest, auth specs\n"
         "PROVENANCE/            STATE, overall progress, per-stage logs\n"
         "SUMMARY/SUMMARY.txt    short human readout\n\n"
         f"k = ceil(6/3) = {K}. Generalist pi(a|o) is not part of Stage 4.\n"
+        "Ours-Shared is part of the proposed framework, not a neutral baseline.\n"
         "Ugly Delta on the Stage-3 diagnostic does not invalidate this package.\n",
         encoding="utf-8",
     )

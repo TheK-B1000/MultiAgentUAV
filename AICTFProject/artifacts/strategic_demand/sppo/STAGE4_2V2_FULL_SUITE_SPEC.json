@@ -21,15 +21,16 @@
   ],
   "TEACHERS_locked": "dual-branch role composites from 2v2/dual_branch_deploy_manifest.json (ATTACK exports + DEFEND finals), not 1M foundations and not the historical defender-only symmetric run",
   "LADDER_locked": [
-    "Separated (the dual-branch teachers themselves; scored by the Phase-2 diagnostic)",
-    "Share-Encoder",
-    "Fully Shared+z+r := pi(a | o, z, r)",
-    "Role-only := pi(a | o, r)"
+    "Separated / Ours-Teachers",
+    "Share-Encoder (comparison)",
+    "Ours-Shared: Fully Shared+z+r := pi(a | o, z, r)",
+    "Role-only := pi(a | o, r) (ablation of Ours-Shared)"
   ],
   "DIAGNOSTIC_locked": "Frozen 2v2 top-50 is post-hoc. A bad Delta does not stop Phase 3.",
   "NOT_AUTHORIZED": [
     "a second copy of the live 2v2 dual-branch train while that chain is still running",
     "reusing historical Fully Shared+z / Generalist pi(a|o) as Stage 4",
+    "calling Ours-Shared a neutral baseline",
     "foundation specialists as KL teachers",
     "claiming confirmatory n=128 status for these diagnostics"
   ],

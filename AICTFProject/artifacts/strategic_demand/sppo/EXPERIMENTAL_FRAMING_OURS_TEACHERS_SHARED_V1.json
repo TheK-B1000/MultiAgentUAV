@@ -1,0 +1,87 @@
+{
+  "record_id": "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1",
+  "status": "FROZEN_FRAMING",
+  "utc": "2026-10-02T03:10:00Z",
+  "classification": "PAPER EXPERIMENTAL FRAMING FREEZE. Experimental protocol wording. Not PAPER-FAITHFUL. Does not invent results. Does not authorize new architectures.",
+  "decided_by": "PI, 2026-10-01: Fully Shared+z+r is not 'just another baseline'; it is the shared/latent realization of the proposed framework. Rename parameter-sharing section accordingly.",
+  "parent": [
+    "PAPER_END_TO_END_STORY_V1.json",
+    "STAGE4_SHARING_INTERPRETATION_V1.json",
+    "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json"
+  ],
+
+  "OURS_FORMS_locked": {
+    "Ours-Teachers": {
+      "definition": "dual-branch role-organized A/B teachers (DUAL_BRANCH_ROLE_COMPOSITE_V1)",
+      "policy_family": "Separated role composites: for each s in {A,B}, {pi_s,ATTACK, pi_s,DEFEND}",
+      "role": "main role-organized strategy construction"
+    },
+    "Ours-Shared": {
+      "definition": "Fully Shared+z+r := pi(a | o, z, r) distilled from sealed Ours-Teachers",
+      "role": "shared latent-strategy realization of the proposed framework",
+      "not": "a neutral comparison baseline treated like Share-Encoder"
+    }
+  },
+
+  "COMPARISON_SET_locked": [
+    {"system": "No-Role Specialists", "tests": "Baseline: are roles actually necessary?"},
+    {"system": "Ours-Teachers", "tests": "Main role-organized strategy construction"},
+    {"system": "Separated", "tests": "Reference: preserve teachers with no sharing pressure (same as Ours-Teachers at Stage 4 entry)"},
+    {"system": "Share-Encoder", "tests": "Baseline: how much sharing can happen before strategy changes?"},
+    {"system": "Ours-Shared (Fully Shared+z+r)", "tests": "Can one shared network preserve A/B as strategic modes?"},
+    {"system": "Role-only pi(a|o,r)", "tests": "Ablation: does removing z destroy the A/B distinction?"}
+  ],
+
+  "SECTION_NAMING_locked": {
+    "old_title_retired_for_live_Stage4": "Parameter-Sharing Baselines",
+    "new_title": "Strategic Representation Under Parameter Sharing",
+    "inside_sentence": "We compare a separated reference, a partially shared encoder, our fully shared strategy-conditioned representation (Ours-Shared), and a role-only ablation."
+  },
+
+  "RESEARCH_QUESTIONS_locked": {
+    "RQ1_Strategic_differentiation": "Does the symmetric dual-branch method produce reproducibly different opponent-conditioned team strategies across 2v2, 4v4, and 6v6?",
+    "RQ2_Role_mechanism": "Does explicit ATTACK/DEFEND organization create or preserve strategic distinctions that are absent or weaker in the no-role specialists?",
+    "RQ3_Shared_latent_representation": "Can the strategies produced by the role-organized teachers be preserved inside a shared policy using an explicit strategic mode z and role r?",
+    "RQ4_Is_z_necessary": "When role information r is retained but strategic mode z is removed, does the A/B strategic distinction collapse?",
+    "secondary": "raw win rate and robustness are secondary analyses, not central contribution questions"
+  },
+
+  "PROGRESSION_locked": [
+    "RQ1: Do A and B actually become different strategies?",
+    "RQ2: Did explicit organization help produce that distinction?",
+    "RQ3: Can those strategies survive sharing as latent modes?",
+    "RQ4: Does removing z specifically erase strategy?"
+  ],
+
+  "EVIDENCE_MAP_locked": {
+    "RQ1": "Ours-Teachers A vs B: behavioral signatures + four-cell crossover; Delta is functional evidence, not the sole definition",
+    "RQ2": "No-Role Specialists vs Ours-Teachers (same role construction on A and B)",
+    "RQ3": "Separated -> Share-Encoder -> Ours-Shared (z+r) as a sharing ladder, not a win-rate horse race",
+    "RQ4": "pi(a|o,z,r) vs pi(a|o,r) under matched data, roles, budget, and eval"
+  },
+
+  "HOPEFUL_PATTERN_not_a_gate": [
+    "No-Role: strategies weak / partially collapse",
+    "Ours-Teachers: clear A/B behavioral distinction",
+    "Separated: retains distinction",
+    "Share-Encoder: mostly retains distinction",
+    "Ours-Shared + z+r: retains distinction in one shared net",
+    "Role-only: loses or weakens A/B distinction"
+  ],
+
+  "ALLOWED_OUTCOMES_still": [
+    "Role-only also preserves A/B -> z may be unnecessary under these conditions",
+    "Ours-Shared also collapses -> aggressive sharing may destroy strategic structure",
+    "teachers never become behaviorally distinct -> Stage 4 cannot invent a distinction that is not there"
+  ],
+
+  "ONE_LINE_STORY": "roles organize; z carries strategy",
+
+  "HISTORICAL_TABLES": "Old sealed Share-Encoder / Fully Shared+z / Generalist numbers remain provenance under asymmetric teachers. Do not relabel those historical Fully Shared+z rows as Ours-Shared.",
+
+  "NOT_AUTHORIZED": [
+    "calling Ours-Shared a baseline in the live Stage 4 writeup",
+    "claiming confirmatory results before the dual-branch Stage 4 seals exist",
+    "reintroducing Generalist pi(a|o) as a Stage 4 rung"
+  ]
+}

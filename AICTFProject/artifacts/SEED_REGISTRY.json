@@ -2671,6 +2671,30 @@
       "allocated_utc": "2026-10-02T01:56:11Z"
     },
     {
+      "experiment_id": "STAGE4_2V2_SUITE_DATASET_POLE_A",
+      "purpose": "Stage-4 dual-branch sharing suite 2v2: collection_A",
+      "seed_class": "exploratory",
+      "lo": 27000001,
+      "hi": 27000096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
+    },
+    {
+      "experiment_id": "STAGE4_4V4_SUITE_DATASET_POLE_A",
+      "purpose": "Stage-4 dual-branch sharing suite 4v4: collection_A",
+      "seed_class": "exploratory",
+      "lo": 27001001,
+      "hi": 27001096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
+    },
+    {
       "experiment_id": "STAGE4_6V6_SUITE_DATASET_POLE_A",
       "purpose": "Stage-4 dual-branch sharing suite 6v6: collection_A",
       "seed_class": "exploratory",
@@ -2681,6 +2705,30 @@
       "spec": "experiments/prepare_stage4_baselines.py",
       "subdivides": null,
       "allocated_utc": "2026-10-02T02:21:46Z"
+    },
+    {
+      "experiment_id": "STAGE4_2V2_SUITE_DATASET_POLE_B",
+      "purpose": "Stage-4 dual-branch sharing suite 2v2: collection_B",
+      "seed_class": "exploratory",
+      "lo": 27100001,
+      "hi": 27100096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
+    },
+    {
+      "experiment_id": "STAGE4_4V4_SUITE_DATASET_POLE_B",
+      "purpose": "Stage-4 dual-branch sharing suite 4v4: collection_B",
+      "seed_class": "exploratory",
+      "lo": 27101001,
+      "hi": 27101096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
     },
     {
       "experiment_id": "STAGE4_6V6_SUITE_DATASET_POLE_B",
@@ -2695,6 +2743,30 @@
       "allocated_utc": "2026-10-02T02:21:46Z"
     },
     {
+      "experiment_id": "STAGE4_2V2_SHARE_ENCODER_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 2v2: share_encoder",
+      "seed_class": "exploratory",
+      "lo": 27200001,
+      "hi": 27200002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
+    },
+    {
+      "experiment_id": "STAGE4_4V4_SHARE_ENCODER_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 4v4: share_encoder",
+      "seed_class": "exploratory",
+      "lo": 27201001,
+      "hi": 27201002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
+    },
+    {
       "experiment_id": "STAGE4_6V6_SHARE_ENCODER_TRAINING",
       "purpose": "Stage-4 dual-branch sharing suite 6v6: share_encoder",
       "seed_class": "exploratory",
@@ -2705,6 +2777,30 @@
       "spec": "experiments/prepare_stage4_baselines.py",
       "subdivides": null,
       "allocated_utc": "2026-10-02T02:21:46Z"
+    },
+    {
+      "experiment_id": "STAGE4_2V2_FULLY_SHARED_ZR_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 2v2: fully_shared",
+      "seed_class": "exploratory",
+      "lo": 27300001,
+      "hi": 27300001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
+    },
+    {
+      "experiment_id": "STAGE4_4V4_FULLY_SHARED_ZR_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 4v4: fully_shared",
+      "seed_class": "exploratory",
+      "lo": 27301001,
+      "hi": 27301001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
     },
     {
       "experiment_id": "STAGE4_6V6_FULLY_SHARED_ZR_TRAINING",
@@ -2719,6 +2815,30 @@
       "allocated_utc": "2026-10-02T02:21:46Z"
     },
     {
+      "experiment_id": "STAGE4_2V2_ROLE_ONLY_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 2v2: role_only",
+      "seed_class": "exploratory",
+      "lo": 27400001,
+      "hi": 27400001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
+    },
+    {
+      "experiment_id": "STAGE4_4V4_ROLE_ONLY_TRAINING",
+      "purpose": "Stage-4 dual-branch sharing suite 4v4: role_only",
+      "seed_class": "exploratory",
+      "lo": 27401001,
+      "hi": 27401001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "experiments/prepare_stage4_baselines.py",
+      "subdivides": null,
+      "allocated_utc": "2026-10-02T02:30:55Z"
+    },
+    {
       "experiment_id": "STAGE4_6V6_ROLE_ONLY_TRAINING",
       "purpose": "Stage-4 dual-branch sharing suite 6v6: role_only",
       "seed_class": "exploratory",
@@ -2731,7 +2851,7 @@
       "allocated_utc": "2026-10-02T02:21:46Z"
     }
   ],
-  "updated_utc": "2026-10-02T02:21:46Z",
+  "updated_utc": "2026-10-02T02:30:55Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

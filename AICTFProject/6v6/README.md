@@ -22,9 +22,10 @@ No PowerShell. No packing script. No `artifacts/` tree.
 │   ├── READY_TO_ZIP.txt
 │   ├── SUMMARY/
 │   │   └── SUMMARY.txt
-│   ├── TEACHERS/               dual-branch DEFEND + ATTACK (A and B)
+│   ├── TEACHERS/               Ours-Teachers: dual-branch DEFEND + ATTACK (A and B)
 │   ├── STAGE3_EVALUATION/      top-50 four-cell diagnostic
-│   ├── STAGE4_SHARING/         Share-Encoder / Fully Shared+z+r / Role-only
+│   ├── STAGE4_SHARING/         Strategic Representation Under Parameter Sharing:
+│   │                             Share-Encoder / Ours-Shared Fully Shared+z+r / Role-only
 │   ├── SEALS/
 │   └── PROVENANCE/
 ├── dual_branch_OVERALL.log.err <- watch while running
