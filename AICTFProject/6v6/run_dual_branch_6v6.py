@@ -19,21 +19,28 @@ k=ceil(6/3)=2. Do not run run_symmetric_6v6.py. Do not distill Generalist.
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 PROJ = Path(__file__).resolve().parents[1]
 REPO = PROJ.parent
 os.chdir(PROJ)
 sys.path.insert(0, str(PROJ))
 
+from experiments.tqdm_loop import set_postfix, tqdm_iter  # noqa: E402
+
 LOG = PROJ / "6v6" / "dual_branch_6v6.log"
 STATE = PROJ / "6v6" / "dual_branch_6v6_STATE.json"
+OVERALL_ERR = PROJ / "6v6" / "dual_branch_OVERALL.log.err"
+OVERALL_JSON = PROJ / "6v6" / "dual_branch_OVERALL_PROGRESS.json"
 SEAL = PROJ / "6v6" / "DUAL_BRANCH_6V6_TECHNICAL_SEAL.json"
 STAGE4_TEACHERS = PROJ / "artifacts" / "strategic_demand" / "sppo" / "STAGE4_6V6_TEACHERS_SEALED.json"
 SPEC = "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json"
@@ -82,6 +89,33 @@ for _p, _r in RUNS.items():
 
 STAGE4_ARMS = ("share_encoder", "fully_shared", "role_only")
 
+# Weighted units for the suite-level ETA bar (roughly proportional to wall time).
+W_SMOKE = 5_000
+W_TRAIN = 200_000
+W_EVAL_CELLS = 50 * 4          # top-50 four-cell diagnostic
+W_COLLECT = 96 * 2             # Stage-4 dataset episodes
+W_DISTILL = 20                # distillation epochs per arm
+W_STAGE4_EVAL = 3 * (50 * 4)  # three student arms
+W_BOOKKEEP = 1
+
+# Filled by main(); child helpers advance the suite-level bar through run_logged.
+PROGRESS: dict[str, Any] = {"bar": None, "base": 0, "total": 1}
+
+
+def _advance_bookkeeping(tag: str, weight: int = W_BOOKKEEP) -> None:
+    bar = PROGRESS.get("bar")
+    if bar is None:
+        return
+    total = int(PROGRESS["total"])
+    base = int(PROGRESS["base"])
+    target = min(base + weight, total)
+    delta = target - int(bar.n)
+    if delta > 0:
+        bar.update(delta)
+    set_postfix(bar, f"{tag} done")
+    PROGRESS["base"] = target
+    _heartbeat(tag, target, total, "stage_done")
+
 
 def now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -92,6 +126,8 @@ def log(msg: str) -> None:
     print(line, flush=True)
     LOG.parent.mkdir(parents=True, exist_ok=True)
     with LOG.open("a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+    with OVERALL_ERR.open("a", encoding="utf-8") as fh:
         fh.write(line + "\n")
 
 
@@ -126,16 +162,99 @@ def sha(rel: str) -> str:
 def env() -> dict:
     e = dict(os.environ)
     e["FOR_DISABLE_CONSOLE_CTRL_HANDLER"] = "1"
+    e["PYTHONUNBUFFERED"] = "1"
     return e
 
 
-def run_logged(argv: list[str], tag: str) -> int:
+def _read_global_step(metrics: Path | None) -> int:
+    if metrics is None or not metrics.is_file():
+        return 0
+    try:
+        with metrics.open(newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        if not rows:
+            return 0
+        last = rows[-1]
+        for key in ("global_step", "timesteps", "total_timesteps", "step"):
+            if key in last and last[key] not in (None, ""):
+                return int(float(last[key]))
+    except Exception:
+        return 0
+    return 0
+
+
+def _heartbeat(phase: str, overall_done: int, overall_total: int, detail: str) -> None:
+    payload = {
+        "utc": now(),
+        "phase": phase,
+        "overall_done": overall_done,
+        "overall_total": overall_total,
+        "frac": (overall_done / overall_total) if overall_total else 0.0,
+        "detail": detail,
+    }
+    OVERALL_JSON.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    line = (
+        f"[{payload['utc']}] phase={phase} "
+        f"overall={overall_done}/{overall_total} "
+        f"({100.0 * payload['frac']:.1f}%) {detail}\n"
+    )
+    with OVERALL_ERR.open("a", encoding="utf-8") as fh:
+        fh.write(line)
+
+
+def run_logged(
+    argv: list[str],
+    tag: str,
+    *,
+    metrics_rel: str | None = None,
+    weight: int = W_BOOKKEEP,
+    overall_base: int = 0,
+    overall_total: int = 1,
+    overall_bar: Any | None = None,
+) -> int:
+    """Run a child; optional metrics polling advances the suite-level overall bar."""
     out = PROJ / "6v6" / f"dual_branch_{tag}.log"
     err = PROJ / "6v6" / f"dual_branch_{tag}.log.err"
     log(f"exec: {' '.join(argv)}")
+    log(f"  stage tqdm -> {err.relative_to(PROJ)}")
+    metrics = PROJ / metrics_rel if metrics_rel else None
     with out.open("w", encoding="utf-8") as fo, err.open("w", encoding="utf-8") as fe:
-        p = subprocess.run([PY, *argv], cwd=str(PROJ), env=env(), stdout=fo, stderr=fe)
-    return int(p.returncode)
+        proc = subprocess.Popen([PY, *argv], cwd=str(PROJ), env=env(), stdout=fo, stderr=fe)
+        last_report = -1
+        try:
+            while True:
+                rc = proc.poll()
+                step = min(max(_read_global_step(metrics), 0), weight) if metrics else 0
+                if overall_bar is not None:
+                    overall_now = min(overall_base + (step if metrics else 0), overall_total)
+                    delta = overall_now - int(overall_bar.n)
+                    if delta > 0:
+                        overall_bar.update(min(delta, overall_total - int(overall_bar.n)))
+                    set_postfix(overall_bar, f"{tag} {step}/{weight}" if metrics else tag)
+                if metrics and step != last_report and (
+                    step - last_report >= max(1, weight // 200) or rc is not None
+                ):
+                    _heartbeat(tag, overall_base + step, overall_total, f"stage_step={step}/{weight}")
+                    last_report = step
+                if rc is not None:
+                    break
+                time.sleep(10.0 if metrics else 2.0)
+        finally:
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=30)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+        rc = int(proc.returncode or 0)
+    if overall_bar is not None:
+        target = min(overall_base + weight, overall_total)
+        delta = target - int(overall_bar.n)
+        if delta > 0:
+            overall_bar.update(delta)
+        set_postfix(overall_bar, f"{tag} done")
+        _heartbeat(tag, target, overall_total, "stage_done")
+    return rc
 
 
 def train_args(pol: str, steps: int, seed: int, eid: str | None, suffix: str, smoke: bool) -> list[str]:
@@ -386,8 +505,10 @@ def train_both() -> None:
     for pol in ("A", "B"):
         r = RUNS[pol]
         final = PROJ / r["final"]
+        metrics_rel = f"{r['run_dir']}/metrics.csv"
         if final.is_file():
             log(f"{pol} already built: {r['final']}")
+            _advance_bookkeeping(f"train_{pol}", W_TRAIN)
             continue
         ckpts = sorted((PROJ / r["run_dir"] / "ckpts").glob("ckpt_*.zip")) if (PROJ / r["run_dir"] / "ckpts").is_dir() else []
         argv = train_args(pol, 200_000, r["seed"], r["eid"], r["suffix"], smoke=False)
@@ -397,7 +518,17 @@ def train_both() -> None:
             resume = str(ckpts[-1].relative_to(PROJ)).replace("\\", "/")
             argv += ["--resume", resume]
             log(f"{pol} resuming from {ckpts[-1].name}")
-        rc = run_logged(argv, f"train_{pol}")
+        base = int(PROGRESS["base"])
+        rc = run_logged(
+            argv,
+            f"train_{pol}",
+            metrics_rel=metrics_rel,
+            weight=W_TRAIN,
+            overall_base=base,
+            overall_total=int(PROGRESS["total"]),
+            overall_bar=PROGRESS["bar"],
+        )
+        PROGRESS["base"] = base + W_TRAIN
         if not final.is_file():
             fail(f"{pol} training exited {rc} without final zip {r['final']}")
         log(f"{pol} TRAIN DONE sha={sha(r['final'])[:16]}...")
@@ -465,6 +596,7 @@ def stage4_students() -> None:
         )
         if frozen.is_file():
             log(f"Stage4 {arm} already frozen")
+            _advance_bookkeeping(f"stage4_{arm}", W_DISTILL)
             continue
         for mode in ("--preflight",):
             rc = run_logged(
@@ -483,6 +615,7 @@ def stage4_students() -> None:
         if not frozen.is_file():
             fail(f"Stage4 {arm} train exited {rc} without STUDENT_FROZEN.json")
         log(f"Stage4 {arm} FROZEN")
+        _advance_bookkeeping(f"stage4_{arm}", W_DISTILL)
 
 
 def stage4_evals() -> None:
@@ -530,8 +663,9 @@ def stage4_evals() -> None:
 
 
 def bundle() -> None:
+    """Build the professor package under 6v6/FOR_PROFESSOR/ and zip it."""
     import shutil
-    out = PROJ / "6v6" / "dual_branch_6v6_bundle"
+    out = PROJ / "6v6" / "FOR_PROFESSOR"
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -549,33 +683,54 @@ def bundle() -> None:
     for f in sd.glob("TOP50_6V6_STAGE4*"):
         if f.is_file():
             shutil.copy2(f, ev / f.name)
-    shutil.copy2(PROJ / MANIFEST, out / Path(MANIFEST).name)
+    for f in sd.glob("*STAGE4*6V6*"):
+        if f.is_file() and f.suffix == ".json":
+            shutil.copy2(f, ev / f.name)
+    seals = out / "seals"
+    seals.mkdir()
+    shutil.copy2(PROJ / MANIFEST, seals / Path(MANIFEST).name)
     if SEAL.is_file():
-        shutil.copy2(SEAL, out / SEAL.name)
+        shutil.copy2(SEAL, seals / SEAL.name)
     if STAGE4_TEACHERS.is_file():
-        shutil.copy2(STAGE4_TEACHERS, out / STAGE4_TEACHERS.name)
+        shutil.copy2(STAGE4_TEACHERS, seals / STAGE4_TEACHERS.name)
+    if STATE.is_file():
+        shutil.copy2(STATE, seals / STATE.name)
     s4 = out / "stage4"
     s4.mkdir()
     for arm_dir in (sd / "suite_sharing_std" / "6v6_stage4").glob("*"):
         if arm_dir.is_dir():
-            dst = s4 / arm_dir.name
-            shutil.copytree(arm_dir, dst, dirs_exist_ok=True)
+            shutil.copytree(arm_dir, s4 / arm_dir.name, dirs_exist_ok=True)
     man = sd / "SUITE_DISTILLATION_6V6_STAGE4_DATASET.json"
     if man.is_file():
         shutil.copy2(man, s4 / man.name)
+    prog = out / "progress"
+    prog.mkdir()
+    for p in (OVERALL_ERR, OVERALL_JSON, LOG):
+        if p.is_file():
+            shutil.copy2(p, prog / p.name)
     (out / "README.txt").write_text(
-        "6v6 dual-branch + Stage 4 frozen pipeline (school PC).\n"
-        "Phase 1: dual-branch teachers (ATTACK+DEFEND), technical seal.\n"
-        "Phase 2: top-50 diagnostic (not a redesign gate).\n"
-        "Phase 3-4: Stage-4 dataset + Share-Encoder / Fully Shared+z+r / Role-only.\n"
-        "Phase 5: Stage-4 evals. Ugly Delta does not invalidate the run.\n"
-        "k=ceil(6/3)=2. Generalist pi(a|o) is NOT part of Stage 4.\n",
+        "6v6 dual-branch + Stage 4 — professor package\n"
+        "================================================\n"
+        "This folder (and dual_branch_6v6_results.zip) is what to send.\n\n"
+        "checkpoints/   dual-branch DEFEND finals + exported ATTACK branches (A and B)\n"
+        "evaluation/    top-50 diagnostic + Stage-4 student eval records\n"
+        "seals/         technical seal, teacher seal, deploy manifest, STATE\n"
+        "stage4/        Share-Encoder / Fully Shared+z+r / Role-only students + dataset\n"
+        "progress/      overall ETA log snapshot\n\n"
+        "k=ceil(6/3)=2. Generalist pi(a|o) is NOT part of Stage 4.\n"
+        "Ugly Delta on the diagnostic does not invalidate the sealed package.\n",
         encoding="utf-8",
     )
+    # Keep a stable alias name for older docs / scripts.
+    alias = PROJ / "6v6" / "dual_branch_6v6_bundle"
+    if alias.exists():
+        shutil.rmtree(alias)
+    shutil.copytree(out, alias)
     if BUNDLE.exists():
         BUNDLE.unlink()
     shutil.make_archive(str(BUNDLE.with_suffix("")), "zip", out)
-    log(f"bundled {BUNDLE}")
+    log(f"bundled professor package -> {BUNDLE}")
+    log(f"unpacked copy -> {out.relative_to(PROJ)}")
 
 
 def main() -> int:
@@ -592,23 +747,88 @@ def main() -> int:
         return 0 if not problems else 1
     if problems:
         fail("pre-run checks failed: " + "; ".join(problems))
+
+    # Remaining weighted work (already-finished STATE steps are omitted so ETA is honest on resume).
+    plan: list[tuple[str, int]] = []
+    if not done("smoke_A"):
+        plan.append(("smoke_A", W_SMOKE))
+    if not done("smoke_B"):
+        plan.append(("smoke_B", W_SMOKE))
+    if not done("train"):
+        plan.append(("train_A", W_TRAIN))
+        plan.append(("train_B", W_TRAIN))
+    if not done("export"):
+        plan.append(("export", W_BOOKKEEP))
+    if not done("technical_seal"):
+        plan.append(("technical_seal", W_BOOKKEEP))
+    if not done("eval"):
+        plan.append(("eval", W_EVAL_CELLS))
+    if not a.skip_stage4:
+        if not done("stage4_dataset"):
+            plan.append(("stage4_dataset", W_COLLECT))
+        if not done("stage4_students"):
+            for arm in STAGE4_ARMS:
+                plan.append((f"stage4_{arm}", W_DISTILL))
+        if not done("stage4_evals"):
+            plan.append(("stage4_evals", W_STAGE4_EVAL))
+    if not done("bundle"):
+        plan.append(("bundle", W_BOOKKEEP))
+    overall_total = max(1, sum(w for _, w in plan))
+
+    OVERALL_ERR.parent.mkdir(parents=True, exist_ok=True)
+    OVERALL_ERR.write_text("", encoding="utf-8")
     state(status="RUNNING", pid=os.getpid())
     log("6v6 DUAL_BRANCH + STAGE4 frozen pipeline started")
+    log(f"overall tqdm -> {OVERALL_ERR.relative_to(PROJ)}  (also watch dual_branch_<stage>.log.err)")
+    log(f"remaining weighted units={overall_total}: " + ", ".join(f"{n}={w}" for n, w in plan))
+
+    overall_bar = tqdm_iter(
+        range(overall_total),
+        desc="dual_branch_6v6_OVERALL",
+        total=overall_total,
+        unit="unit",
+        leave=True,
+    )
+    overall_bar.n = 0
+    overall_bar.refresh()
+    PROGRESS["bar"] = overall_bar
+    PROGRESS["base"] = 0
+    PROGRESS["total"] = overall_total
+
+    def _run_ppo(tag: str, argv: list[str], metrics_rel: str, weight: int) -> int:
+        base = int(PROGRESS["base"])
+        rc = run_logged(
+            argv,
+            tag,
+            metrics_rel=metrics_rel,
+            weight=weight,
+            overall_base=base,
+            overall_total=overall_total,
+            overall_bar=overall_bar,
+        )
+        PROGRESS["base"] = base + weight
+        return rc
 
     # ---- Phase 1: dual-branch teachers ----
     if not done("smoke_A"):
-        rc = run_logged(
-            train_args("A", 5000, RUNS["A"]["smoke_seed"], None, RUNS["A"]["suffix"], smoke=True),
+        smoke_dir = f"artifacts/scale_6v6_specialists/pi_A_specialist_6v6{RUNS['A']['suffix']}"
+        rc = _run_ppo(
             "smoke_A",
+            train_args("A", 5000, RUNS["A"]["smoke_seed"], None, RUNS["A"]["suffix"], smoke=True),
+            f"{smoke_dir}/metrics.csv",
+            W_SMOKE,
         )
         if rc != 0:
             fail(f"A smoke failed exit {rc}")
         state(step="smoke_A")
         log("A smoke PASS")
     if not done("smoke_B"):
-        rc = run_logged(
-            train_args("B", 5000, RUNS["B"]["smoke_seed"], None, RUNS["B"]["suffix"], smoke=True),
+        smoke_dir = f"artifacts/scale_6v6_specialists/pi_B_specialist_6v6{RUNS['B']['suffix']}"
+        rc = _run_ppo(
             "smoke_B",
+            train_args("B", 5000, RUNS["B"]["smoke_seed"], None, RUNS["B"]["suffix"], smoke=True),
+            f"{smoke_dir}/metrics.csv",
+            W_SMOKE,
         )
         if rc != 0:
             fail(f"B smoke failed exit {rc}")
@@ -623,9 +843,11 @@ def main() -> int:
             export_attack_branch(r["final"], r["attack"])
         write_manifest()
         state(step="export")
+        _advance_bookkeeping("export")
     if not done("technical_seal"):
         technical_seal()
         state(step="technical_seal", status="TECHNICALLY_SEALED")
+        _advance_bookkeeping("technical_seal")
 
     # ---- Phase 2: Stage 3 diagnostics (not a redesign gate) ----
     if not done("eval"):
@@ -633,7 +855,16 @@ def main() -> int:
         if rc != 0:
             fail(f"evaluation dry-run failed exit {rc}")
         log("evaluation dry-run passed")
-        rc = run_logged(eval_args() + ["--resume"], "eval")
+        base = int(PROGRESS["base"])
+        rc = run_logged(
+            eval_args() + ["--resume"],
+            "eval",
+            weight=W_EVAL_CELLS,
+            overall_base=base,
+            overall_total=overall_total,
+            overall_bar=overall_bar,
+        )
+        PROGRESS["base"] = base + W_EVAL_CELLS
         result = PROJ / "artifacts/strategic_demand/sppo" / f"{EVAL_LABEL}_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
         if not result.is_file():
             fail(f"evaluation exited {rc} without {result.name}")
@@ -644,6 +875,7 @@ def main() -> int:
         if not done("bundle"):
             bundle()
             state(step="bundle", status="DONE_CORE_ONLY")
+            _advance_bookkeeping("bundle")
         log("DONE core ( --skip-stage4 ). Stage 4 not run.")
         return 0
 
@@ -653,6 +885,7 @@ def main() -> int:
             fail("Stage 4 requires TECHNICAL SEAL = SEALED")
         stage4_dataset()
         state(step="stage4_dataset")
+        _advance_bookkeeping("stage4_dataset", W_COLLECT)
 
     # ---- Phase 4: sharing ladder ----
     if not done("stage4_students"):
@@ -663,11 +896,13 @@ def main() -> int:
     if not done("stage4_evals"):
         stage4_evals()
         state(step="stage4_evals")
+        _advance_bookkeeping("stage4_evals", W_STAGE4_EVAL)
 
     # ---- Phase 6: bundle ----
     if not done("bundle"):
         bundle()
         state(step="bundle", status="DONE")
+        _advance_bookkeeping("bundle")
     log("DONE -- full frozen pipeline. Send 6v6/dual_branch_6v6_results.zip")
     return 0
 

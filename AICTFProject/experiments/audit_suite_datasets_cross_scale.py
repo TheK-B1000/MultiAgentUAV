@@ -52,13 +52,13 @@ DATASETS = {
     # Stage-4 family: dual-branch composites are both the acting policies and the KL teachers.
     **{f"{n}v{n}_stage4": (f"SUITE_DISTILLATION_{n}V{n}_STAGE4_SPEC.json",
                            f"SUITE_DISTILLATION_{n}V{n}_STAGE4_DATASET.json")
-       for n in (6,)},
+       for n in (2, 4, 6)},
 }
 #: The CLOSEST_DEFENDS scale knob (CROSS_SCALE_CANONICAL_RECIPE_V1 ALLOWED_TO_DIFFER).
 K_BY_SCALE = {
     "2v2": 1, "4v4": 2, "6v6": 1,
     "2v2_sym": 1, "4v4_sym": 2, "6v6_sym": 2,
-    "6v6_stage4": 2,
+    "2v2_stage4": 1, "4v4_stage4": 2, "6v6_stage4": 2,
 }
 
 OUT = SD / "SUITE_DATASETS_CROSS_SCALE_AUDIT.json"

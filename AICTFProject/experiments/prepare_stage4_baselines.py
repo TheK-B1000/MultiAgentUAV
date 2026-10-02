@@ -10,7 +10,8 @@ composites (role-gated ATTACK+DEFEND), not the 1M foundations. Students:
     python experiments/prepare_stage4_baselines.py --team-size 6 --sharing
     python experiments/prepare_stage4_baselines.py --team-size 6 --eval
 
-Authorized by STAGE4_6V6_SCHOOL_SUITE_SPEC.json for the school-PC 6v6 chain.
+Authorized per scale by STAGE4_<N>V<N>_FULL_SUITE_SPEC.json (6v6: STAGE4_6V6_SCHOOL_SUITE_SPEC.json).
+Same ladder at 2v2, 4v4, and 6v6. Only N, k=ceil(N/3), checkpoints, and seeds differ.
 """
 from __future__ import annotations
 
@@ -28,11 +29,37 @@ if str(ROOT) not in sys.path:
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 TAG = "STAGE4"
-COLLECTION_PARENT = {6: "SUITE_DISTILLATION_6V6_SPEC.json"}
+COLLECTION_PARENT = {
+    2: "SUITE_DISTILLATION_2V2_SPEC.json",
+    4: "SUITE_DISTILLATION_4V4_V2_SPEC.json",
+    6: "SUITE_DISTILLATION_6V6_SPEC.json",
+}
 ARMS = ("share_encoder", "fully_shared", "role_only")
 N_INIT = {"share_encoder": 2, "fully_shared": 1, "role_only": 1}
 INTERP = SD / "STAGE4_SHARING_INTERPRETATION_V1.json"
-AUTH = SD / "STAGE4_6V6_SCHOOL_SUITE_SPEC.json"
+AUTH_FOR = {
+    2: SD / "STAGE4_2V2_FULL_SUITE_SPEC.json",
+    4: SD / "STAGE4_4V4_FULL_SUITE_SPEC.json",
+    6: SD / "STAGE4_6V6_SCHOOL_SUITE_SPEC.json",
+}
+# Spent confirmatory block the frozen top-50 is a subset of. Student evals are post-hoc
+# on that block; the primary record is the full-block confirmatory seal (its seeds.block
+# equals the registry range). The dual-branch top-50 result is a subset and cannot be
+# the primary.
+SPENT_EVAL = {
+    2: (
+        "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER",
+        "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    ),
+    4: (
+        "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_EVAL",
+        "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    ),
+    6: (
+        "STANDARDIZED_6V6_SEPARATED_EVAL",
+        "STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    ),
+}
 
 
 def _now() -> str:
@@ -72,7 +99,7 @@ def reserve() -> list[str]:
     from experiments import seed_registry as SR
     done = []
     reg = {b["experiment_id"]: b for b in SR.load()["blocks"]}
-    for n in (6,):  # school-PC Stage 4 first; 2v2/4v4 after dual-branch seals there
+    for n in (2, 4, 6):
         for purpose, (eid, lo, hi) in blocks(n).items():
             if eid in reg:
                 if (reg[eid]["lo"], reg[eid]["hi"]) != (lo, hi):
@@ -157,8 +184,8 @@ def collection_spec(n: int) -> Path:
         "utc": _now(),
         "classification": "DIAGNOSTIC Stage-4 dataset under dual-branch teachers. Post-hoc; "
                           "not confirmatory. Not PAPER-FAITHFUL.",
-        "authorized_by": "STAGE4_6V6_SCHOOL_SUITE_SPEC.json + STAGE4_SHARING_INTERPRETATION_V1.json",
-        "parent": [COLLECTION_PARENT[n], INTERP.name, AUTH.name,
+        "authorized_by": f"{AUTH_FOR[n].name} + {INTERP.name}",
+        "parent": [COLLECTION_PARENT[n], INTERP.name, AUTH_FOR[n].name,
                    f"{n}v{n}/dual_branch_deploy_manifest.json"],
         "derived_from": COLLECTION_PARENT[n],
         "ALLOCATOR_locked": {
@@ -279,7 +306,7 @@ def sharing_spec(n: int) -> Path:
         "status": "FROZEN_BEFORE_TRAINING",
         "utc": _now(),
         "classification": "DIAGNOSTIC Stage-4 sharing ladder under dual-branch teachers. Not PAPER-FAITHFUL.",
-        "decided_by": "PI via STAGE4_SHARING_INTERPRETATION_V1 + STAGE4_6V6_SCHOOL_SUITE_SPEC",
+        "decided_by": f"PI via {INTERP.name} + {AUTH_FOR[n].name}",
         "scope": f"{n}v{n} Stage-4 family. Teachers = dual-branch composites; arms = Share-Encoder, "
                  f"Fully Shared+z+r, Role-only.",
         "derived_from": parent_name,
@@ -349,7 +376,7 @@ def eval_spec(n: int) -> Path:
     if not seeds_file.is_file():
         raise SystemExit(f"REFUSING: {seeds_file} missing")
     seed_ids = sorted(int(s) for s in json.loads(seeds_file.read_text(encoding="utf-8")))
-    reg_id = f"STANDARDIZED_{n}V{n}_SEPARATED_EVAL"
+    reg_id, primary = SPENT_EVAL[n]
     # Block range from the SPENT Separated eval registry entry.
     from experiments import seed_registry as SR
     b = next((x for x in SR.load()["blocks"] if x["experiment_id"] == reg_id), None)
@@ -390,7 +417,7 @@ def eval_spec(n: int) -> Path:
     base = {
         "registry_experiment_id": reg_id,
         "block": block,
-        "primary_record": f"DUAL_BRANCH_{n}V{n}_ROLE_COMPOSITE_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+        "primary_record": primary,
         "seed_ids": seed_ids,
         "seed_ids_file": _rel(seeds_file.relative_to(ROOT)),
     }
@@ -403,8 +430,8 @@ def eval_spec(n: int) -> Path:
         "confirmatory": False,
         "utc": _now(),
         "classification": "DIAGNOSTIC Stage-4 student crossover on frozen top-50 seeds. Not confirmatory.",
-        "decided_by": "STAGE4_6V6_SCHOOL_SUITE_SPEC.json",
-        "parent": [parent_name, f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_SPEC.json", AUTH.name],
+        "decided_by": AUTH_FOR[n].name,
+        "parent": [parent_name, f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_SPEC.json", AUTH_FOR[n].name],
         "ARMS": arms,
         "SEEDS": {
             "registry_experiment_id": reg_id,
@@ -436,7 +463,7 @@ def eval_spec(n: int) -> Path:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--reserve", action="store_true")
-    ap.add_argument("--team-size", type=int, choices=(6,), default=None)
+    ap.add_argument("--team-size", type=int, choices=(2, 4, 6), default=None)
     ap.add_argument("--collection", action="store_true")
     ap.add_argument("--sharing", action="store_true")
     ap.add_argument("--eval", action="store_true")

@@ -72,6 +72,24 @@ class Stage4OrchestratorContractTests(unittest.TestCase):
         self.assertIn("--skip-stage4", text)
         self.assertNotIn("Sharing ladder is a later stage", text)
 
+    def test_2v2_suite_matches_scale_and_waits(self):
+        from experiments import prepare_stage4_baselines as P4
+        self.assertEqual(P4.k_sym(2), 1)
+        self.assertEqual(P4.k_sym(4), 2)
+        self.assertEqual(P4.k_sym(6), 2)
+        text = (ROOT / "2v2" / "run_dual_branch_2v2.py").read_text(encoding="utf-8")
+        self.assertIn("SYM_DUAL_BRANCH_2V2_TRAIN_DONE.txt", text)
+        self.assertIn("WAITING", text)
+        self.assertIn("ugly Delta does NOT stop", text)
+        self.assertIn("role_only", text)
+        self.assertNotIn('"arm", "generalist"', text)
+        reg, primary = P4.SPENT_EVAL[2]
+        self.assertEqual(reg, "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER")
+        self.assertIn("CONFIRMATORY", primary)
+        for _eid, lo, _hi in P4.blocks(2).values():
+            self.assertGreaterEqual(lo, 27_000_000)
+            self.assertFalse(26900001 <= lo <= 26900002)
+
 
 if __name__ == "__main__":
     unittest.main()

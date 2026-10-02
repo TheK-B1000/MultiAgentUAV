@@ -1,0 +1,40 @@
+{
+  "record_id": "STAGE4_2V2_FULL_SUITE_SPEC",
+  "status": "AUTHORIZED",
+  "utc": "2026-10-02T02:25:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL. Same pipeline as 6v6 dual-branch + Stage 4. Not PAPER-FAITHFUL. Not confirmatory.",
+  "decided_by": "PI, 2026-10-01: 2v2, 4v4, and 6v6 execute the same scientific pipeline. Only team size, k=ceil(N/3), checkpoints, and seeds differ.",
+  "parent": [
+    "PAPER_END_TO_END_STORY_V1.json",
+    "STAGE4_SHARING_INTERPRETATION_V1.json",
+    "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+    "STAGE4_6V6_SCHOOL_SUITE_SPEC.json"
+  ],
+  "SCALE": {"N": 2, "k_defend": 1, "k_rule": "ceil(N/3)"},
+  "AUTHORIZES": [
+    "reserve Stage-4 collection and student-init seed blocks for 2v2",
+    "freeze SUITE_DISTILLATION_2V2_STAGE4_SPEC after the dual-branch deploy manifest exists",
+    "collect Stage-4 dataset with --dataset-tag STAGE4 from the sealed dual-branch teachers only",
+    "distill share_encoder, fully_shared (z+r), role_only under those teachers",
+    "post-hoc top-50 diagnostic eval of the dual-branch teachers and of the Stage-4 students",
+    "chain these stages inside 2v2/run_dual_branch_2v2.py after the dual-branch technical seal"
+  ],
+  "TEACHERS_locked": "dual-branch role composites from 2v2/dual_branch_deploy_manifest.json (ATTACK exports + DEFEND finals), not 1M foundations and not the historical defender-only symmetric run",
+  "LADDER_locked": [
+    "Separated (the dual-branch teachers themselves; scored by the Phase-2 diagnostic)",
+    "Share-Encoder",
+    "Fully Shared+z+r := pi(a | o, z, r)",
+    "Role-only := pi(a | o, r)"
+  ],
+  "DIAGNOSTIC_locked": "Frozen 2v2 top-50 is post-hoc. A bad Delta does not stop Phase 3.",
+  "NOT_AUTHORIZED": [
+    "a second copy of the live 2v2 dual-branch train while that chain is still running",
+    "reusing historical Fully Shared+z / Generalist pi(a|o) as Stage 4",
+    "foundation specialists as KL teachers",
+    "claiming confirmatory n=128 status for these diagnostics"
+  ],
+  "LAUNCH": {
+    "check": ".venv/Scripts/python.exe 2v2/run_dual_branch_2v2.py --check",
+    "suite": "powershell -ExecutionPolicy Bypass -File 2v2/run_dual_branch_2v2.ps1"
+  }
+}

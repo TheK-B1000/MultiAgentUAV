@@ -1,0 +1,21 @@
+SEND THIS TO YOUR PROFESSOR
+===========================
+
+Preferred file (after the dual-branch + Stage-4 run finishes):
+
+  dual_branch_6v6_results.zip
+
+Or the unpacked folder:
+
+  FOR_PROFESSOR/
+
+How to rebuild the zip anytime:
+
+  powershell -ExecutionPolicy Bypass -File experiments/pack_6v6_handoff.ps1
+
+While the run is in progress, progress lives in:
+
+  dual_branch_OVERALL.log.err
+  dual_branch_OVERALL_PROGRESS.json
+
+Full map: README.md

@@ -41,6 +41,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiments import prepare_symmetric_baselines as P  # noqa: E402
+from experiments.tqdm_loop import set_postfix, tqdm_iter  # noqa: E402
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 TOP = SD / "symmetric_role_top50"
@@ -438,9 +439,11 @@ class Suite:
         self.log("symmetric baseline suite started")
         work = {"dataset": self.stage_dataset, "students": self.stage_students, "evals": self.stage_evals,
                 "robustness": self.stage_robustness}
-        for st in STAGES:
-            if self.done(st):
-                continue
+        remaining = [st for st in STAGES if not self.done(st)]
+        overall = tqdm_iter(remaining, desc=f"{self.fam} suite OVERALL", total=len(remaining), unit="stage")
+        for st in overall:
+            set_postfix(overall, st)
+            self.log(f"stage start: {st}  ({overall.n + 1}/{len(remaining)})")
             if st == "crossovers":                     # baselines' crossovers; readout without robustness yet
                 ro = self.write_readout(with_robustness=False)
                 self.log("\n" + ro["table_markdown"])
@@ -453,6 +456,7 @@ class Suite:
             else:
                 work[st]()
             self.state(stage=st)
+            self.log(f"stage done: {st}")
         self.state(status="DONE")
         self.log(f"DONE -- send {zip_path}")
         return 0

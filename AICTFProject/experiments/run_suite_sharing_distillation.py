@@ -563,8 +563,10 @@ def main() -> int:
     batches = RTD.Batches(arr, train_idx, batch=BATCH, seed=seed)
     print(f"  epochs={EPOCHS} batch={BATCH} lr={LR} clip={CLIP} updates/epoch={batches.n_per_epoch()}",
           flush=True)
+    from experiments.tqdm_loop import set_postfix, tqdm_iter
     rows = []
-    for ep in range(EPOCHS):
+    epoch_bar = tqdm_iter(range(EPOCHS), desc=f"distill {arm} {n}v{n}", total=EPOCHS, unit="epoch")
+    for ep in epoch_bar:
         tr_a = tr_b = 0.0
         n_b = 0
         for idx in batches.epoch():
@@ -587,6 +589,11 @@ def main() -> int:
             **{f"holdout_{k}": v for k, v in h.items()},
         }
         rows.append(row)
+        set_postfix(
+            epoch_bar,
+            f"KL {row['train_kl_A']:.3f}/{row['train_kl_B']:.3f} "
+            f"agree {h['agree_z0_vs_piA']:.3f}/{h['agree_z1_vs_piB']:.3f}",
+        )
         print(
             f"  epoch {ep+1:2d}  train KL {row['train_kl_A']:.4f}/{row['train_kl_B']:.4f}  "
             f"agree {h['agree_z0_vs_piA']:.3f}/{h['agree_z1_vs_piB']:.3f}",
