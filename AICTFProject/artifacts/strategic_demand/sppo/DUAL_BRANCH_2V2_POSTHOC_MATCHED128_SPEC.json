@@ -6,14 +6,29 @@
   "utc": "2026-10-02T05:00:00Z",
   "classification": "POST-HOC MATCHED EVALUATION ON THE HISTORICAL 128-SEED BLOCK. Not confirmatory. Not fresh seeds. Not PAPER-FAITHFUL. Does not replace any future untouched evaluation of the dual-branch method.",
   "decided_by": "PI, 2026-10-02: the top-50 list was selected on the old asymmetric system (its A@A is 1.00 there but 0.64 on the full 128), so old-vs-dual-branch is compared on the full historical block instead.",
-  "governed_by": ["DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json", "DUAL_BRANCH_2V2_DIAGNOSTIC_SPEC.json (same system, same command, top-50 seeds)"],
+  "governed_by": [
+    "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+    "DUAL_BRANCH_2V2_DIAGNOSTIC_SPEC.json (same system, same command, top-50 seeds)"
+  ],
   "THE_QUESTION": "On the identical 128 historical 2v2 seeds, how do the dual-branch role composite's crossover deltas (win rate and score margin) compare with the old asymmetric Ours sealed on that block?",
   "SYSTEM_locked": {
     "deploy_manifest": "2v2/dual_branch_deploy_manifest.json",
-    "pi_A_defend": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/final_pi_A_specialist_2v2_dual_branch_v1.zip", "sha256": "15ced67ab0f45e46d017885f35d6fb9cbaee0375a213ee157c937e470cbf8dd1"},
-    "pi_A_attack": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/attack_pi_A_specialist_2v2_dual_branch_v1.zip", "sha256": "7963a593dda91dcf1dbfc9b417546f4f3b7e9df9fdad9b532853c0e0e733b45f"},
-    "pi_B_defend": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/final_pi_B_specialist_2v2_dual_branch_v1.zip", "sha256": "7dca0e25482796943e97b4198836ee5a3845f855604a3d963a4b4b50540c5868"},
-    "pi_B_attack": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/attack_pi_B_specialist_2v2_dual_branch_v1.zip", "sha256": "cdd1ad83b96835cb6793a1098a771e7414c1cd484cffcd6551dcfc1325f00a8a"},
+    "pi_A_defend": {
+      "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/final_pi_A_specialist_2v2_dual_branch_v1.zip",
+      "sha256": "15ced67ab0f45e46d017885f35d6fb9cbaee0375a213ee157c937e470cbf8dd1"
+    },
+    "pi_A_attack": {
+      "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/attack_pi_A_specialist_2v2_dual_branch_v1.zip",
+      "sha256": "7963a593dda91dcf1dbfc9b417546f4f3b7e9df9fdad9b532853c0e0e733b45f"
+    },
+    "pi_B_defend": {
+      "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/final_pi_B_specialist_2v2_dual_branch_v1.zip",
+      "sha256": "7dca0e25482796943e97b4198836ee5a3845f855604a3d963a4b4b50540c5868"
+    },
+    "pi_B_attack": {
+      "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/attack_pi_B_specialist_2v2_dual_branch_v1.zip",
+      "sha256": "cdd1ad83b96835cb6793a1098a771e7414c1cd484cffcd6551dcfc1325f00a8a"
+    },
     "k_defend": 1,
     "allocator": "CLOSEST_DEFENDS(k=1), roles fixed for the episode",
     "unchanged_from_top50_diagnostic": "every flag of the DUAL_BRANCH_2V2_ROLE_COMPOSITE command except the seeds (full block instead of --seed-list) and the label"
@@ -24,8 +39,14 @@
       "block": "23600001..23600128",
       "primary_record": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
       "system": "dual-branch role composite",
-      "frozen_attack_A": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/attack_pi_A_specialist_2v2_dual_branch_v1.zip", "sha256": "7963a593dda91dcf1dbfc9b417546f4f3b7e9df9fdad9b532853c0e0e733b45f"},
-      "frozen_attack_B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/attack_pi_B_specialist_2v2_dual_branch_v1.zip", "sha256": "cdd1ad83b96835cb6793a1098a771e7414c1cd484cffcd6551dcfc1325f00a8a"},
+      "frozen_attack_A": {
+        "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/attack_pi_A_specialist_2v2_dual_branch_v1.zip",
+        "sha256": "7963a593dda91dcf1dbfc9b417546f4f3b7e9df9fdad9b532853c0e0e733b45f"
+      },
+      "frozen_attack_B": {
+        "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/attack_pi_B_specialist_2v2_dual_branch_v1.zip",
+        "sha256": "cdd1ad83b96835cb6793a1098a771e7414c1cd484cffcd6551dcfc1325f00a8a"
+      },
       "episodes": 512,
       "note": "all four cells (A@A, B@A, A@B, B@B) on all 128 seeds of the SPENT block; no seed spent, block status unchanged"
     }
@@ -38,7 +59,7 @@
     "top50_lesson": "keep the top-50 result as provenance: old asymmetric A@A = 1.00 on its own selected top-50, 0.64 on the full 128"
   },
   "LAUNCH": {
-    "when": "after 2v2/run_dual_branch_2v2.py has exited, never concurrently with it (detached: artifacts/strategic_demand/sppo/dual_branch_v1/matched128_2v2/run_after_suite.ps1)",
+    "when": "immediately (user, 2026-10-02: start as soon as possible), alongside the 2v2 dual-branch suite's Stage 4 evaluations; the 4v4 dual-branch suite (idle, waiting on 2v2) is suspended for the duration and resumed when this run seals or stops (dual_branch_v1/matched128_2v2/run_after_suite.ps1 + hold_4v4.py)",
     "eval": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 2 --spec artifacts/strategic_demand/sppo/DUAL_BRANCH_2V2_POSTHOC_MATCHED128_SPEC.json --post-hoc-ablation-spec artifacts/strategic_demand/sppo/DUAL_BRANCH_2V2_POSTHOC_MATCHED128_SPEC.json --seed-base 23600001 --n-seeds 128 --registry-experiment-id STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER --label POSTHOC_MATCHED128_2V2_DUAL_BRANCH --device cuda --pi-a-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/final_pi_A_specialist_2v2_dual_branch_v1.zip --pi-b-path artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/final_pi_B_specialist_2v2_dual_branch_v1.zip --role-fixed-for-episode --role-k-defend 1 --frozen-attack-path artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/attack_pi_A_specialist_2v2_dual_branch_v1.zip --frozen-attack-path-sha256 7963a593dda91dcf1dbfc9b417546f4f3b7e9df9fdad9b532853c0e0e733b45f --frozen-attack-path-b artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/attack_pi_B_specialist_2v2_dual_branch_v1.zip --frozen-attack-path-b-sha256 cdd1ad83b96835cb6793a1098a771e7414c1cd484cffcd6551dcfc1325f00a8a --dual-branch-deploy-manifest 2v2/dual_branch_deploy_manifest.json --resume",
     "readout": ".venv/Scripts/python.exe experiments/readout_posthoc_matched_crossover.py --spec artifacts/strategic_demand/sppo/DUAL_BRANCH_2V2_POSTHOC_MATCHED128_SPEC.json"
   },
@@ -47,7 +68,7 @@
     "tuning anything in response to this result",
     "calling these seeds fresh or this evaluation confirmatory",
     "replacing a future untouched evaluation of the dual-branch method with this result",
-    "running concurrently with the active 2v2 dual-branch suite"
+    "running concurrently with the 4v4 dual-branch suite (it is held until this run ends)"
   ],
   "READOUT_SYSTEMS": {
     "dual_branch": "artifacts/strategic_demand/sppo/posthoc_matched128_2v2_dual_branch_specialist_crossover_eval_rows.csv",
