@@ -32,4 +32,4 @@ Integrity flag (Δ_B ≤ 0) → row-level audit **PASS** (512 rows, exact seed b
 
 ## Proposed next step (not authorized; needs PI approval and a frozen spec)
 
-**R1:** k = max(1, round(N/3)) — 2v2 1→1, **4v4 2→1**, 6v6 2→2. Retrain both 4v4 A and B from the sealed 1M specialists, 200k, everything else identical; confirm on a fresh 128-seed block. R2 (longer symmetric recovery) and R3 (weaker scaffold for both) only if needed; adaptive allocation later.
+**R1:** k = max(1, ⌊N/3 + 1/2⌋) (code: `max(1, (2*N + 3) // 6)`) — 2v2 1→1, **4v4 2→1**, 6v6 2→2, 8v8 3→3. Question: does reducing the defender allocation from two agents to one prevent the 4v4 Pole-B collapse while preserving Pole-A specialization? Retrain both 4v4 A and B from the sealed 1M specialists, 200k, everything else identical; confirm on a fresh 128-seed block. R2 (longer symmetric recovery) and R3 (weaker scaffold for both) only if needed; adaptive allocation later.

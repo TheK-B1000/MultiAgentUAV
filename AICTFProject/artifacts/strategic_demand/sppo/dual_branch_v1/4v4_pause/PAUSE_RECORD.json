@@ -159,7 +159,7 @@
     "principle": "the sealed 4v4 run stays the original result; it generates the hypothesis but is never reused as its confirmation. One change at a time, always symmetric (same rule, budget, scaffold and architecture for A and B), each step frozen before it runs, confirmed on a FRESH untouched 128-seed block.",
     "hypothesis": "the fixed defender allocation interferes with B at 4v4: ceil(4/3) = 2 puts half the team on DEFEND",
     "R1": {
-      "change": "k = max(1, round(N/3)) instead of ceil(N/3)",
+      "change": "k = max(1, floor(N/3 + 1/2)) instead of ceil(N/3)",
       "effect_by_scale": {
         "2v2": "1 -> 1 (unchanged)",
         "4v4": "2 -> 1",
@@ -167,8 +167,38 @@
         "8v8": "3 -> 3 (unchanged)"
       },
       "run": "retrain BOTH 4v4 A and B from the sealed repaired 1M specialists, 200k, same DEFEND schedule, optimizer and everything else; k_A = k_B = 1",
-      "question": "was forced half-team defense the problem?",
-      "note": "N/3 is never x.5 for N = 2..8, so round() has no tie cases here"
+      "question": "does reducing the fixed defender allocation from two agents to one prevent the 4v4 Pole-B collapse while preserving Pole-A specialization?",
+      "rule_definition": {
+        "math": "k = max(1, floor(N/3 + 1/2))",
+        "integer_form_for_code": "k = max(1, (2*N + 3) // 6)",
+        "why": "defined mathematically, not via a language round() (no banker's-rounding ambiguity); the two forms are identical, checked for N = 2..12",
+        "table": {
+          "2v2": {
+            "ceil(N/3)": 1,
+            "R1": 1
+          },
+          "3v3": {
+            "ceil(N/3)": 1,
+            "R1": 1
+          },
+          "4v4": {
+            "ceil(N/3)": 2,
+            "R1": 1
+          },
+          "5v5": {
+            "ceil(N/3)": 2,
+            "R1": 2
+          },
+          "6v6": {
+            "ceil(N/3)": 2,
+            "R1": 2
+          },
+          "8v8": {
+            "ceil(N/3)": 3,
+            "R1": 3
+          }
+        }
+      }
     },
     "R2_only_if_needed": {
       "change": "k = 2, longer budget for BOTH (e.g. 300k, scaffold still ending at 150k -> 150k pure-PPO recovery)",
