@@ -1,0 +1,4 @@
+2026-10-03T13:51:03Z amendment 1 in force: order ['R1'] (4v4-only rungs withdrawn)
+2026-10-03T13:51:03Z waiting for R1 Stage 3 (4v4/r1/R1_STAGE3_DONE.txt)
+2026-10-03T14:41:03Z R1: Delta_A +0.047 [-0.086, +0.180] (98.33%), Delta_B -0.109 [-0.242, +0.031] -> not passed
+2026-10-03T14:41:03Z NO PASS after R1; ladder stopped -- nothing starts automatically; any further change must be cross-scale (same recipe at 2v2, 4v4, 6v6) under a new frozen spec

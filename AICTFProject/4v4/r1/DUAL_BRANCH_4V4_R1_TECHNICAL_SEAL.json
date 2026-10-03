@@ -1,0 +1,51 @@
+{
+  "record_id": "DUAL_BRANCH_4V4_TECHNICAL_SEAL",
+  "status": "SEALED",
+  "utc": "2026-10-03T08:24:42Z",
+  "gate": "technical_integrity_only",
+  "not_a_gate": [
+    "win_rate",
+    "Delta_A",
+    "Delta_B",
+    "strategy_signature_quality"
+  ],
+  "k_defend": 1,
+  "checks": {
+    "A_final_exists": true,
+    "A_attack_exists": true,
+    "A_dual_branch_flag": true,
+    "A_role_conditioning": true,
+    "A_k_defend": true,
+    "A_has_attack_branch_sd": true,
+    "A_foundation_sha": true,
+    "A_defend_loads": true,
+    "A_attack_loads": true,
+    "A_attack_not_role_conditioned": true,
+    "A_defend_is_role_conditioned": true,
+    "B_final_exists": true,
+    "B_attack_exists": true,
+    "B_dual_branch_flag": true,
+    "B_role_conditioning": true,
+    "B_k_defend": true,
+    "B_has_attack_branch_sd": true,
+    "B_foundation_sha": true,
+    "B_defend_loads": true,
+    "B_attack_loads": true,
+    "B_attack_not_role_conditioned": true,
+    "B_defend_is_role_conditioned": true,
+    "manifest_exists": true,
+    "manifest_architecture": true,
+    "manifest_k": true,
+    "manifest_A_defend_sha": true,
+    "manifest_A_attack_sha": true,
+    "manifest_B_defend_sha": true,
+    "manifest_B_attack_sha": true
+  },
+  "detail": {
+    "A_final_sha": "c0ac11ee5a120c3c59b0517bdad041d127b9046cf93cb112887a48e95b76d2a1",
+    "A_attack_sha": "7c85e8314c5bb68b501174a70934d5fd6d7ae043646f52b6d5a3333d1f0780eb",
+    "B_final_sha": "afa03c3bc26eeb5f85378220cd65f558659f1ce0bc8551298e25f570ee146f5c",
+    "B_attack_sha": "5c8b5f1b388bdae4c4d1377f61c0636d8046be555ad2dcb03dcc494abe12d45d"
+  },
+  "continue_even_if_strategy_results_ugly": true
+}

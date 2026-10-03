@@ -1,0 +1,168 @@
+{
+  "record": "POSTHOC_MATCHED128_4V4_DUAL_BRANCH specialist crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-10-03T05:53:12Z",
+  "arm": "POST_HOC_ABLATION",
+  "confirmatory": false,
+  "post_hoc_ablation": {
+    "spec": "DUAL_BRANCH_4V4_POSTHOC_MATCHED128_SPEC.json",
+    "matched_to": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "claim": "post-hoc matched role ablation on already-spent confirmatory seeds; estimates the within-seed effect of removing role organization; not new confirmatory evidence"
+  },
+  "implements": "DUAL_BRANCH_4V4_POSTHOC_MATCHED128_SPEC.json#EVALUATION",
+  "team_size": 4,
+  "device": "cuda",
+  "perturbation": {
+    "family": "nominal"
+  },
+  "role_fixed_for_episode": true,
+  "seeds": {
+    "block": [
+      21800001,
+      21800128
+    ],
+    "n": 128,
+    "shared_across_policies": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_EVAL",
+    "shared_by_labels": null
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "candidate_genome_id": null
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {
+        "lock_defender": 10,
+        "enable_2v1": true,
+        "min_alive_for_defender": 4
+      },
+      "candidate_genome_id": null
+    }
+  },
+  "pole_identity": {
+    "A": {
+      "policy": "A",
+      "team_size": 4,
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 4
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 4,
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "base_opponent": "OP7",
+      "overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "lock_defender": 10,
+      "enable_2v1": true,
+      "min_alive_for_defender": 4
+    }
+  },
+  "pole_attestations": {
+    "A": {
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS2_A_payoff_INIT_3",
+      "certified_overlay": {
+        "min_alive_for_defender": 4
+      },
+      "live_overlay": {
+        "min_alive_for_defender": 4
+      },
+      "certified_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "live_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "hashes_match": true
+    },
+    "B": {
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "certified_overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "live_overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "hashes_match": true
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.1953125,
+      "lcb95": 0.0703125,
+      "ucb95": 0.3203125,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": -0.0859375,
+      "lcb95": -0.1484375,
+      "ucb95": -0.03125,
+      "passes": false
+    },
+    "passes": false
+  },
+  "checkpoints": {
+    "pi_A": "e51a667f2b8bd7cffa9d7bc31ec2b3d370a89782a24dd6da64f2af4f777bc695",
+    "pi_B": "e0eeccc0b3e7191cc78943dcc9b2cb141213656d07fd07c477b0bd57fa09d9a7"
+  },
+  "split_policy_pi_B": {
+    "pi_D_path": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_dual_branch_v1\\ckpts\\final_pi_B_specialist_4v4_dual_branch_v1.zip",
+    "frozen_attack_path": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_dual_branch_v1\\ckpts\\attack_pi_B_specialist_4v4_dual_branch_v1.zip",
+    "frozen_attack_sha256": "826e50ed6d1b7ffe4ba6572594290e282d5067680d84d43af55c0e76d046a8a4"
+  },
+  "seed_ids": null,
+  "split_policy_pi_A": {
+    "pi_D_path": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_dual_branch_v1\\ckpts\\final_pi_A_specialist_4v4_dual_branch_v1.zip",
+    "frozen_attack_path": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_dual_branch_v1\\ckpts\\attack_pi_A_specialist_4v4_dual_branch_v1.zip",
+    "frozen_attack_sha256": "591f12d52cfc5def26178a3e1cfa9585d98df9224537e16f1e48ef9b69dbe74a"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 512,
+  "integrity_flag": "artifacts\\strategic_demand\\sppo\\POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+  "status": "SEALED",
+  "sealed_utc": "2026-10-03T05:53:12Z",
+  "git_sha": "cd1ef44947bcb51b72a8dbdde84fa1265e882119",
+  "AUDIT": {
+    "path": "POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 14,
+    "n_gating": 12,
+    "failed_checks": [],
+    "rows_sha256": "ea985b7ea547b6c8d5e2d606bc36220e3e7db0cbb66e0c3227dadacedaba38a0"
+  }
+}

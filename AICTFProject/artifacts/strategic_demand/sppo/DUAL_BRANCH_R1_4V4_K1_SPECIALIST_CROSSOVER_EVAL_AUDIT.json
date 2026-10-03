@@ -1,0 +1,163 @@
+{
+  "record": "audit of DUAL_BRANCH_R1_4V4_K1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+  "audit_utc": "2026-10-03T14:39:55Z",
+  "git_sha": "65a36c05fc64645837e472f0de77eb70b491a6de",
+  "passed": true,
+  "n_checks": 14,
+  "n_gating": 12,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 512,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_TRAINING'",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
+      "sha256": "0d055e7a42f396e83d4df0d5fcf11b980f7731eababddbfdd1f2996883933310",
+      "status": "FROZEN_BEFORE_TRAINING"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "dual_branch_r1_4v4_k1_specialist_crossover_eval_rows.csv (12881 bytes)",
+      "sha256": "fd5ea7f75d61a8c73210ac1612d1679ed5c52a59ec4b55d7957bbb0e4e6213ff"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "512 rows, expected 512",
+      "found": 512,
+      "expected": 512
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "4 cells; 0 with a seed set != frozen block 27700001..27700128 (n=128)",
+      "n_cells": 4,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win takes values [0, 1]",
+      "field": "win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "checkpoint::pi_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pi_A sha c0ac11ee5a12... vs frozen c0ac11ee5a12...",
+      "path": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_dual_branch_r1_k1\\ckpts\\final_pi_A_specialist_4v4_dual_branch_r1_k1.zip",
+      "sha256": "c0ac11ee5a120c3c59b0517bdad041d127b9046cf93cb112887a48e95b76d2a1",
+      "frozen_sha256": "c0ac11ee5a120c3c59b0517bdad041d127b9046cf93cb112887a48e95b76d2a1"
+    },
+    {
+      "name": "checkpoint::pi_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pi_B sha afa03c3bc26e... vs frozen afa03c3bc26e...",
+      "path": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_dual_branch_r1_k1\\ckpts\\final_pi_B_specialist_4v4_dual_branch_r1_k1.zip",
+      "sha256": "afa03c3bc26eeb5f85378220cd65f558659f1ce0bc8551298e25f570ee146f5c",
+      "frozen_sha256": "afa03c3bc26eeb5f85378220cd65f558659f1ce0bc8551298e25f570ee146f5c"
+    },
+    {
+      "name": "claim::delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.046875,
+        "lcb95": -0.0625,
+        "ucb95": 0.15625
+      },
+      "rederived": {
+        "mean": 0.046875,
+        "lcb95": -0.0625,
+        "ucb95": 0.15625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.109375,
+        "lcb95": -0.21875,
+        "ucb95": 0.0078125
+      },
+      "rederived": {
+        "mean": -0.109375,
+        "lcb95": -0.21875,
+        "ucb95": 0.0078125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "split_half::delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.0469 | second half +0.1406  <-- SIGN FLIP between halves",
+      "first_half": -0.046875,
+      "second_half": 0.140625,
+      "sign_flip": true
+    },
+    {
+      "name": "split_half::delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.1875 | second half -0.0312",
+      "first_half": -0.1875,
+      "second_half": -0.03125,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to DUAL_BRANCH_R1_4V4_K1_SPECIALIST_CROSSOVER (status RESERVED) -- same block, no conflict",
+      "seed_class": "sealed_confirmatory",
+      "experiment_id": "DUAL_BRANCH_R1_4V4_K1_SPECIALIST_CROSSOVER"
+    }
+  ]
+}

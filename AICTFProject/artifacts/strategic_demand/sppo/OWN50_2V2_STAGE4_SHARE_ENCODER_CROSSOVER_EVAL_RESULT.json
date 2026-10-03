@@ -1,0 +1,148 @@
+{
+  "record": "OWN50_2V2_STAGE4_SHARE_ENCODER crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-10-02T23:35:36Z",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "STANDARDIZED_2V2_STAGE4_OWN50_SHARING_EVAL_SPEC.json#EVALUATION",
+  "suite_arm": "share_encoder",
+  "team_size": 2,
+  "device": "cuda",
+  "checkpoint": "artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2_stage4\\share_encoder\\ckpts\\final_share_encoder_2v2.pt",
+  "checkpoint_sha256": "2d36a9a7c4b296c7d0d1c234e19e4020107a8bc054ead2799efa7c1fcd0a4c7b",
+  "seeds": {
+    "block": [
+      23600001,
+      23600128
+    ],
+    "n": 50,
+    "shared_across_z_and_poles": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER",
+    "shared_by_labels": null,
+    "seed_ids": [
+      23600001,
+      23600003,
+      23600004,
+      23600005,
+      23600006,
+      23600007,
+      23600008,
+      23600010,
+      23600011,
+      23600012,
+      23600013,
+      23600014,
+      23600015,
+      23600016,
+      23600017,
+      23600018,
+      23600020,
+      23600022,
+      23600023,
+      23600024,
+      23600025,
+      23600026,
+      23600027,
+      23600028,
+      23600029,
+      23600030,
+      23600031,
+      23600037,
+      23600038,
+      23600041,
+      23600042,
+      23600047,
+      23600058,
+      23600062,
+      23600064,
+      23600065,
+      23600066,
+      23600071,
+      23600073,
+      23600075,
+      23600083,
+      23600090,
+      23600094,
+      23600095,
+      23600097,
+      23600101,
+      23600109,
+      23600119,
+      23600121,
+      23600127
+    ],
+    "post_hoc": {
+      "primary_record": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "block_status_unchanged": true
+    }
+  },
+  "poles": {
+    "A": {
+      "policy": "A",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 2
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS_PARENT_OP7",
+      "base_opponent": "OP7",
+      "overlay": {},
+      "opening_hold_steps": 0,
+      "pole_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": null
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.22,
+      "lcb95": 0.06,
+      "ucb95": 0.38,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.4,
+      "lcb95": 0.22,
+      "ucb95": 0.56,
+      "passes": true
+    },
+    "passes": true
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 200,
+  "claim_boundary": "",
+  "integrity_flag": null,
+  "status": "SEALED",
+  "sealed_utc": "2026-10-02T23:35:36Z",
+  "git_sha": "6dc573a8a0854573c26794154f9d3beb41f21f1a",
+  "AUDIT": {
+    "path": "OWN50_2V2_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 13,
+    "n_gating": 11,
+    "failed_checks": [],
+    "rows_sha256": "8944de76609b625d5cc0b87db7550254738df85ac403a3ee1182dbf5ea1799e6"
+  }
+}

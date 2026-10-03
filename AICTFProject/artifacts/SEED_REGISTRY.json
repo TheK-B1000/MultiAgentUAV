@@ -2904,10 +2904,17 @@
       "lo": 27500001,
       "hi": 27500001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T06:08:22Z"
+      "allocated_utc": "2026-10-03T06:08:22Z",
+      "spent_utc": "2026-10-03T20:38:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T20:38:48Z",
+          "note": "training seed used (2026-10-03)"
+        }
+      ]
     },
     {
       "experiment_id": "DUAL_BRANCH_R1_4V4_B_TRAIN",
@@ -2916,10 +2923,17 @@
       "lo": 27600001,
       "hi": 27600001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T06:08:22Z"
+      "allocated_utc": "2026-10-03T06:08:22Z",
+      "spent_utc": "2026-10-03T20:38:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T20:38:48Z",
+          "note": "training seed used (2026-10-03)"
+        }
+      ]
     },
     {
       "experiment_id": "DUAL_BRANCH_R1_4V4_K1_SPECIALIST_CROSSOVER",
@@ -3061,10 +3075,17 @@
       "lo": 28400001,
       "hi": 28400001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SYMMETRIC_DEFENDER_ONLY_4V4_K1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T15:58:10Z"
+      "allocated_utc": "2026-10-03T15:58:10Z",
+      "spent_utc": "2026-10-03T20:38:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T20:38:48Z",
+          "note": "training seed used (2026-10-03)"
+        }
+      ]
     },
     {
       "experiment_id": "SYM_DEFONLY_4V4_K1_B_TRAIN",
@@ -3073,10 +3094,17 @@
       "lo": 28500001,
       "hi": 28500001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SYMMETRIC_DEFENDER_ONLY_4V4_K1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T15:58:10Z"
+      "allocated_utc": "2026-10-03T15:58:10Z",
+      "spent_utc": "2026-10-03T20:38:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T20:38:48Z",
+          "note": "training seed used (2026-10-03)"
+        }
+      ]
     },
     {
       "experiment_id": "R4_SYM_DEFENDER_ONLY_4V4_K1_SPECIALIST_CROSSOVER",
@@ -3085,13 +3113,20 @@
       "lo": 28600001,
       "hi": 28600128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SYMMETRIC_DEFENDER_ONLY_4V4_K1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T15:58:10Z"
+      "allocated_utc": "2026-10-03T15:58:10Z",
+      "spent_utc": "2026-10-03T20:38:31Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T20:38:31Z",
+          "note": "crossover STOPPED by the user at 220/512 episodes (2026-10-03); not sealed; seeds touched -- never reuse as fresh"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-10-03T15:58:10Z",
+  "updated_utc": "2026-10-03T20:38:48Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

@@ -1,0 +1,27 @@
+{
+  "record_id": "STAGE4_4V4_TEACHERS_SEALED",
+  "status": "SEALED",
+  "utc": "2026-10-03T08:24:42Z",
+  "parent": "4v4/r1/dual_branch_deploy_manifest_r1.json",
+  "technical_seal": "4v4/r1/DUAL_BRANCH_4V4_R1_TECHNICAL_SEAL.json",
+  "pins": {
+    "pi_A_defend": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_r1_k1/ckpts/final_pi_A_specialist_4v4_dual_branch_r1_k1.zip",
+      "sha256": "c0ac11ee5a120c3c59b0517bdad041d127b9046cf93cb112887a48e95b76d2a1"
+    },
+    "pi_A_attack": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_r1_k1/ckpts/attack_pi_A_specialist_4v4_dual_branch_r1_k1.zip",
+      "sha256": "7c85e8314c5bb68b501174a70934d5fd6d7ae043646f52b6d5a3333d1f0780eb"
+    },
+    "pi_B_defend": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_r1_k1/ckpts/final_pi_B_specialist_4v4_dual_branch_r1_k1.zip",
+      "sha256": "afa03c3bc26eeb5f85378220cd65f558659f1ce0bc8551298e25f570ee146f5c"
+    },
+    "pi_B_attack": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_r1_k1/ckpts/attack_pi_B_specialist_4v4_dual_branch_r1_k1.zip",
+      "sha256": "5c8b5f1b388bdae4c4d1377f61c0636d8046be555ad2dcb03dcc494abe12d45d"
+    }
+  },
+  "teachers_are_dual_branch_composites": true,
+  "not_foundation_specialists": true
+}

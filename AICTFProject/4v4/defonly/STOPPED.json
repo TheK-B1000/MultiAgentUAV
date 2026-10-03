@@ -1,0 +1,25 @@
+{
+  "record": "R4_SYM_DEFENDER_ONLY_4V4_K1_STOPPED",
+  "utc": "2026-10-03T20:38:31Z",
+  "status": "STOPPED_BY_USER_NOT_SEALED",
+  "decided_by": "user 2026-10-03: stop running",
+  "completed": {
+    "training_A": true,
+    "training_B": true,
+    "technical_seal": "PASS",
+    "crossover_episodes": "220/512 (A@A all 128, A@B partial)"
+  },
+  "partial_cells_not_a_result": {
+    "A@A": "0.648 (128 seeds)",
+    "A@B": "~0.64 (partial)"
+  },
+  "kept": [
+    "trained defenders artifacts/scale_4v4_specialists/pi_{A,B}_specialist_4v4_sym_defonly_k1/",
+    "partial rows artifacts/strategic_demand/sppo/r4_sym_defender_only_4v4_k1_specialist_crossover_eval_rows.PARTIAL.jsonl (resume with: python 4v4/run_defender_only_4v4.py)"
+  ],
+  "deleted": [
+    "smoke run dirs (5k-step, non-scientific)",
+    "interim diagnostic folders"
+  ],
+  "seed_block": "28600001..28600128 marked SPENT (touched)"
+}

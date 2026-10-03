@@ -1,0 +1,16 @@
+{
+  "steps": {
+    "phase0_preflight": "2026-10-03T06:15:16Z",
+    "phase1_smoke_A": "2026-10-03T06:17:23Z",
+    "phase1_smoke_B": "2026-10-03T06:19:30Z",
+    "phase1_train": "2026-10-03T08:24:40Z",
+    "phase1_export": "2026-10-03T08:24:40Z",
+    "phase1_technical_seal": "2026-10-03T08:24:42Z",
+    "r1_crossover": "2026-10-03T14:39:56Z"
+  },
+  "status": "R1_STAGE3_DONE",
+  "pid": 35916,
+  "k_defend": 1,
+  "spec": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
+  "updated_utc": "2026-10-03T14:39:56Z"
+}
