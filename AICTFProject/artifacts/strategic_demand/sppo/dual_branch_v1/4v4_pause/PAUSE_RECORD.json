@@ -1,0 +1,189 @@
+{
+  "record": "DUAL_BRANCH_4V4_PAUSE_BEFORE_STAGE4",
+  "status": "PAUSED_FOR_PI_REVIEW",
+  "utc": "2026-10-03T05:54:35Z",
+  "git_head": "cd1ef44947bcb51b72a8dbdde84fa1265e882119",
+  "decided_by": "user 2026-10-03: pause 4v4 immediately after matched-128 seals, before Stage 4; send a packet to the PI",
+  "framing": "4v4 Stage 3 produced a negative result under the frozen symmetric protocol. The B side collapsed during training, yielding negative Pole-B crossover separation. Stage 4 was paused only to avoid spending compute on distillation from an invalid teacher pair while the PI reviews the failure mode. Nothing frozen was changed.",
+  "stage3_matched128": {
+    "result": {
+      "path": "artifacts/strategic_demand/sppo/POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "sha256": "43718a14a068aba487aefa0c660c757f597e87273d5e39bc73edb8cc9980b004"
+    },
+    "rows": {
+      "path": "artifacts/strategic_demand/sppo/posthoc_matched128_4v4_dual_branch_specialist_crossover_eval_rows.csv",
+      "sha256": "ea985b7ea547b6c8d5e2d606bc36220e3e7db0cbb66e0c3227dadacedaba38a0"
+    },
+    "readout": {
+      "path": "artifacts/strategic_demand/sppo/dual_branch_v1/matched128_4v4/MATCHED128_4V4_READOUT.json",
+      "sha256": "97cbba7ceac24be3c51ab640cd9ba514b7df4a0e52836e6ac2272412c46923cb"
+    },
+    "seeds": "21800001..21800128 (historical SPENT block; post-hoc matched, not confirmatory)",
+    "crossover_win": {
+      "V_A_on_A": 0.578125,
+      "V_B_on_A": 0.3828125,
+      "V_A_on_B": 0.109375,
+      "V_B_on_B": 0.0234375
+    },
+    "Delta_A_win": {
+      "mean": 0.1953125,
+      "std": 0.7215315485760488,
+      "lcb95": 0.0703125,
+      "ucb95": 0.3203125,
+      "n": 128
+    },
+    "Delta_B_win": {
+      "mean": -0.0859375,
+      "std": 0.332666245219832,
+      "lcb95": -0.1484375,
+      "ucb95": -0.03125,
+      "n": 128
+    },
+    "Delta_A_margin": {
+      "mean": 0.640625,
+      "std": 1.872866239953058,
+      "lcb95": 0.3203125,
+      "ucb95": 0.9609375,
+      "n": 128
+    },
+    "Delta_B_margin": {
+      "mean": -0.640625,
+      "std": 1.4457887529339257,
+      "lcb95": -0.890625,
+      "ucb95": -0.390625,
+      "n": 128
+    },
+    "old_asymmetric_same_seeds": {
+      "Delta_A_win": 0.15625,
+      "Delta_B_win": 0.40625
+    },
+    "paired_vs_old": {
+      "dual_branch_minus_old_asymmetric_ours": {
+        "win": {
+          "Delta_A": {
+            "mean": 0.0390625,
+            "std": 0.999230757282427,
+            "lcb95": -0.1328125,
+            "ucb95": 0.2109375,
+            "n": 128
+          },
+          "Delta_B": {
+            "mean": -0.4921875,
+            "std": 0.6639904864843564,
+            "lcb95": -0.609375,
+            "ucb95": -0.375,
+            "n": 128
+          }
+        },
+        "margin": {
+          "Delta_A": {
+            "mean": 0.0546875,
+            "std": 2.3149925383801793,
+            "lcb95": -0.34375,
+            "ucb95": 0.453125,
+            "n": 128
+          },
+          "Delta_B": {
+            "mean": -2.03125,
+            "std": 1.8987666946283637,
+            "lcb95": -2.359375,
+            "ucb95": -1.703125,
+            "n": 128
+          }
+        }
+      }
+    }
+  },
+  "integrity": {
+    "flag": {
+      "path": "artifacts/strategic_demand/sppo/POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+      "sha256": "c42eefb6fadfa6c0e76e3b128660c742d7f25ae2a731394daae1d4644102c148"
+    },
+    "row_level_audit": "PASS: 512 rows; each cell exactly the 128-seed block; win binary; margin == blue - red; win == (blue > red); 0 violations",
+    "B_on_B_detail": "3 wins / 128; B scored in 11 / 128; mean goals for 0.09, against 1.46"
+  },
+  "training_collapse": {
+    "diagnostic": {
+      "path": "artifacts/strategic_demand/sppo/dual_branch_v1/4v4_pause/TRAINING_DIAGNOSTIC.json",
+      "sha256": "95f0a3dc659e9bbed407ef6ccd3b0bb3882580456b877f64d161bfbe7155fc4e"
+    },
+    "generator": "experiments/diagnose_dual_branch_training.py",
+    "summary": [
+      "4v4 B (vs OP7): own-pole win 0.62 (0-20k) -> 0.41 (20-40k) -> 0.10 (40-60k), then 0.01-0.08 through 200k",
+      "the failure is mainly scoring: own goals per episode 1.18 -> 0.13 by 40-60k; goals conceded rise only modestly in training (0.10 -> ~0.2)",
+      "collapse begins at 20-60k while the DEFEND-teacher weight is still at its peak (0.1, before decay starts at 50k); no recovery in the 50k steps after the weight reaches 0 (150k)",
+      "2v2 B: same collapse (win 0.62 -> 0.00 by 80-100k) and recovery only after the weight reached 0 (0.34 at 160-180k, 0.50 at 180-200k)",
+      "A sides under the same scaffold schedule do not collapse at either scale (4v4 A ends 0.73, 2v2 A 0.62)"
+    ],
+    "not_in_logs": [
+      "per-update DEFEND-teacher loss",
+      "per-update DEFEND share (roles fixed per episode at k=ceil(N/3)=2 by construction)",
+      "attack-route crossing counts are recorded as 0 in every row (not populated; uninformative)"
+    ],
+    "scaffold_schedule": {
+      "lambda_peak": 0.1,
+      "lambda_end": 0.0,
+      "decay_start": 50000,
+      "decay_end": 150000,
+      "cadence": 4,
+      "source": "4v4/dual_branch_train_B.log.err"
+    }
+  },
+  "freeze_state": {
+    "driver_pids_suspended": [
+      32912,
+      10348
+    ],
+    "hold_record": {
+      "path": "artifacts/strategic_demand/sppo/dual_branch_v1/matched128_2v2/hold_4v4.json",
+      "sha256": "8245597fdd2481c9e3f58815b53d7e537a1328e642be134e87223581d6a97701"
+    },
+    "driver_state": {
+      "status": "TECHNICALLY_SEALED",
+      "completed_steps": [
+        "phase0_preflight",
+        "phase1_smoke_A",
+        "phase1_smoke_B",
+        "phase1_train",
+        "phase1_export",
+        "phase1_technical_seal"
+      ]
+    },
+    "next_stage_not_started": "matched-128 bookkeeping/readout in the driver, own top-50, then Stage-4 collection -- none started",
+    "disclosure": "at ~05:52Z the driver was accidentally un-suspended for a few seconds by a mistaken command and re-suspended at once; it was blocked waiting on the matched-128 subprocess, so it advanced no phase (driver log unchanged)",
+    "reboot_caveat": "a reboot ends the suspension; relaunching 4v4/run_dual_branch_4v4.ps1 would resume and proceed to Stage 4 -- do not relaunch until the PI decides",
+    "to_resume_if_PI_says_continue": "python artifacts/strategic_demand/sppo/dual_branch_v1/matched128_2v2/hold_4v4.py resume (same frozen teachers, same seeds)"
+  },
+  "proposed_rescue_ladder_NOT_AUTHORIZED": {
+    "status": "PROPOSED by the user 2026-10-03, awaiting PI approval; nothing frozen or run",
+    "principle": "the sealed 4v4 run stays the original result; it generates the hypothesis but is never reused as its confirmation. One change at a time, always symmetric (same rule, budget, scaffold and architecture for A and B), each step frozen before it runs, confirmed on a FRESH untouched 128-seed block.",
+    "hypothesis": "the fixed defender allocation interferes with B at 4v4: ceil(4/3) = 2 puts half the team on DEFEND",
+    "R1": {
+      "change": "k = max(1, round(N/3)) instead of ceil(N/3)",
+      "effect_by_scale": {
+        "2v2": "1 -> 1 (unchanged)",
+        "4v4": "2 -> 1",
+        "6v6": "2 -> 2 (unchanged)",
+        "8v8": "3 -> 3 (unchanged)"
+      },
+      "run": "retrain BOTH 4v4 A and B from the sealed repaired 1M specialists, 200k, same DEFEND schedule, optimizer and everything else; k_A = k_B = 1",
+      "question": "was forced half-team defense the problem?",
+      "note": "N/3 is never x.5 for N = 2..8, so round() has no tie cases here"
+    },
+    "R2_only_if_needed": {
+      "change": "k = 2, longer budget for BOTH (e.g. 300k, scaffold still ending at 150k -> 150k pure-PPO recovery)",
+      "question": "was post-scaffold recovery time too short?"
+    },
+    "R3_only_if_needed": {
+      "change": "weaker or shorter DEFEND scaffold for BOTH",
+      "question": "is supervised DEFEND pressure itself the cause?"
+    },
+    "later": {
+      "change": "strategy-dependent or adaptive allocator",
+      "question": "does each strategy need its own organization? (method change)"
+    },
+    "not_recommended_as_main_result": "continuing only the collapsed B checkpoint (A 200k vs B 300k breaks symmetry); acceptable only as a labelled diagnostic",
+    "confirmation": "after freezing the revised rule: fresh 128-seed block; a comparison with the old asymmetric system on those seeds needs the old system re-evaluated there too (deterministic, +512 episodes); 4v4 Stage 4 would restart from the new teachers",
+    "evidence_note": "collapse begins while the scaffold weight is constant at its peak, so k and scaffold are confounded in the existing logs; R1 changes k only, R3 would isolate the scaffold"
+  }
+}
