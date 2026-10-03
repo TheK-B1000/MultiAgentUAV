@@ -3124,9 +3124,37 @@
           "note": "crossover STOPPED by the user at 220/512 episodes (2026-10-03); not sealed; seeds touched -- never reuse as fresh"
         }
       ]
+    },
+    {
+      "experiment_id": "SCK_4V4_DEV_SELECTION",
+      "purpose": "4v4 strategy-conditioned k: development selection",
+      "seed_class": "exploratory",
+      "lo": 28700001,
+      "hi": 28700064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "STRATEGY_CONDITIONED_K_4V4_DEV_EVAL_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T20:54:09Z",
+      "shared_by_labels": [
+        "SCK_4V4_DEV_K0",
+        "SCK_4V4_DEV_K1"
+      ]
+    },
+    {
+      "experiment_id": "SCK_4V4_CONFIRM_SPECIALIST_CROSSOVER",
+      "purpose": "4v4 strategy-conditioned k: fresh confirmation",
+      "seed_class": "sealed_confirmatory",
+      "lo": 28800001,
+      "hi": 28800128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "STRATEGY_CONDITIONED_K_4V4_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T20:54:09Z"
     }
   ],
-  "updated_utc": "2026-10-03T20:38:48Z",
+  "updated_utc": "2026-10-03T20:54:09Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

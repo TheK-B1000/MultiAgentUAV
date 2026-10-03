@@ -1,0 +1,11 @@
+{
+  "record_id": "STRATEGY_CONDITIONED_K_4V4_DEV_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_SELECTION",
+  "utc": "2026-10-03T20:54:09Z",
+  "team_size": 4,
+  "git_head_at_freeze": "8525ced1a0967332c408b21464d3ce3e5fb749ac",
+  "arm": "DEVELOPMENT_SELECTION",
+  "confirmatory": false,
+  "parent": "STRATEGY_CONDITIONED_K_4V4_SPEC.json",
+  "purpose": "evaluation spec for the development selection runs only"
+}

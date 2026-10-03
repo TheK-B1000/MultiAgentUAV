@@ -1,0 +1,135 @@
+{
+  "record_id": "STRATEGY_CONDITIONED_K_4V4_SPEC",
+  "status": "FROZEN_BEFORE_SELECTION",
+  "utc": "2026-10-03T20:54:09Z",
+  "team_size": 4,
+  "git_head_at_freeze": "8525ced1a0967332c408b21464d3ce3e5fb749ac",
+  "arm": "REVISED_METHOD_STRATEGY_CONDITIONED_ORGANIZATION",
+  "confirmatory": true,
+  "classification": "Revised hypothesis motivated by the sealed 4v4 scaling results (V1 k=2, R1 k=1). Strategy-conditioned organization: not the original fixed-k method; no historical asymmetric system is compared or revived. Not PAPER-FAITHFUL.",
+  "decided_by": "user 2026-10-03: implement strategy-conditioned role allocation, 4v4 first",
+  "MOTIVATION_disclosed": "Formulated AFTER observing the sealed 4v4 V1 (k=2: B collapsed, Delta_B -0.086) and R1 (k=1: A/B converged, Delta_A +0.047, Delta_B -0.109) results and the PARTIAL defender-only behavior (stopped at 220/512, unsealed: A@A 0.648, A@B ~0.64). It was not conceived beforehand. Those seeds are never reused.",
+  "HYPOTHESIS": "A strategy consists of its learned behavior and its selected team organization: k = k(z).",
+  "FAIRNESS": "procedural symmetry: identical candidate set, selection objective, development budget, tie-break and confirmation procedure for A and B; the selected k_A and k_B may differ and are never assigned by hand.",
+  "MENU_locked": {
+    "k_role": "max(1, floor(N/3 + 1/2)) = max(1, (2N + 3) // 6)",
+    "K(N)": "{0, k_role(N)}",
+    "this_scale": [
+      0,
+      1
+    ],
+    "k=0": "sealed repaired specialist on all N agents (no DEFEND role)",
+    "k>0": "defender-only: frozen specialist ATTACK slots + trained DEFEND slots, CLOSEST_DEFENDS(k), roles fixed per episode"
+  },
+  "CANDIDATES_locked": {
+    "A": {
+      "0": {
+        "construction": "sealed A specialist on all 4 agents",
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+      },
+      "1": {
+        "construction": "defender-only: 3 frozen A-specialist ATTACK + 1 trained DEFEND",
+        "defender": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_sym_defonly_k1/ckpts/final_pi_A_specialist_4v4_sym_defonly_k1.zip",
+        "defender_sha256": "b8f73eb7f0068eee17a7576194f6c08a4cc37464d95999cc44a7a748139aff83",
+        "frozen_attack": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "frozen_attack_sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+      }
+    },
+    "B": {
+      "0": {
+        "construction": "sealed B specialist on all 4 agents",
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+      },
+      "1": {
+        "construction": "defender-only: 3 frozen B-specialist ATTACK + 1 trained DEFEND",
+        "defender": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sym_defonly_k1/ckpts/final_pi_B_specialist_4v4_sym_defonly_k1.zip",
+        "defender_sha256": "024d7de8936ec12642dff1533482fd933e67ebd99aff740d0c23c91893db1826",
+        "frozen_attack": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "frozen_attack_sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+      }
+    }
+  },
+  "candidate_verification": {
+    "A": {
+      "split_attack_defend_enabled": true,
+      "role_fixed_for_episode": true,
+      "role_hold_ticks": 8,
+      "defend_teacher_lambda": 0.1,
+      "defend_teacher_lambda_end": 0.0,
+      "defend_teacher_decay_start_step": 50000,
+      "defend_teacher_decay_end_step": 150000,
+      "defend_teacher_cadence": 4,
+      "entity_repair_enabled": true,
+      "entity_hidden_dim": 32,
+      "total_timesteps": 200000,
+      "role_k_defend": 1,
+      "seed": 28400001
+    },
+    "B": {
+      "split_attack_defend_enabled": true,
+      "role_fixed_for_episode": true,
+      "role_hold_ticks": 8,
+      "defend_teacher_lambda": 0.1,
+      "defend_teacher_lambda_end": 0.0,
+      "defend_teacher_decay_start_step": 50000,
+      "defend_teacher_decay_end_step": 150000,
+      "defend_teacher_cadence": 4,
+      "entity_repair_enabled": true,
+      "entity_hidden_dim": 32,
+      "total_timesteps": 200000,
+      "role_k_defend": 1,
+      "seed": 28500001
+    }
+  },
+  "SELECTION_RULE_locked": {
+    "objective": "k_p* = argmax_{k in K(N)} V(Pi_{p,k}, p): win rate on the INTENDED pole only (A on Pole A, B on Pole B), over the development block",
+    "tie_break": "exact tie in measured intended-pole win rate -> the smaller k",
+    "never_used": [
+      "crossover cells",
+      "Delta_A / Delta_B",
+      "manual override"
+    ],
+    "dev_block": {
+      "experiment_id": "SCK_4V4_DEV_SELECTION",
+      "range": [
+        28700001,
+        28700064
+      ],
+      "n": 64,
+      "seed_ids_sha256": "897d1f30002816a4552289158f7640161c36057a0f576f1ff99e42469bf6e4e9"
+    },
+    "dev_runs": {
+      "0": "SCK_4V4_DEV_K0",
+      "1": "SCK_4V4_DEV_K1"
+    },
+    "note": "the evaluator plays both policies on both poles; non-intended-pole dev cells are recorded and EXCLUDED"
+  },
+  "CONFIRMATION_locked": {
+    "label": "SCK_4V4_CONFIRM",
+    "registry_experiment_id": "SCK_4V4_CONFIRM_SPECIALIST_CROSSOVER",
+    "range": [
+      28800001,
+      28800128
+    ],
+    "n": 128,
+    "seed_ids_sha256": "cb8d35e452522d289713034a786e1c2d20f9dbce2482ded5699ba59df5960df4",
+    "cells": "A@A, B@A, A@B, B@B with the selected k_A, k_B",
+    "report": "four win rates, score margins, Delta_A = A@A - B@A, Delta_B = B@B - A@B; paired bootstrap 95% and 0.9833 (1 - 0.05/3); n_boot 20000, rng 7; no PASS/FAIL wording",
+    "k_frozen_before": "the selection record is sealed before the confirmation starts; k_A, k_B never change afterwards"
+  },
+  "INTERPRETATION_locked": {
+    "k_A == k_B": "the selected organization happens to remain structurally symmetric",
+    "k_A != k_B": "The deployed strategies use different organizations, but those organizations were selected by the same pre-specified candidate set, objective, evaluation budget, and tie-breaking rule. (Not called structurally symmetric.)"
+  },
+  "STOP": "after the confirmation readout: stop; no Stage 4, no 2v2/6v6 without PI/user approval; if no useful opponent-specific separation, stop the strategy-conditioned-k experiment",
+  "NOT_AUTHORIZED": [
+    "tuning the menu or rule after any result",
+    "using crossover or Delta to pick k",
+    "reusing these seeds",
+    "running 2v2 or 6v6",
+    "Stage 4",
+    "calling this the original fixed-k confirmatory method"
+  ]
+}
