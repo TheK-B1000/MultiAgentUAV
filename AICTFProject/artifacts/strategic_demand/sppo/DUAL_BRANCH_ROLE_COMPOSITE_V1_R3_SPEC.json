@@ -1,0 +1,275 @@
+{
+  "record_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R3_SPEC",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "utc": "2026-10-03T13:44:52Z",
+  "arm": "RESCUE_MECHANISM_STUDY",
+  "confirmatory": true,
+  "classification": "R3 rung of the pre-registered 4v4 rescue ladder (DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC.json). Runs only if every earlier rung fails the ladder's pass rule. Not PAPER-FAITHFUL.",
+  "decided_by": "PI, 2026-10-03: approve R1; no old-system comparison on the fresh block.",
+  "THE_QUESTION": "Does reducing the fixed defender allocation from two agents to one prevent the 4v4 Pole-B collapse while preserving Pole-A specialization?",
+  "RESEARCH_CLAIM_TEMPLATE": "Each opponent-conditioned specialist is decomposed into two explicit role policies, ATTACK and DEFEND, initialized from the same specialist and trained under an identical role-allocation and optimization procedure. The same construction is applied at every team size and to both strategic regimes.",
+  "PAPER_STORY": "PAPER_END_TO_END_STORY_V1.json — this spec is Stage 2 (role-organized teachers) of that freeze. Do not add a router or a sharing arm inside this file.",
+  "ARCHITECTURE_locked": {
+    "for_each_scale_N_in": [
+      2,
+      4,
+      6
+    ],
+    "for_each_strategy_s_in": [
+      "A",
+      "B"
+    ],
+    "foundation": "repaired 1M entity-repair specialist pi_s (frozen file on disk; never overwritten)",
+    "branches": {
+      "ATTACK": "trainable network pi^ATTACK_s, warm-started as a clone of pi_s",
+      "DEFEND": "trainable network pi^DEFEND_s, warm-started as a clone of the SAME pi_s"
+    },
+    "deployment": "CLOSEST_DEFENDS(k) assigns roles once per episode (fixed_for_episode); ATTACK slots execute pi^ATTACK_s; DEFEND slots execute pi^DEFEND_s",
+    "k_rule": "k = ceil(N/3)",
+    "k_by_scale": {
+      "2": 1,
+      "4": 2,
+      "6": 2
+    },
+    "k_note": "Resolved k MUST be passed explicitly (--role-k-defend). Do not use rl.custom_ppo.rule_role_assignment.role_k (that helper is N/2 and would wrongly give k=3 at 6v6).",
+    "identical_across_A_and_B": [
+      "allocator CLOSEST_DEFENDS",
+      "k_rule",
+      "roles fixed for episode",
+      "H_r hold ticks unused because fixed_for_episode",
+      "200k joint role-training budget",
+      "ATTACK update rule",
+      "DEFEND update rule",
+      "N-prime teacher schedule on DEFEND",
+      "optimizer / PPO hyperparameters inherited from the specialist trainer defaults used by the canonical split stage",
+      "entity_repair_enabled=true, entity_hidden_dim=32",
+      "SA-PPO anchor OFF"
+    ],
+    "allowed_to_differ": [
+      "foundation checkpoint (pi_A vs pi_B) and its sha256",
+      "training opponent pole (Pole A vs Pole B)",
+      "seed, experiment_id, artifact paths, run_label",
+      "N and the derived k=ceil(N/3) and tensor widths"
+    ]
+  },
+  "FOUNDATION_CHECKPOINTS_locked": {
+    "2": {
+      "A": {
+        "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+        "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"
+      },
+      "B": {
+        "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+        "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"
+      }
+    },
+    "4": {
+      "A": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+      },
+      "B": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+      }
+    },
+    "6": {
+      "A": {
+        "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip",
+        "sha256": "3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e"
+      },
+      "B": {
+        "path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip",
+        "sha256": "fc0043235d3abc23f87f5157a46920921f5eced0e9aa252347084d2b500258b5"
+      }
+    }
+  },
+  "JOINT_200K_TRAINING_locked": {
+    "total_timesteps": 200000,
+    "budget_semantics_locked": "200000 environment-training steps for the composite team (shared rollout). Samples are routed to ATTACK or DEFEND by role. This is NOT 200k updates per branch independently, and NOT two sequential 200k experiments.",
+    "structure": "ONE composite PPO run per (N, s). Both branches are present for the whole run. This is not two unrelated sequential experiments.",
+    "initialization": "Both pi^ATTACK_s and pi^DEFEND_s load weights from FOUNDATION_CHECKPOINTS[N][s] (identical file, identical sha256). Fresh optimizer / progress counters for the 200k stage.",
+    "role_assignment_during_training": "CLOSEST_DEFENDS(k=ceil(N/3)), fixed_for_episode=true, on every episode of the training pole for strategy s",
+    "sample_routing": {
+      "ATTACK_experiences": "decision-eligible, alive agent-ticks whose assigned role is ATTACK update ONLY pi^ATTACK_s under the ATTACK objective",
+      "DEFEND_experiences": "decision-eligible, alive agent-ticks whose assigned role is DEFEND update ONLY pi^DEFEND_s under the DEFEND objective",
+      "no_cross_branch_gradients": "an ATTACK tick must not write gradients into pi^DEFEND_s; a DEFEND tick must not write gradients into pi^ATTACK_s"
+    },
+    "ATTACK_objective": {
+      "locked_choice": "standard on-policy PPO policy+value(+entropy) losses on ATTACK-assigned decision points only, using the same PPO hyperparameters as the specialist trainer's production defaults for this codebase's split/role stage",
+      "explicitly_not": [
+        "leaving ATTACK frozen for the 200k stage",
+        "a second unrelated 200k run after DEFEND finishes",
+        "N-prime teacher on ATTACK",
+        "undefined 'train an attacker' prose without the decision-point filter above"
+      ]
+    },
+    "DEFEND_objective": {
+      "ppo": "standard on-policy PPO on DEFEND-assigned decision points only (same PPO hyperparameter inheritance as ATTACK)",
+      "n_prime_teacher_auxiliary": {
+        "lambda_peak": 0.1,
+        "lambda_end": 0.0,
+        "decay_start_step": 50000,
+        "decay_end_step": 150000,
+        "cadence": 4,
+        "loss": "CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND-role, alive, decision-eligible agent-ticks",
+        "do_not_retune": true
+      }
+    },
+    "decision_point_filtering": "only decision-eligible agent-ticks enter either branch's PPO minibatches (same semi-Markov decision semantics as the rest of the suite)",
+    "checkpoint_rule": "periodic checkpoints every 100000 steps; terminal weights at ~200k are the sole selected artifact (no early stopping, no checkpoint shopping)",
+    "sappo_anchor": "OFF",
+    "IMPLEMENTATION_GATE": {
+      "status": "PASSED",
+      "passed_utc": "2026-10-02T02:15:00Z",
+      "evidence": [
+        "tests/test_dual_branch_role_composite_v1.py (ceil(N/3), attack/defend gating, both trainable + isolated, teacher not on ATTACK, checkpoint roundtrip)",
+        "tests/test_split_attack_defend.py still green (frozen-ATTACK ablation path preserved)",
+        "cfg.dual_branch_role_composite_enabled + --dual-branch-spec authorization",
+        "joint budget = env total_timesteps with per-minibatch dual PPO steps (not 2x 200k)"
+      ],
+      "required_before_launch": [
+        "trainer supports two trainable networks in one run with the sample_routing above",
+        "fail-closed attestation that both branches loaded the foundation sha256",
+        "fail-closed that --role-k-defend equals ceil(N/3)",
+        "unit tests: ATTACK ticks do not change DEFEND weights and vice versa",
+        "smoke (5k, disposable 999xxxxx seed) PASS at N=2 before any 200k"
+      ]
+    }
+  },
+  "EVALUATION_locked": {
+    "after_all_six_role_composites_seal": "2v2 A, 2v2 B, 4v4 A, 4v4 B, 6v6 A, 6v6 B",
+    "development": {
+      "purpose": "sanity / process check of the frozen architecture",
+      "n_seeds": 64,
+      "cells": [
+        "A@A",
+        "B@A",
+        "A@B",
+        "B@B"
+      ],
+      "fresh_block": true,
+      "forbidden_sources": [
+        "asymmetric Ours top-50",
+        "any confirmatory block",
+        "any selection block reused as confirmatory"
+      ]
+    },
+    "confirmatory": {
+      "purpose": "paper primary n=128",
+      "n_seeds": 128,
+      "cells": [
+        "A@A",
+        "B@A",
+        "A@B",
+        "B@B"
+      ],
+      "fresh_block": true,
+      "deltas": {
+        "Delta_A": "V(A_sym, A) - V(B_sym, A)",
+        "Delta_B": "V(B_sym, B) - V(A_sym, B)"
+      },
+      "note": "Both A_sym and B_sym are dual-branch role composites under this spec. Old asymmetric / defender-only deltas are historical controls only."
+    },
+    "seed_allocation_rule": "Allocate dedicated RESERVED blocks via experiments/seed_registry.py before any eval launch; record experiment_ids in an amendment. Do not spend until the corresponding stage is authorized."
+  },
+  "SUCCESS_CRITERIA_locked": {
+    "decided_by": "PI, 2026-10-01/02: do not require Delta_A, Delta_B >> 0 as the sole success definition",
+    "not_required": "large positive deltas on both poles as a necessary condition for a successful experiment",
+    "primary_success": "strategic differentiation under the frozen dual-branch construction",
+    "requires_all_of": [
+      "A and B have reproducibly different behavioral signatures (same construction; differences not explained by seed noise alone)",
+      "those differences are interpretable relative to Pole A (OP6) vs Pole B (OP7)",
+      "crossover or another functional measure shows that the distinction matters (the strategies are not mere stylistic variants)"
+    ],
+    "delta_interpretation": {
+      "role": "supporting functional evidence, not the sole success criterion",
+      "modest_positive_example": "Delta_B = +0.10 can support the claim if B shows a clearly different, repeatable strategy with a measurable Pole-B advantage",
+      "large_positive_without_behavior": "Delta_B = +0.80 with no behavioral explanation is a strong specialization result but a weaker strategy story",
+      "negative_or_null_at_a_scale": "reportable under this freeze (e.g. scaling difficulty at 6v6); do not redesign k or losses after seeing results"
+    },
+    "forbidden_post_hoc": [
+      "redefining success as Delta >> 0 only after seeing confirmatory numbers",
+      "changing architecture at a weak scale to chase larger deltas"
+    ]
+  },
+  "EXPLORATORY_ABLATION_defender_only": {
+    "definition": "foundation specialist frozen on ATTACK; only DEFEND branch receives the 200k update (current split_attack_defend path)",
+    "status": "EXPLORATORY / ABLATION under this methodology freeze",
+    "includes_on_disk": [
+      "historical A-only split pi_DA at 2v2/4v4/6v6",
+      "SYMMETRIC_ROLE_TOP50 2v2 pi_DB and its top-50 symmetric eval",
+      "any 4v4/6v6 defender-only B work prepared under SYMMETRIC_ROLE_TOP50_DIAGNOSTIC_SPEC"
+    ],
+    "may_be_reported_as": "ablation: dedicated DEFEND only vs this V1 dual-branch main candidate",
+    "must_not_be_reported_as": "the paper-final symmetric role-composite system"
+  },
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "changing anything but the allocator rule",
+    "A-only or B-only training (symmetric only)",
+    "reusing the V1 4v4 seeds for confirmation",
+    "Stage 4 from the R1 teachers before the PI reviews the R1 Stage-3 result",
+    "R2/R3 (only if R1 fails, each its own frozen spec)",
+    "claiming PAPER-FAITHFUL"
+  ],
+  "derived_from": {
+    "path": "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
+    "sha256": "0d055e7a42f396e83d4df0d5fcf11b980f7731eababddbfdd1f2996883933310"
+  },
+  "motivating_result": {
+    "path": "artifacts/strategic_demand/sppo/POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "sha256": "43718a14a068aba487aefa0c660c757f597e87273d5e39bc73edb8cc9980b004",
+    "summary": "4v4 V1 (k=2) matched-128: Delta_A +0.195 [+0.070,+0.320], Delta_B -0.086 [-0.148,-0.031]; B collapsed in training while the DEFEND teacher was at peak (dual_branch_v1/4v4_pause/)"
+  },
+  "HYPOTHESIS": "The fixed defender allocation interferes with B at 4v4: ceil(4/3)=2 puts half the team on DEFEND. Reducing it to one defender prevents the Pole-B collapse while preserving Pole-A specialization.",
+  "ALLOCATOR_RULE_locked": {
+    "rule": "max(1, floor(N/3 + 1/2))",
+    "integer_form": "max(1, (2*N + 3) // 6)",
+    "by_scale": {
+      "2v2": 1,
+      "3v3": 1,
+      "4v4": 1,
+      "5v5": 2,
+      "6v6": 2,
+      "8v8": 3
+    },
+    "vs_V1": "identical to ceil(N/3) at 2v2 and 6v6; differs only at 4v4 (2 -> 1)",
+    "symmetric": "k_A = k_B = 1 at 4v4; same allocator (CLOSEST_DEFENDS, roles fixed per episode, H_r = 8) for both"
+  },
+  "ONLY_CHANGE": "the defender-count rule. Everything else is V1 exactly: architecture, foundations (the sealed repaired 1M specialists), 200k joint budget, DEFEND-teacher schedule (lambda 0.1 -> 0 over 50k-150k, cadence 4), optimizer, entity repair, role hold, evaluation procedure.",
+  "R1_RUN_locked": null,
+  "CONFIRMATION_locked": {
+    "label": "DUAL_BRANCH_R3_4V4_K1_300K",
+    "registry_experiment_id": "DUAL_BRANCH_R3_4V4_K1_300K_SPECIALIST_CROSSOVER",
+    "block": "28300001..28300128",
+    "n": 128,
+    "seed_class": "sealed_confirmatory",
+    "fresh": "untouched by any earlier 4v4 run",
+    "cells": "A@A, B@A, A@B, B@B on every seed (512 episodes), both sides spliced (deploy manifest), role-fixed, k=1",
+    "readout": "Delta_A = V(A,A) - V(B,A), Delta_B = V(B,B) - V(A,B), win rate and score margin, mean +- std + 95% paired bootstrap (n=20000, rng 7); training-trajectory diagnostic of both R1 runs next to the V1 runs",
+    "no_old_system_comparison": "PI 2026-10-03: the old asymmetric system is not re-evaluated on this block"
+  },
+  "ONLY_CHANGE_vs_R1": "budget 200k -> 300k with the teacher schedule unchanged (ends at 150k): 150k teacher-free recovery",
+  "TRAINING_locked": {
+    "total_timesteps": 300000,
+    "defend_teacher": {
+      "lambda": 0.1,
+      "lambda_end": 0.0,
+      "decay_start": 50000,
+      "decay_end": 150000,
+      "cadence": 4
+    },
+    "k_defend_4v4": 1,
+    "run_label_suffix": "_dual_branch_r3_k1_300k"
+  },
+  "RUN_locked": {
+    "team_size": 4,
+    "k_defend": 1,
+    "run_label_suffix": "_dual_branch_r3_k1_300k",
+    "training_seeds": {
+      "A": 28100001,
+      "B": 28200001
+    },
+    "driver": "4v4/run_dual_branch_4v4_rescue.py --rung R3"
+  }
+}

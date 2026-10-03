@@ -2932,9 +2932,81 @@
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-10-03T06:08:22Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R2_4V4_A_TRAIN",
+      "purpose": "4v4 rescue ladder R2 A training seed",
+      "seed_class": "exploratory",
+      "lo": 27800001,
+      "hi": 27800001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T13:44:52Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R2_4V4_B_TRAIN",
+      "purpose": "4v4 rescue ladder R2 B training seed",
+      "seed_class": "exploratory",
+      "lo": 27900001,
+      "hi": 27900001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T13:44:52Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R2_4V4_K1_TEACHER_HALF_SPECIALIST_CROSSOVER",
+      "purpose": "4v4 rescue ladder R2: fresh 128-seed crossover",
+      "seed_class": "sealed_confirmatory",
+      "lo": 28000001,
+      "hi": 28000128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R2_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T13:44:52Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R3_4V4_A_TRAIN",
+      "purpose": "4v4 rescue ladder R3 A training seed",
+      "seed_class": "exploratory",
+      "lo": 28100001,
+      "hi": 28100001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R3_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T13:44:52Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R3_4V4_B_TRAIN",
+      "purpose": "4v4 rescue ladder R3 B training seed",
+      "seed_class": "exploratory",
+      "lo": 28200001,
+      "hi": 28200001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R3_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T13:44:52Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R3_4V4_K1_300K_SPECIALIST_CROSSOVER",
+      "purpose": "4v4 rescue ladder R3: fresh 128-seed crossover",
+      "seed_class": "sealed_confirmatory",
+      "lo": 28300001,
+      "hi": 28300128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R3_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T13:44:52Z"
     }
   ],
-  "updated_utc": "2026-10-03T06:08:22Z",
+  "updated_utc": "2026-10-03T13:44:52Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
