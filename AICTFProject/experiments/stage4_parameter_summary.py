@@ -103,6 +103,8 @@ def main() -> int:
     ap.add_argument("--team-size", type=int, required=True, choices=(2, 4, 6))
     n = ap.parse_args().team_size
     N = f"{n}V{n}"
+    if hasattr(sys.stdout, "reconfigure"):          # the table prints Delta; cp1252 consoles cannot encode it
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     out_dir = SD / "dual_branch_v1" / f"matched128_{n}v{n}"
     man = json.loads((ROOT / f"{n}v{n}" / "dual_branch_deploy_manifest.json").read_text(encoding="utf-8"))
 
