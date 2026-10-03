@@ -1,6 +1,6 @@
 {
   "record_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R2_SPEC",
-  "status": "FROZEN_BEFORE_TRAINING",
+  "status": "WITHDRAWN_NEVER_RUN",
   "utc": "2026-10-03T13:44:52Z",
   "arm": "RESCUE_MECHANISM_STUDY",
   "confirmatory": true,
@@ -271,5 +271,10 @@
       "B": 27900001
     },
     "driver": "4v4/run_dual_branch_4v4_rescue.py --rung R2"
+  },
+  "withdrawn": {
+    "utc": "2026-10-03T14:00:00Z",
+    "by": "DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1.json",
+    "why": "4v4-only recipe change; the user ruled that every team size uses the same recipe"
   }
 }

@@ -92,6 +92,11 @@ def main() -> int:
     ap.add_argument("--rung", required=True, choices=("R2", "R3"))
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
+    amend = SD / "DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1.json"
+    if amend.is_file() and a.rung in json.loads(amend.read_text(encoding="utf-8"))["change"]["withdrawn"]:
+        print(f"REFUSING: {a.rung} is withdrawn by {amend.name} (4v4-only recipe; every team size must use the "
+              f"same recipe). It must never run.")
+        return 2
     D, cfg, seeds, out = load_driver(a.rung)
     out.mkdir(parents=True, exist_ok=True)
     problems = check(D, cfg, seeds)

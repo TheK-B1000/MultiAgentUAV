@@ -2940,10 +2940,17 @@
       "lo": 27800001,
       "hi": 27800001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "RETIRED",
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R2_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T13:44:52Z"
+      "allocated_utc": "2026-10-03T13:44:52Z",
+      "retired_utc": "2026-10-03T13:51:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T13:51:48Z",
+          "note": "withdrawn by DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1 (4v4-only rung; never run)"
+        }
+      ]
     },
     {
       "experiment_id": "DUAL_BRANCH_R2_4V4_B_TRAIN",
@@ -2952,10 +2959,17 @@
       "lo": 27900001,
       "hi": 27900001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "RETIRED",
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R2_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T13:44:52Z"
+      "allocated_utc": "2026-10-03T13:44:52Z",
+      "retired_utc": "2026-10-03T13:51:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T13:51:48Z",
+          "note": "withdrawn by DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1 (4v4-only rung; never run)"
+        }
+      ]
     },
     {
       "experiment_id": "DUAL_BRANCH_R2_4V4_K1_TEACHER_HALF_SPECIALIST_CROSSOVER",
@@ -2964,10 +2978,17 @@
       "lo": 28000001,
       "hi": 28000128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "RETIRED",
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R2_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T13:44:52Z"
+      "allocated_utc": "2026-10-03T13:44:52Z",
+      "retired_utc": "2026-10-03T13:51:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T13:51:48Z",
+          "note": "withdrawn by DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1 (4v4-only rung; never run)"
+        }
+      ]
     },
     {
       "experiment_id": "DUAL_BRANCH_R3_4V4_A_TRAIN",
@@ -2976,10 +2997,17 @@
       "lo": 28100001,
       "hi": 28100001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "RETIRED",
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R3_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T13:44:52Z"
+      "allocated_utc": "2026-10-03T13:44:52Z",
+      "retired_utc": "2026-10-03T13:51:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T13:51:48Z",
+          "note": "withdrawn by DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1 (4v4-only rung; never run)"
+        }
+      ]
     },
     {
       "experiment_id": "DUAL_BRANCH_R3_4V4_B_TRAIN",
@@ -2988,10 +3016,17 @@
       "lo": 28200001,
       "hi": 28200001,
       "n": 1,
-      "status": "RESERVED",
+      "status": "RETIRED",
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R3_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T13:44:52Z"
+      "allocated_utc": "2026-10-03T13:44:52Z",
+      "retired_utc": "2026-10-03T13:51:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T13:51:48Z",
+          "note": "withdrawn by DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1 (4v4-only rung; never run)"
+        }
+      ]
     },
     {
       "experiment_id": "DUAL_BRANCH_R3_4V4_K1_300K_SPECIALIST_CROSSOVER",
@@ -3000,13 +3035,20 @@
       "lo": 28300001,
       "hi": 28300128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "RETIRED",
       "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R3_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T13:44:52Z"
+      "allocated_utc": "2026-10-03T13:44:52Z",
+      "retired_utc": "2026-10-03T13:51:48Z",
+      "notes": [
+        {
+          "utc": "2026-10-03T13:51:48Z",
+          "note": "withdrawn by DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1 (4v4-only rung; never run)"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-10-03T13:44:52Z",
+  "updated_utc": "2026-10-03T13:51:48Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
