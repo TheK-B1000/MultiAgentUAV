@@ -35,6 +35,8 @@ OPTIONAL_RUNS = {
     "4v4 B R2 (k=1, teacher x0.5)": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_r2_k1_th",
     "4v4 A R3 (k=1, 300k)": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_r3_k1_300k",
     "4v4 B R3 (k=1, 300k)": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_r3_k1_300k",
+    "4v4 A defender-only (k=1)": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_sym_defonly_k1",
+    "4v4 B defender-only (k=1)": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sym_defonly_k1",
 }
 BIN = 20_000
 LAM_PEAK, LAM_END, D0, D1 = 0.1, 0.0, 50_000, 150_000
