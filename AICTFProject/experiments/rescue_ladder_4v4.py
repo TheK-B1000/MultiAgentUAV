@@ -191,6 +191,10 @@ def log(msg: str) -> None:
 
 def chain() -> int:
     lad = json.loads(LADDER.read_text(encoding="utf-8"))
+    amend = SD / "DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1.json"
+    if amend.is_file():                     # cross-scale rule: R2/R3 (4v4-only recipes) withdrawn before R1's result
+        lad["order"] = json.loads(amend.read_text(encoding="utf-8"))["change"]["order"]
+        log(f"amendment 1 in force: order {lad['order']} (4v4-only rungs withdrawn)")
     state_p = ROOT / "4v4" / "rescue_ladder" / "LADDER_STATE.json"
     state = json.loads(state_p.read_text(encoding="utf-8")) if state_p.is_file() else {"rungs": {}}
     py = str(ROOT / ".venv" / "Scripts" / "python.exe")
@@ -228,7 +232,8 @@ def chain() -> int:
             state["outcome"] = f"PASS at {rung}"
             state_p.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
             return 0
-    state["outcome"] = "NO PASS after R1-R3; ladder capped and stopped"
+    state["outcome"] = (f"NO PASS after {', '.join(lad['order'])}; ladder stopped -- nothing starts automatically; "
+                        f"any further change must be cross-scale (same recipe at 2v2, 4v4, 6v6) under a new frozen spec")
     state_p.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     log(state["outcome"])
     return 0

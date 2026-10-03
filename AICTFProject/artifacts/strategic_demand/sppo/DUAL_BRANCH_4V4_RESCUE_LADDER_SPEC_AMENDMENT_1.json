@@ -1,0 +1,23 @@
+{
+  "record_id": "DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC_AMENDMENT_1",
+  "status": "FROZEN_AMENDMENT_BEFORE_R1_RESULT",
+  "utc": "2026-10-03T13:52:00Z",
+  "amends": "DUAL_BRANCH_4V4_RESCUE_LADDER_SPEC.json",
+  "amends_sha256": "54759e82c9d49bc7f4754d8e6044463dbc063f607184dd2f1410ef83b48d35ff",
+  "decided_by": "user 2026-10-03: 'Everything has to be the same' -- one methodology at every team size; no 4v4-only recipe changes",
+  "frozen_before": "DUAL_BRANCH_R1_4V4_K1 sealed (its result file did not exist; its rows were not read)",
+  "change": {
+    "order": ["R1"],
+    "withdrawn": {
+      "R2": "4v4-only DEFEND-teacher weight 0.05 (2v2 and 6v6 use 0.1)",
+      "R3": "4v4-only 300k budget (2v2 and 6v6 use 200k)"
+    },
+    "why": "a rung that changes the recipe at one team size would give 4v4 a different method from 2v2 and 6v6. R1 is kept: its rule k = max(1, floor(N/3 + 1/2)) is one formula for every N and leaves the current 2v2 (k=1) and 6v6 (k=2) configurations unchanged."
+  },
+  "pass_rule": "unchanged from the parent (both Delta lower bounds > 0 at the frozen 98.33% level; 95% reported); with one attempt this is conservative",
+  "after_R1": {
+    "pass": "4v4 adopts R1; 2v2 and 6v6 already follow the same rule; Stage 4 waits for PI review",
+    "no_pass": "STOP and report; nothing starts automatically. Any further change must apply identically to 2v2, 4v4 and 6v6 under its own frozen spec (cross-scale rung), decided by the PI."
+  },
+  "reserved_but_unused": "the R2/R3 seed blocks stay registered (RESERVED) and unused; they are retired if no cross-scale rung reuses them"
+}
