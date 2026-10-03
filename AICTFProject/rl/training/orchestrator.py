@@ -859,15 +859,18 @@ def _maybe_attach_split_attack_defend(cfg, trainer) -> None:
         raise RuntimeError("split_attack_defend cannot coexist with getflag_preserve_runner")
 
     dual = bool(getattr(cfg, "dual_branch_role_composite_enabled", False))
-    from rl.custom_ppo.split_attack_defend import ceil_n_over_3
+    from rl.custom_ppo.split_attack_defend import CEIL_RULE, k_for_rule
 
     n_agents = int(getattr(trainer.model, "n_agents", 0) or 0)
+    # The allocator rule is set by train_specialist_scale from the frozen dual-branch spec it verified
+    # (an instance attribute, not a PPOConfig field); absent = the V1 rule ceil(N/3).
+    k_rule = str(getattr(cfg, "dual_branch_allocator_rule", CEIL_RULE) or CEIL_RULE)
     if dual:
         k_cfg = int(getattr(cfg, "role_k_defend", 0) or 0)
-        k_req = ceil_n_over_3(n_agents)
+        k_req = k_for_rule(k_rule, n_agents)
         if k_cfg != k_req:
             raise RuntimeError(
-                f"dual_branch_role_composite requires role_k_defend=ceil(N/3)={k_req} "
+                f"dual_branch_role_composite requires role_k_defend={k_rule}={k_req} "
                 f"for N={n_agents}, got {k_cfg}"
             )
 
@@ -930,7 +933,7 @@ def _maybe_attach_split_attack_defend(cfg, trainer) -> None:
         print(
             f"[DUAL-BRANCH] trainable {_attack_name} ATTACK + trainable DEFEND ATTACHED: "
             f"foundation={ckpt_path.name} sha={actual[:12]}... "
-            f"k=ceil(N/3)={ceil_n_over_3(n_agents)}  "
+            f"k={k_rule}={k_for_rule(k_rule, n_agents)}  "
             f"(ATTACK ticks -> ATTACK PPO; DEFEND ticks -> DEFEND PPO + optional N' teacher)"
         )
     else:

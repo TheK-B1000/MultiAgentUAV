@@ -84,3 +84,34 @@ def ceil_n_over_3(n: int) -> int:
     if int(n) < 1:
         raise ValueError(f"team size N must be >= 1, got {n}")
     return int(math.ceil(int(n) / 3.0))
+
+
+#: Allocator rules a frozen dual-branch spec may name in ALLOCATOR_RULE_locked.rule. Absent = the V1 rule.
+CEIL_RULE = "ceil(N/3)"
+NEAREST_THIRD_RULE = "max(1, floor(N/3 + 1/2))"
+
+
+def nearest_third_k(n: int) -> int:
+    """R1 rule k = max(1, floor(N/3 + 1/2)), exact integer form max(1, (2N + 3) // 6): 2v2 1, 4v4 1, 6v6 2."""
+    if int(n) < 1:
+        raise ValueError(f"team size N must be >= 1, got {n}")
+    return max(1, (2 * int(n) + 3) // 6)
+
+
+def k_for_rule(rule: str, n: int) -> int:
+    """k under a named allocator rule; an unknown rule fails closed."""
+    if rule == CEIL_RULE:
+        return ceil_n_over_3(n)
+    if rule == NEAREST_THIRD_RULE:
+        return nearest_third_k(n)
+    raise ValueError(f"unknown dual-branch allocator rule {rule!r}")
+
+
+def spec_allocator_rule(spec: dict) -> str:
+    """The frozen spec's ALLOCATOR_RULE_locked.rule; absent = the V1 rule ceil(N/3)."""
+    return ((spec or {}).get("ALLOCATOR_RULE_locked") or {}).get("rule", CEIL_RULE)
+
+
+def dual_branch_k(spec: dict, n: int) -> int:
+    """k for a dual-branch run under its frozen spec (default ceil(N/3)). An unknown rule fails closed."""
+    return k_for_rule(spec_allocator_rule(spec), n)

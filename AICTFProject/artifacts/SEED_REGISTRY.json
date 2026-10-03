@@ -1426,6 +1426,10 @@
         {
           "utc": "2026-10-02T00:20:54Z",
           "note": "post-hoc matched ablation TOP50_4V4_NOROLE sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-03T05:53:12Z",
+          "note": "post-hoc matched ablation POSTHOC_MATCHED128_4V4_DUAL_BRANCH sealed SEALED on this already-spent block"
         }
       ]
     },
@@ -2892,9 +2896,45 @@
       "spec": "experiments/prepare_stage4_baselines.py",
       "subdivides": null,
       "allocated_utc": "2026-10-02T02:21:46Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R1_4V4_A_TRAIN",
+      "purpose": "R1 rescue: 4v4 dual-branch A training seed (k=1)",
+      "seed_class": "exploratory",
+      "lo": 27500001,
+      "hi": 27500001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T06:08:22Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R1_4V4_B_TRAIN",
+      "purpose": "R1 rescue: 4v4 dual-branch B training seed (k=1)",
+      "seed_class": "exploratory",
+      "lo": 27600001,
+      "hi": 27600001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T06:08:22Z"
+    },
+    {
+      "experiment_id": "DUAL_BRANCH_R1_4V4_K1_SPECIALIST_CROSSOVER",
+      "purpose": "R1 rescue (k=max(1,floor(N/3+1/2)) -> 4v4 k=1): fresh 128-seed four-cell crossover confirmation",
+      "seed_class": "sealed_confirmatory",
+      "lo": 27700001,
+      "hi": 27700128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-03T06:08:22Z"
     }
   ],
-  "updated_utc": "2026-10-02T19:48:02Z",
+  "updated_utc": "2026-10-03T06:08:22Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

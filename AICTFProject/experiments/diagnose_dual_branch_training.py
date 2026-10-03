@@ -27,6 +27,11 @@ RUNS = {
     "4v4 A": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1",
     "4v4 B": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1",
 }
+#: Included only once they exist (R1 rescue, DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json: 4v4 with k = 1).
+OPTIONAL_RUNS = {
+    "4v4 A R1 (k=1)": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_r1_k1",
+    "4v4 B R1 (k=1)": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_r1_k1",
+}
 BIN = 20_000
 LAM_PEAK, LAM_END, D0, D1 = 0.1, 0.0, 50_000, 150_000
 
@@ -52,7 +57,8 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     res, md = {}, ["# Dual-branch training diagnostic (read-only; episode_rows.csv)", "",
                    "DEFEND-teacher weight lambda: 0.1 to 50k, linear to 0 at 150k, 0 after (frozen schedule).", ""]
-    for name, d in RUNS.items():
+    runs = {**RUNS, **{k: v for k, v in OPTIONAL_RUNS.items() if (ROOT / v / "episode_rows.csv").is_file()}}
+    for name, d in runs.items():
         p = ROOT / d / "episode_rows.csv"
         if not p.is_file():
             raise SystemExit(f"FAIL-CLOSED: missing {p}")

@@ -210,7 +210,7 @@ def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
 def _require_dual_branch_v1_authorization(args, policy: str) -> None:
     """DUAL_BRANCH_ROLE_COMPOSITE_V1: A and B use the same construction; authorize via the frozen V1 spec."""
     import hashlib
-    from rl.custom_ppo.split_attack_defend import ceil_n_over_3
+    from rl.custom_ppo.split_attack_defend import dual_branch_k
 
     sp = str(getattr(args, "dual_branch_spec", "") or "")
     if not sp or not Path(sp).is_file():
@@ -222,10 +222,16 @@ def _require_dual_branch_v1_authorization(args, policy: str) -> None:
     if "FROZEN" not in str(spec.get("status", "")):
         raise SystemExit(f"FAIL-CLOSED: {Path(sp).name} is not frozen")
     n = int(args.team_size)
-    k_req = ceil_n_over_3(n)
+    # k comes from the frozen spec's allocator rule (V1: ceil(N/3); the approved R1 rescue spec:
+    # max(1, floor(N/3 + 1/2))); an unknown rule refuses.
+    try:
+        k_req = dual_branch_k(spec, n)
+    except ValueError as exc:
+        raise SystemExit(f"FAIL-CLOSED: {exc}")
+    rule = (spec.get("ALLOCATOR_RULE_locked") or {}).get("rule", "ceil(N/3)")
     if int(args.role_k_defend or 0) != k_req:
         raise SystemExit(
-            f"FAIL-CLOSED: dual-branch k must be ceil(N/3)={k_req} for N={n}, "
+            f"FAIL-CLOSED: dual-branch k must be {rule}={k_req} for N={n} under {Path(sp).name}, "
             f"got {int(args.role_k_defend or 0)}"
         )
     foundations = (spec.get("FOUNDATION_CHECKPOINTS_locked") or {}).get(str(n)) or {}
@@ -877,6 +883,11 @@ def main() -> int:
             )
         if cfg.dual_branch_role_composite_enabled:
             _require_dual_branch_v1_authorization(args, policy)
+            # The verified spec's allocator rule rides on cfg (instance attribute, not a PPOConfig field)
+            # so the orchestrator checks k against the same rule.
+            from rl.custom_ppo.split_attack_defend import spec_allocator_rule
+            cfg.dual_branch_allocator_rule = spec_allocator_rule(
+                json.loads(Path(str(args.dual_branch_spec)).read_text(encoding="utf-8")))
         elif policy != "A":
             _require_symmetric_role_authorization(args, policy)
     elif cfg.dual_branch_role_composite_enabled:
