@@ -1,0 +1,16 @@
+{
+  "record_id": "SPECIALIST_QUALIFICATION_V1_SPEC_AMENDMENT_1",
+  "status": "FROZEN_CLARIFICATION_BEFORE_EXISTING_PAIR_TEST",
+  "utc": "2026-10-04T02:41:46Z",
+  "amends": "SPECIALIST_QUALIFICATION_V1_SPEC.json",
+  "amends_sha256": "935cac8bd6998d3fcfbdf1f640046fe286f8d29fbb4b897c40d7a018ec62f8d4",
+  "kind": "WORDING / CLARIFICATION ONLY. No rule, block, seed, recipe or criterion changes.",
+  "TIMELINE_forensic": "Qualification procedure frozen before the current 4v4 k=0 confirmation produced any outcomes. Motivation arose from previously observed V1, R1, defender-only, and development diagnostics. No candidate training had begun when the rule was frozen. (At this clarification: the shared-k selection had not sealed, SCK_4V4_CONFIRM had produced no episode, and no SQ candidate run existed.)",
+  "EXISTING_PAIR_GATE_explicit": {
+    "statement": "If the shared-k selection seals k* = 0, the SCK_4V4_CONFIRM block (28800001..28800128) IS the existing-pair qualification gate, not related evidence: k = 0 is exactly the sealed specialist pair with no role intervention.",
+    "decision": "mean Delta_A^base > 0 AND mean Delta_B^base > 0 on that block -> PASS: keep the existing specialists and proceed to the unchanged role stage; otherwise -> FAIL: invoke the frozen candidate procedure (3A + 3B -> D_select -> (A*, B*) -> D_gate -> D_confirm), with no second-best fallback, no extra candidate and no new k."
+  },
+  "WHAT_IS_TESTED": "the stochastic reliability of the EXISTING specialist-training procedure (the same b3 parent -> 1M-step entity-repair continuation, same budget, same recipe, same environment/genome treatment, different pre-reserved seeds); not a new training algorithm. Candidates are never fresh-from-scratch runs.",
+  "SYMMETRY": "A and B each get exactly three candidates and the same selection, gate and confirmation machinery; only their intended opponent / pole genome differs, because they are specialists for different poles.",
+  "COST_POLICY": "the six continuations are not launched unless the existing-pair gate FAILS and the user/PI approve"
+}
