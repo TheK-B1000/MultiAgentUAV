@@ -1,0 +1,98 @@
+{
+  "record_id": "SPECIALIST_QUALIFICATION_V1_SPEC",
+  "status": "FROZEN_BEFORE_EXISTING_PAIR_TEST",
+  "utc": "2026-10-04T02:40:28Z",
+  "classification": "Methodology amendment: specialist qualification before role refinement, one rule for every team size. Not PAPER-FAITHFUL.",
+  "decided_by": "user 2026-10-04: certify the specialists before applying roles; freeze before the fresh 4v4 k=0 confirmation is read",
+  "MOTIVATION_disclosed": "Proposed after the sealed 4v4 V1 and R1 results, the stopped defender-only run, and the strategy-conditioned-k development data (k=0 dev: A@B 0.734 > B@B 0.578), which indicated a specialist-stage Pole-B problem. Frozen BEFORE the fresh 4v4 confirmation (SCK_4V4_CONFIRM, 28800001..128) produced any episode: the selection had not sealed and the confirmation had not started.",
+  "PIPELINE": "PPO specialists -> specialist qualification -> unchanged symmetric role machinery -> crossover -> distillation",
+  "RULE_every_team_size": {
+    "1_existing_pair_qualification": "the existing sealed specialist pair (plain, k=0, no roles) is evaluated on a fresh block, four cells; it QUALIFIES iff mean Delta_A^base = V(A,A)-V(B,A) > 0 AND mean Delta_B^base = V(B,B)-V(A,B) > 0 (mean-level development gate; no intervals required)",
+    "2_if_it_qualifies": "no new specialists; proceed to the unchanged role stage",
+    "3_if_it_does_not": "trigger the fixed candidate procedure (below) exactly once",
+    "applies_to": "2v2, 4v4, 6v6 and any later size; no size-specific rule; only 4v4 is authorized now"
+  },
+  "EXISTING_PAIR_TEST_4V4": {
+    "block": "28800001..28800128 (the SCK_4V4_CONFIRM block, already reserved)",
+    "condition": "serves as the existing-pair qualification test iff the shared-k selection (SCK amendment 1) seals k_A = k_B = 0, so the four cells are the plain specialists; if it seals k = 1, the existing pair is instead tested on SQ_4V4_GATE before any candidate step"
+  },
+  "CANDIDATE_PROCEDURE": {
+    "candidates": "exactly 3 per strategy, all NEW (the existing pair is not a candidate); no 4th, no replacement seeds",
+    "recipe_locked": {
+      "note": "identical to the stage that produced the current 4v4 specialists; only the seed differs",
+      "A": "train_specialist_scale.py --team-size 4 --policy A --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip",
+      "B": "train_specialist_scale.py --team-size 4 --policy B --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json --load-path artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip",
+      "parents": {
+        "A": {
+          "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip",
+          "sha256": "011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0"
+        },
+        "B": {
+          "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip",
+          "sha256": "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8"
+        }
+      }
+    },
+    "training_seeds": {
+      "A1": 28900001,
+      "A2": 29000001,
+      "A3": 29100001,
+      "B1": 29200001,
+      "B2": 29300001,
+      "B3": 29400001
+    },
+    "selection_on_D_select": {
+      "block": [
+        29500001,
+        29500064
+      ],
+      "cells": "every candidate on BOTH poles (6 policies x 2 poles x 64 = 768 episodes)",
+      "score": "Q_A(i) = V(A_i,A) - V(A_i,B);  Q_B(j) = V(B_j,B) - V(B_j,A)",
+      "pick": "A* = argmax_i Q_A, B* = argmax_j Q_B, independently; tie-break: (1) higher Q, (2) higher intended-pole win rate, (3) lowest preassigned training seed",
+      "disclosure": "Q rewards being weaker off-pole: by design (a specialist performs strongly in its regime and loses capability when transferred)",
+      "lock": "A* and B* are locked; no reselection"
+    },
+    "gate_on_D_gate": {
+      "block": [
+        29600001,
+        29600064
+      ],
+      "cells": "the selected pair only, four cells (256 episodes)",
+      "pass": "mean Delta_A^base > 0 AND mean Delta_B^base > 0 (development gate)",
+      "fail": "STOP the 4v4 line: no further batch, no second-best candidate, no new k. Report: under the frozen PPO specialist recipe, reliable Pole-B specialization does not emerge at 4v4 within the pre-specified candidate budget."
+    }
+  },
+  "ROLE_STAGE_unchanged": {
+    "defenders": {
+      "recipe": "the frozen defender-only recipe (k = k_role(4) = 1, frozen specialist ATTACK, N' teacher 0.1 -> 0 over 50k-150k, cadence 4, 200k)",
+      "training_seeds": {
+        "A": 29700001,
+        "B": 29800001
+      }
+    },
+    "selection": "strategy-conditioned-k amendment 1 (strict symmetry): shared k* = argmax_k [V(A,k,A)+V(B,k,B)]/2 over K(4) = {0,1}, tie -> smaller k",
+    "role_dev_block": [
+      29900001,
+      29900064
+    ],
+    "final_confirmation": {
+      "block": [
+        30000001,
+        30000128
+      ],
+      "seed_class": "sealed_confirmatory",
+      "cells": "four cells with k_A = k_B = k*",
+      "report": "four win rates, margins, Delta_A, Delta_B, paired bootstrap 95% and the multiplicity-aware level; no PASS/FAIL wording"
+    }
+  },
+  "COST_estimate": "training 6 x ~5 h (serial) + evaluation ~18-21 h (768 + 256 + role dev + 512 episodes) + defenders ~2 h: roughly 50+ h serial",
+  "NOT_AUTHORIZED": [
+    "running anything before the existing-pair test result is in and the user/PI approve",
+    "a 4th candidate or replacement seeds",
+    "changing Q, tie-break or gate after any result",
+    "selecting on Delta",
+    "new k values",
+    "2v2/6v6 runs (rule prepared, not authorized)",
+    "Stage 4"
+  ]
+}
