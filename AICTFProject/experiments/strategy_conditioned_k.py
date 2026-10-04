@@ -343,9 +343,17 @@ def run(n: int) -> int:
             for side in "AB":                               # intended pole only
                 V[(side, k)] = float(np.mean([r[(side, side)][s][0] for s in seeds]))
         chosen = {}
-        for side in "AB":
-            best = max(V[(side, k)] for k in menu(n))
-            chosen[side] = min(k for k in menu(n) if V[(side, k)] == best)   # exact tie -> smaller k
+        amend = SD / f"STRATEGY_CONDITIONED_K_{n}V{n}_SPEC_AMENDMENT_1.json"
+        shared = amend.is_file()
+        if shared:                                          # strict symmetry: one shared k (amendment 1)
+            S = {k: (V[("A", k)] + V[("B", k)]) / 2 for k in menu(n)}
+            best = max(S.values())
+            kstar = min(k for k in menu(n) if S[k] == best)   # exact tie -> smaller k
+            chosen = {"A": kstar, "B": kstar}
+        else:
+            for side in "AB":
+                best = max(V[(side, k)] for k in menu(n))
+                chosen[side] = min(k for k in menu(n) if V[(side, k)] == best)   # exact tie -> smaller k
         rec = {"record_id": P["selection"].stem, "status": "SEALED_SELECTION", "utc": now(), "git_head": git_head(),
                "spec": {"path": spec_rel, "sha256": sha(spec_rel)}, "candidate_set": menu(n),
                "dev_block": sel["dev_block"], "selection_rule": sel["objective"], "tie_break": sel["tie_break"],
@@ -353,6 +361,11 @@ def run(n: int) -> int:
                "intended_pole_win_rates": {f"{s}@{s}_k{k}": V[(s, k)] for s in "AB" for k in menu(n)},
                "excluded": "non-intended-pole development cells (recorded by the evaluator, not read)",
                "selected": {"k_A": chosen["A"], "k_B": chosen["B"]},
+               "rule_in_force": ("AMENDMENT_1 shared k: k* = argmax_k [V(A,k,A) + V(B,k,B)]/2, tie -> smaller k" if shared
+                                 else "per-strategy argmax"),
+               "shared_scores": ({str(k): S[k] for k in menu(n)} if shared else None),
+               "amendment": ({"path": str(amend.relative_to(ROOT)).replace("\\", "/"), "sha256": sha(amend.relative_to(ROOT))}
+                             if shared else None),
                "frozen": "k_A and k_B never change after this record"}
         P["selection"].write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
         log(n, f"SELECTION SEALED: k_A={chosen['A']} k_B={chosen['B']}  ({rec['intended_pole_win_rates']})")

@@ -1,0 +1,20 @@
+{
+  "record_id": "STRATEGY_CONDITIONED_K_4V4_SPEC_AMENDMENT_1",
+  "status": "FROZEN_AMENDMENT_BEFORE_SELECTION",
+  "utc": "2026-10-04T02:16:11Z",
+  "amends": "STRATEGY_CONDITIONED_K_4V4_SPEC.json",
+  "amends_sha256": "aa407a8a17ec99677646ba28505138932d2ae640da53cc01213c0c9a571ce10e",
+  "decided_by": "user 2026-10-03: strict symmetry -- A and B must use the SAME organization; no (2,0), no hand-picked A/B organization, no asymmetric rescue",
+  "change": {
+    "selection_rule_was": "per-strategy: k_p* = argmax_k V(Pi_{p,k}, p); k_A and k_B may differ",
+    "selection_rule_now": "ONE shared k for both strategies: S(k) = [V(A,k,Pole A) + V(B,k,Pole B)] / 2 over the same 64 development seeds; k* = argmax_{k in K(N)} S(k); exact tie -> the smaller k; deploy k_A = k_B = k*",
+    "unchanged": "candidate set K(N) = {0, k_role(N)}, candidates, development block, confirmation block and procedure, reporting (95% + 98.33%), stop condition; crossover cells and Delta are never used to choose k"
+  },
+  "visibility_at_amendment_disclosed": {
+    "already_seen": "A@A k=0 = 0.828, A@A k=1 = 0.750, B@B k=0 = 0.578 (development, intended pole); development cross-play cells at k=0 (A@B 0.734, B@A 0.562) and the partial k=1 cross-play cells",
+    "not_yet_seen": "B@B at k=1 (the development run was still in that cell; the runner was stopped and the cell was not read before this amendment was frozen)",
+    "consequence": "S(0) = 0.703 is known; the shared rule selects k=1 only if B@B(k=1) > 0.656. Reported as a rule change made with partial development data visible."
+  },
+  "interpretation": "k_A = k_B by construction: the deployed organization is structurally symmetric. If the confirmation does not show positive Delta_A and Delta_B, the result is that strictly symmetric role organization does not solve 4v4 with the current specialists; no asymmetric fix follows.",
+  "operational": "the original runner was stopped before the selection sealed (only the runner process; the k=1 development evaluation continued untouched); it is relaunched after that evaluation seals, with the selection code reading this amendment"
+}
