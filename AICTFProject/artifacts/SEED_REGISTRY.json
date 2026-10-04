@@ -3132,7 +3132,7 @@
       "lo": 28700001,
       "hi": 28700064,
       "n": 64,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STRATEGY_CONDITIONED_K_4V4_DEV_EVAL_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-10-03T20:54:09Z",
@@ -3144,8 +3144,13 @@
         {
           "utc": "2026-10-03T23:48:15Z",
           "note": "label SCK_4V4_DEV_K0 sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-10-04T02:59:36Z",
+          "note": "all shared labels sealed (last: SCK_4V4_DEV_K1)"
         }
-      ]
+      ],
+      "spent_utc": "2026-10-04T02:59:36Z"
     },
     {
       "experiment_id": "SCK_4V4_CONFIRM_SPECIALIST_CROSSOVER",
@@ -3154,10 +3159,17 @@
       "lo": 28800001,
       "hi": 28800128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "STRATEGY_CONDITIONED_K_4V4_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-03T20:54:09Z"
+      "allocated_utc": "2026-10-03T20:54:09Z",
+      "spent_utc": "2026-10-04T08:42:45Z",
+      "notes": [
+        {
+          "utc": "2026-10-04T08:42:45Z",
+          "note": "sealed SEALED; gate_passes=False"
+        }
+      ]
     },
     {
       "experiment_id": "SQ_4V4_CAND_A1_TRAIN",
@@ -3316,7 +3328,7 @@
       "allocated_utc": "2026-10-04T02:40:28Z"
     }
   ],
-  "updated_utc": "2026-10-04T02:40:28Z",
+  "updated_utc": "2026-10-04T08:42:45Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

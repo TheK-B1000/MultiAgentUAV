@@ -1,0 +1,86 @@
+{
+  "record_id": "SCK_4V4_SELECTION_SEALED",
+  "status": "SEALED_SELECTION",
+  "utc": "2026-10-04T03:00:04Z",
+  "git_head": "6ffeee4acaaec05c333e0806338b69dffccb1797",
+  "spec": {
+    "path": "artifacts/strategic_demand/sppo/STRATEGY_CONDITIONED_K_4V4_SPEC.json",
+    "sha256": "aa407a8a17ec99677646ba28505138932d2ae640da53cc01213c0c9a571ce10e"
+  },
+  "candidate_set": [
+    0,
+    1
+  ],
+  "dev_block": {
+    "experiment_id": "SCK_4V4_DEV_SELECTION",
+    "range": [
+      28700001,
+      28700064
+    ],
+    "n": 64,
+    "seed_ids_sha256": "897d1f30002816a4552289158f7640161c36057a0f576f1ff99e42469bf6e4e9"
+  },
+  "selection_rule": "k_p* = argmax_{k in K(N)} V(Pi_{p,k}, p): win rate on the INTENDED pole only (A on Pole A, B on Pole B), over the development block",
+  "tie_break": "exact tie in measured intended-pole win rate -> the smaller k",
+  "candidates": {
+    "A": {
+      "0": {
+        "construction": "sealed A specialist on all 4 agents",
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+      },
+      "1": {
+        "construction": "defender-only: 3 frozen A-specialist ATTACK + 1 trained DEFEND",
+        "defender": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_sym_defonly_k1/ckpts/final_pi_A_specialist_4v4_sym_defonly_k1.zip",
+        "defender_sha256": "b8f73eb7f0068eee17a7576194f6c08a4cc37464d95999cc44a7a748139aff83",
+        "frozen_attack": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "frozen_attack_sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+      }
+    },
+    "B": {
+      "0": {
+        "construction": "sealed B specialist on all 4 agents",
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+      },
+      "1": {
+        "construction": "defender-only: 3 frozen B-specialist ATTACK + 1 trained DEFEND",
+        "defender": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sym_defonly_k1/ckpts/final_pi_B_specialist_4v4_sym_defonly_k1.zip",
+        "defender_sha256": "024d7de8936ec12642dff1533482fd933e67ebd99aff740d0c23c91893db1826",
+        "frozen_attack": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "frozen_attack_sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+      }
+    }
+  },
+  "dev_result_files": {
+    "0": {
+      "result_sha256": "29941ac08b1e9617edd54748580449acc1c461663ada6d65f1e5d80b7215ea7b",
+      "rows_sha256": "fcab6a5839e5cc4c3e6674495e1ea4c3e30e8404754f58cf6cdd04042e762f15"
+    },
+    "1": {
+      "result_sha256": "7de4bec4b4e5f38fa61b59d7a4615a5b839752e5431ed290a5ab7e0c81e0ab66",
+      "rows_sha256": "37bf9ff90abbc2c1b8ae3c606ef01f5398e1410019c5f4042764ec2bc9d75daa"
+    }
+  },
+  "intended_pole_win_rates": {
+    "A@A_k0": 0.828125,
+    "A@A_k1": 0.75,
+    "B@B_k0": 0.578125,
+    "B@B_k1": 0.1875
+  },
+  "excluded": "non-intended-pole development cells (recorded by the evaluator, not read)",
+  "selected": {
+    "k_A": 0,
+    "k_B": 0
+  },
+  "rule_in_force": "AMENDMENT_1 shared k: k* = argmax_k [V(A,k,A) + V(B,k,B)]/2, tie -> smaller k",
+  "shared_scores": {
+    "0": 0.703125,
+    "1": 0.46875
+  },
+  "amendment": {
+    "path": "artifacts/strategic_demand/sppo/STRATEGY_CONDITIONED_K_4V4_SPEC_AMENDMENT_1.json",
+    "sha256": "d33a08f3535cf21c2a8c0edae337a6d2ee138efda739ee92084664cf8c72a52e"
+  },
+  "frozen": "k_A and k_B never change after this record"
+}
