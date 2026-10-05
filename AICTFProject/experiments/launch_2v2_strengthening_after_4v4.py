@@ -52,12 +52,58 @@ def sharded(script: str, n: int, tag: str) -> subprocess.Popen | None:
     return start([script], f"{tag}_seal")
 
 
+REQUIRED_STEPS = ("phase3_dataset", "phase4_students", "phase5_evals", "phase6_package")
+STAGE4_LABELS = ("TOP50_4V4_STAGE4_SHARE_ENCODER", "TOP50_4V4_STAGE4_FULLY_SHARED_ZR", "TOP50_4V4_STAGE4_ROLE_ONLY")
+OWN_TOP50_SEEDS = (ROOT / "artifacts" / "strategic_demand" / "sppo" / "dual_branch_v1" / "matched128_4v4"
+                   / "DUAL_BRANCH_4V4_OWN_TOP50_seed_ids.json")
+
+
+def fourv4_complete() -> list[str]:
+    """Every required 4v4 stage sealed successfully. Returns the list of problems (empty = complete).
+
+    The package marker alone is not enough: the 4v4 driver's eval step only WARNS and continues
+    when a student eval exits without a result, so a package can exist over a missing eval.
+    """
+    import json
+    problems = []
+    for step in REQUIRED_STEPS:
+        m = ROOT / "4v4" / "manifests" / f"{step}.json"
+        if not m.is_file():
+            problems.append(f"missing manifest {step}")
+            continue
+        if json.loads(m.read_text(encoding="utf-8")).get("status") != "COMPLETE":
+            problems.append(f"manifest {step} not COMPLETE")
+    own = sorted(int(s) for s in json.loads(OWN_TOP50_SEEDS.read_text(encoding="utf-8")))
+    sd = ROOT / "artifacts" / "strategic_demand" / "sppo"
+    for lab in STAGE4_LABELS:
+        p = sd / f"{lab}_CROSSOVER_EVAL_RESULT.json"
+        if not p.is_file():
+            problems.append(f"missing {p.name}")
+            continue
+        d = json.loads(p.read_text(encoding="utf-8"))
+        if d.get("status") != "SEALED":
+            problems.append(f"{lab} status {d.get('status')!r}")
+        got = sorted(int(s) for s in ((d.get("seeds") or {}).get("seed_ids") or d.get("seed_ids") or []))
+        if got != own:
+            problems.append(f"{lab} not evaluated on the 4v4 own top-50 seeds")
+    return problems
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
-    log(f"waiting for {GATE.relative_to(ROOT)} (4v4 Stage-4 package)")
-    while not GATE.is_file():
+    log(f"waiting for 4v4 completion: manifests {REQUIRED_STEPS} COMPLETE + {len(STAGE4_LABELS)} "
+        f"Stage-4 results SEALED on the own top-50 seeds")
+    last = None
+    while True:
+        if GATE.is_file():
+            problems = fourv4_complete()
+            if not problems:
+                break
+            if problems != last:
+                log(f"BLOCKED: 4v4 package exists but is incomplete: {problems}; not launching")
+                last = problems
         time.sleep(120)
-    log("4v4 packaged; launching the three frozen 2v2 studies")
+    log("4v4 complete (every required stage sealed); launching the three frozen 2v2 studies")
 
     import threading
     results = {}
