@@ -1,0 +1,15 @@
+{
+  "record": "DUAL_BRANCH_4V4_RESUME_STAGE4",
+  "status": "RESUMED",
+  "utc": "2026-10-05T18:58:35Z",
+  "decided_by": "user 2026-10-05: 'Yes resume 4v4' after reviewing the cross-scale results table",
+  "supersedes_pause": "dual_branch_v1/4v4_pause/PAUSE_RECORD.json (PAUSED_FOR_PI_REVIEW)",
+  "what_runs": "4v4/run_dual_branch_4v4.py from phase3_dataset: Stage 4 dataset from the sealed V1 dual-branch teachers (STAGE4_4V4_TEACHERS_SEALED), then Share-Encoder / Fully Shared+z+r / Role-only students, then evals on DUAL_BRANCH_4V4_OWN_TOP50 seeds",
+  "known_caveat": "teacher B@B = 0.023 on matched-128; students are distilled from this pair unchanged. Nothing frozen is altered.",
+  "unchanged": [
+    "teachers",
+    "k=2",
+    "seeds",
+    "Stage 4 spec STAGE4_4V4_FULL_SUITE_SPEC"
+  ]
+}
