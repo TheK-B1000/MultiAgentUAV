@@ -1,0 +1,8 @@
+{
+  "step": "r1_crossover",
+  "utc": "2026-10-03T14:39:56Z",
+  "status": "COMPLETE",
+  "team_size": 4,
+  "k_defend": 1,
+  "label": "DUAL_BRANCH_R1_4V4_K1"
+}

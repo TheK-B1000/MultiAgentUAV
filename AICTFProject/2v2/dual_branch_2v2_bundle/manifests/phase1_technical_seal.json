@@ -1,0 +1,8 @@
+{
+  "step": "phase1_technical_seal",
+  "utc": "2026-10-02T03:54:54Z",
+  "status": "COMPLETE",
+  "team_size": 2,
+  "k_defend": 1,
+  "seal": "2v2/DUAL_BRANCH_2V2_TECHNICAL_SEAL.json"
+}

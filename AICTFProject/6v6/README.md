@@ -22,11 +22,11 @@ No PowerShell. No packing script. No `artifacts/` tree.
 │   ├── READY_TO_ZIP.txt
 │   ├── SUMMARY/
 │   │   └── SUMMARY.txt
-│   ├── TEACHERS/               Ours-Teachers: dual-branch DEFEND + ATTACK (A and B)
+│   ├── TEACHERS/               Ours: dual-branch DEFEND + ATTACK (A and B)
 │   ├── STAGE3_EVALUATION/      optional historical top-50 provenance (opt-in only)
 │   ├── MATCHED128/             PRIMARY matched-128 + dual-branch own top-50
 │   ├── STAGE4_SHARING/         Strategic Representation Under Parameter Sharing:
-│   │                             Share-Encoder / Ours-Shared Fully Shared+z+r / Role-only
+│   │                             Fully Shared+z+r / Share-Encoder / Role-only (r)
 │   ├── SEALS/
 │   └── PROVENANCE/
 ├── dual_branch_OVERALL.log.err <- watch while running

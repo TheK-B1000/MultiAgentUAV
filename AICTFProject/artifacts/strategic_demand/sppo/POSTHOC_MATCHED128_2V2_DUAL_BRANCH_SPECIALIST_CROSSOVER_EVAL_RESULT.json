@@ -1,0 +1,152 @@
+{
+  "record": "POSTHOC_MATCHED128_2V2_DUAL_BRANCH specialist crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-10-02T19:48:01Z",
+  "arm": "POST_HOC_ABLATION",
+  "confirmatory": false,
+  "post_hoc_ablation": {
+    "spec": "DUAL_BRANCH_2V2_POSTHOC_MATCHED128_SPEC.json",
+    "matched_to": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "claim": "post-hoc matched role ablation on already-spent confirmatory seeds; estimates the within-seed effect of removing role organization; not new confirmatory evidence"
+  },
+  "implements": "DUAL_BRANCH_2V2_POSTHOC_MATCHED128_SPEC.json#EVALUATION",
+  "team_size": 2,
+  "device": "cuda",
+  "perturbation": {
+    "family": "nominal"
+  },
+  "role_fixed_for_episode": true,
+  "seeds": {
+    "block": [
+      23600001,
+      23600128
+    ],
+    "n": 128,
+    "shared_across_policies": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER",
+    "shared_by_labels": null
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "candidate_genome_id": null
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {},
+      "candidate_genome_id": null
+    }
+  },
+  "pole_identity": {
+    "A": {
+      "policy": "A",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 2
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 2,
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certification_sha256": "dd0ad4de654ab3ac18c1858125ff44d23caccc12f269ff0de3144f717c5b57a2",
+      "genome_id": "SDS_PARENT_OP7",
+      "base_opponent": "OP7",
+      "overlay": {},
+      "opening_hold_steps": 0,
+      "pole_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": null
+    }
+  },
+  "pole_attestations": {
+    "A": {
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS2_A_payoff_INIT_3",
+      "certified_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "live_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "certified_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "live_config_hash": "da87ea17be2fb2e8e271973abadc7749eceec0bdcfd43201380b7109c0e1c8ad",
+      "hashes_match": true
+    },
+    "B": {
+      "certification_record": "STRATEGIC_DEMAND_2v2_CERTIFICATION.json",
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS_PARENT_OP7",
+      "certified_overlay": {},
+      "live_overlay": {},
+      "certified_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "live_config_hash": "a6bd288a6bc176ea0cf47a6f345dbe0b946da4511c16a00d8ec5de8f23565082",
+      "hashes_match": true
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.15625,
+      "lcb95": 0.046875,
+      "ucb95": 0.265625,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.421875,
+      "lcb95": 0.3359375,
+      "ucb95": 0.5078125,
+      "passes": true
+    },
+    "passes": true
+  },
+  "checkpoints": {
+    "pi_A": "15ced67ab0f45e46d017885f35d6fb9cbaee0375a213ee157c937e470cbf8dd1",
+    "pi_B": "7dca0e25482796943e97b4198836ee5a3845f855604a3d963a4b4b50540c5868"
+  },
+  "split_policy_pi_B": {
+    "pi_D_path": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_dual_branch_v1\\ckpts\\final_pi_B_specialist_2v2_dual_branch_v1.zip",
+    "frozen_attack_path": "artifacts\\scale_2v2_specialists\\pi_B_specialist_2v2_dual_branch_v1\\ckpts\\attack_pi_B_specialist_2v2_dual_branch_v1.zip",
+    "frozen_attack_sha256": "cdd1ad83b96835cb6793a1098a771e7414c1cd484cffcd6551dcfc1325f00a8a"
+  },
+  "seed_ids": null,
+  "split_policy_pi_A": {
+    "pi_D_path": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_dual_branch_v1\\ckpts\\final_pi_A_specialist_2v2_dual_branch_v1.zip",
+    "frozen_attack_path": "artifacts\\scale_2v2_specialists\\pi_A_specialist_2v2_dual_branch_v1\\ckpts\\attack_pi_A_specialist_2v2_dual_branch_v1.zip",
+    "frozen_attack_sha256": "7963a593dda91dcf1dbfc9b417546f4f3b7e9df9fdad9b532853c0e0e733b45f"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 512,
+  "integrity_flag": null,
+  "status": "SEALED",
+  "sealed_utc": "2026-10-02T19:48:02Z",
+  "git_sha": "ab19d1b7b870232735df1bd912729e3c961d4c73",
+  "AUDIT": {
+    "path": "POSTHOC_MATCHED128_2V2_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 14,
+    "n_gating": 12,
+    "failed_checks": [],
+    "rows_sha256": "286cb10c3df4f6472a137149e708381faf9dfbd119d0c85f0f0848fa83f5c97d"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "record_id": "SYMMETRIC_DEFENDER_ONLY_4V4_K1_SPEC",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "utc": "2026-10-03T16:20:00Z",
+  "arm": "RESCUE_MECHANISM_STUDY",
+  "confirmatory": true,
+  "classification": "Rescue / mechanism study at 4v4, second post-hoc attempt after the sealed V1 (k=2) and R1 (k=1, dual-branch) results. Not PAPER-FAITHFUL. Never reuses an earlier seed.",
+  "decided_by": "user 2026-10-03: start with 4v4 -- freeze the ATTACK branch and train only DEFEND, for both A and B, keeping k=1",
+  "motivating_results": {
+    "R1": {
+      "path": "artifacts/strategic_demand/sppo/DUAL_BRANCH_R1_4V4_K1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "sha256": "3630d64eeba339fa2d8568058c3ca80da750f22ea4a137c851a21fb8bcb3f86f",
+      "summary": "R1 (k=1, both branches trained): collapse gone but A and B converged -- A@A .727 B@A .680, A@B .414 > B@B .305; Delta_A +0.047, Delta_B -0.109"
+    }
+  },
+  "HYPOTHESIS": "Training both branches for 200k let the A and B strategies drift toward similar general play (strategic forgetting). Freezing each side's ATTACK policy at its sealed 1M specialist and training only the DEFEND policy preserves the A/B difference while adding defense.",
+  "CONSTRUCTION_locked": {
+    "name": "symmetric defender-only (frozen ATTACK)",
+    "k_defend": 1,
+    "allocator": "CLOSEST_DEFENDS, roles fixed per episode, H_r = 8",
+    "A": {
+      "attack": "sealed A 1M specialist, FROZEN",
+      "defend": "warm-started from the same A specialist, trained"
+    },
+    "B": {
+      "attack": "sealed B 1M specialist, FROZEN",
+      "defend": "warm-started from the same B specialist, trained"
+    },
+    "same_for_A_and_B": [
+      "k=1",
+      "200k budget",
+      "N' DEFEND teacher lambda 0.1 -> 0.0 decaying 50k-150k, cadence 4",
+      "PPO settings",
+      "entity repair (hidden 32)",
+      "architecture",
+      "initialization procedure"
+    ],
+    "recipe_source": "identical flags to the 2v2 defender-only runs (pi_A_specialist_2v2_std_split_defend_k1 / pi_B_specialist_2v2_sym_B_top50; TRAINING_LAUNCH_2V2.json), at team size 4"
+  },
+  "TRAINING_AUTHORIZED": [
+    {
+      "team_size": 4,
+      "policy": "A",
+      "role_k_defend": 1,
+      "run_label_suffix": "_sym_defonly_k1",
+      "specialist_path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "specialist_sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+      "seed": 28400001,
+      "experiment_id": "SYM_DEFONLY_4V4_K1_A_TRAIN"
+    },
+    {
+      "team_size": 4,
+      "policy": "B",
+      "role_k_defend": 1,
+      "run_label_suffix": "_sym_defonly_k1",
+      "specialist_path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "specialist_sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12",
+      "seed": 28500001,
+      "experiment_id": "SYM_DEFONLY_4V4_K1_B_TRAIN"
+    }
+  ],
+  "CONFIRMATION_locked": {
+    "label": "R4_SYM_DEFENDER_ONLY_4V4_K1",
+    "registry_experiment_id": "R4_SYM_DEFENDER_ONLY_4V4_K1_SPECIALIST_CROSSOVER",
+    "block": "28600001..28600128",
+    "n": 128,
+    "seed_class": "sealed_confirmatory",
+    "cells": "A@A, B@A, A@B, B@B on every seed (512 episodes); each side = its frozen 1M specialist on ATTACK slots + its trained defender on the DEFEND slot; k=1",
+    "readout": "Delta_A = V(A,A) - V(B,A), Delta_B = V(B,B) - V(A,B); win and margin; mean +- std, 95% paired bootstrap; also reported at 97.5% (Bonferroni over the two post-hoc 4v4 rescue attempts R1 and this one)"
+  },
+  "CROSS_SCALE_RULE": "user: everything has to be the same at every team size. If this construction is adopted, 2v2 (k=1) and 6v6 (k=2) must use it with the identical recipe; this spec covers 4v4 only, first.",
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "training ATTACK",
+    "any recipe difference between A and B",
+    "reusing any earlier seed",
+    "Stage 4 before PI review",
+    "calling this the original confirmatory 4v4 test"
+  ]
+}

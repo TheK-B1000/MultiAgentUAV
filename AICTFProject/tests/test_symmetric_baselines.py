@@ -62,7 +62,7 @@ class LegacyUnchangedTests(unittest.TestCase):
         for n, name in LEGACY_SPECS.items():
             spec = json.loads((SD / name).read_text(encoding="utf-8"))
             self.assertFalse(C.spec_is_symmetric(spec), name)
-            self.assertFalse(C.check_tag_matches_construction(spec, "V2" if n == 4 else ""))
+            self.assertEqual(tuple(C.check_tag_matches_construction(spec, "V2" if n == 4 else "")), (False, False))
             self.assertEqual(int(spec["ALLOCATOR_locked"]["k_defend"]), C.K_DEFEND_BY_SCALE[n])
         self.assertEqual(C.K_DEFEND_BY_SCALE, {2: 1, 4: 2, 6: 1})
 
@@ -161,7 +161,7 @@ class FreshPathTests(unittest.TestCase):
             C.check_tag_matches_construction(sym, "")
         with self.assertRaises(SystemExit):                     # legacy spec on the symmetric path
             C.check_tag_matches_construction({"ACTING_DEPLOYMENT_locked": {}}, "SYM")
-        self.assertTrue(C.check_tag_matches_construction(sym, "SYM"))
+        self.assertEqual(tuple(C.check_tag_matches_construction(sym, "SYM")), (True, False))
 
     def test_student_and_eval_families_are_separate(self):
         from experiments import eval_suite_sharing_crossover as E
@@ -367,4 +367,6 @@ class SymmetricEvaluatorFailClosedTests(unittest.TestCase):
     def test_frozen_policy_named_in_split_log(self):
         src = (ROOT / "rl" / "training" / "orchestrator.py").read_text(encoding="utf-8")
         self.assertNotIn('"[SPLIT-ATTACK-DEFEND] frozen pi_A ATTACHED', src)
-        self.assertIn("frozen {_frozen_name} ATTACHED", src)
+        # the frozen policy's name is computed from the checkpoint (variable name may change)
+        import re
+        self.assertRegex(src, r"\[SPLIT-ATTACK-DEFEND\] frozen \{_\w+\} ATTACHED")

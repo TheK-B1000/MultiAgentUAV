@@ -1,0 +1,8 @@
+{
+  "step": "phase1_train",
+  "utc": "2026-10-02T03:54:52Z",
+  "status": "COMPLETE",
+  "team_size": 2,
+  "k_defend": 1,
+  "done_marker": "artifacts/strategic_demand/sppo/dual_branch_v1/SYM_DUAL_BRANCH_2V2_TRAIN_DONE.txt"
+}

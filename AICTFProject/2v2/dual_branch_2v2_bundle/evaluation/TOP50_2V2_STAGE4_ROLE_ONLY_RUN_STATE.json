@@ -1,0 +1,49 @@
+{
+  "label": "TOP50_2V2_STAGE4_ROLE_ONLY",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-10-02T16:46:53Z",
+      "pid": 39176,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a",
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2_stage4\\role_only\\ckpts\\final_role_only_2v2.pt",
+      "seed_base": 23600002,
+      "n_seeds": 50,
+      "team_size": 2,
+      "arm": "role_only"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-10-02T18:10:49Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-10-02T18:10:49Z",
+      "audit": "TOP50_2V2_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 13
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-10-02T18:10:49Z",
+      "result": "TOP50_2V2_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-10-02T18:10:49Z",
+  "pid": 39176,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a",
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2_stage4\\role_only\\ckpts\\final_role_only_2v2.pt",
+  "seed_base": 23600002,
+  "n_seeds": 50,
+  "team_size": 2,
+  "arm": "role_only",
+  "reason": "all episodes written",
+  "audit": "TOP50_2V2_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 13,
+  "result": "TOP50_2V2_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_RESULT.json"
+}

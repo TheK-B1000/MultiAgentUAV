@@ -1,0 +1,14 @@
+{
+  "record": "DUAL_BRANCH_R1_4V4_K1 specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-10-03T14:39:55Z",
+  "implements": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.046875,
+    "delta_B": -0.109375
+  },
+  "rule": "requires a row-level integrity audit before any scientific interpretation. Raw rows: dual_branch_r1_4v4_k1_specialist_crossover_eval_rows.csv. Sealing still proceeds for immutability."
+}

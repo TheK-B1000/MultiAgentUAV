@@ -1,0 +1,49 @@
+{
+  "label": "TOP50_2V2_STAGE4_SHARE_ENCODER",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-10-02T11:46:17Z",
+      "pid": 54708,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "c64da43427bc6d9f169cbf5b972bac4abcc40cc4",
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2_stage4\\share_encoder\\ckpts\\final_share_encoder_2v2.pt",
+      "seed_base": 23600002,
+      "n_seeds": 50,
+      "team_size": 2,
+      "arm": "share_encoder"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-10-02T14:15:22Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-10-02T14:15:22Z",
+      "audit": "TOP50_2V2_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 13
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-10-02T14:15:22Z",
+      "result": "TOP50_2V2_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-10-02T14:15:22Z",
+  "pid": 54708,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "c64da43427bc6d9f169cbf5b972bac4abcc40cc4",
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2_stage4\\share_encoder\\ckpts\\final_share_encoder_2v2.pt",
+  "seed_base": 23600002,
+  "n_seeds": 50,
+  "team_size": 2,
+  "arm": "share_encoder",
+  "reason": "all episodes written",
+  "audit": "TOP50_2V2_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 13,
+  "result": "TOP50_2V2_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_RESULT.json"
+}

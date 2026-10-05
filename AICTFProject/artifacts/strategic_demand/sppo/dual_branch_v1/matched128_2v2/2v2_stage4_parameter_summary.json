@@ -1,0 +1,265 @@
+{
+  "record": "2v2_stage4_parameter_summary",
+  "utc": "2026-10-03T03:39:32Z",
+  "git_head": "1907b273aec7961daf32e7c7e3388a2e2aa01bb4",
+  "generator": "experiments/stage4_parameter_summary.py",
+  "naming": "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1_AMENDMENT_1/2 (Ours; Fully Shared+z+r proposed, being evaluated)",
+  "parameter_definition": "unique actor (policy) parameters of the deployed networks, CRITIC EXCLUDED; the same count the Stage-4 trainer records (rl.teacher_distillation.actor_parameters). Reduction is vs Ours.",
+  "systems": {
+    "Ours": {
+      "group": "Proposed",
+      "organization": "4 separate policy networks: A-ATTACK, A-DEFEND, B-ATTACK, B-DEFEND",
+      "checkpoints": [
+        {
+          "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/attack_pi_A_specialist_2v2_dual_branch_v1.zip",
+          "sha256": "7963a593dda91dcf1dbfc9b417546f4f3b7e9df9fdad9b532853c0e0e733b45f",
+          "actor_params": 3464375,
+          "all_params_incl_critic": 3485496
+        },
+        {
+          "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_dual_branch_v1/ckpts/final_pi_A_specialist_2v2_dual_branch_v1.zip",
+          "sha256": "15ced67ab0f45e46d017885f35d6fb9cbaee0375a213ee157c937e470cbf8dd1",
+          "actor_params": 3464631,
+          "all_params_incl_critic": 3486008
+        },
+        {
+          "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/attack_pi_B_specialist_2v2_dual_branch_v1.zip",
+          "sha256": "cdd1ad83b96835cb6793a1098a771e7414c1cd484cffcd6551dcfc1325f00a8a",
+          "actor_params": 3464375,
+          "all_params_incl_critic": 3485496
+        },
+        {
+          "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_dual_branch_v1/ckpts/final_pi_B_specialist_2v2_dual_branch_v1.zip",
+          "sha256": "7dca0e25482796943e97b4198836ee5a3845f855604a3d963a4b4b50540c5868",
+          "actor_params": 3464631,
+          "all_params_incl_critic": 3486008
+        }
+      ],
+      "unique_actor_params": 13858012,
+      "holdout_agreement": null,
+      "deploy_manifest": "2v2/dual_branch_deploy_manifest.json",
+      "params_M": 13.86,
+      "reduction_vs_ours_pct": 0.0
+    },
+    "Share-Encoder": {
+      "group": "Comparisons",
+      "organization": "shared encoder, separate per-strategy heads",
+      "checkpoints": [
+        {
+          "path": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2_stage4/share_encoder/ckpts/final_share_encoder_2v2.pt",
+          "sha256": "2d36a9a7c4b296c7d0d1c234e19e4020107a8bc054ead2799efa7c1fcd0a4c7b"
+        }
+      ],
+      "student_frozen_record": {
+        "path": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2_stage4/share_encoder/STUDENT_FROZEN.json",
+        "sha256": "dd7c518b54794d97ce6a00848f19d1b1c970d8f98546dc3805582c61049976d4"
+      },
+      "unique_actor_params": 3637616,
+      "holdout_agreement": {
+        "A_teacher": 0.9089414037721872,
+        "B_teacher": 0.8929016866948036
+      },
+      "params_M": 3.64,
+      "reduction_vs_ours_pct": 73.8
+    },
+    "Fully Shared+z+r": {
+      "group": "Proposed",
+      "organization": "1 shared policy network conditioned on z and r",
+      "checkpoints": [
+        {
+          "path": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2_stage4/fully_shared_z_r/ckpts/final_fully_shared_z_r_2v2.pt",
+          "sha256": "ec909203a242095ed74bae21b90d2a533df0f50c68e712a532612ba0f740acf0"
+        }
+      ],
+      "student_frozen_record": {
+        "path": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2_stage4/fully_shared_z_r/STUDENT_FROZEN.json",
+        "sha256": "6f7cda79f08b6b6331bb04486587012d20660c28ee68af390323b8c18fe5eb0c"
+      },
+      "unique_actor_params": 3468759,
+      "holdout_agreement": {
+        "A_teacher": 0.8972177032482106,
+        "B_teacher": 0.8759432893417555
+      },
+      "params_M": 3.47,
+      "reduction_vs_ours_pct": 75.0
+    },
+    "Role-only (r)": {
+      "group": "Comparisons",
+      "organization": "1 shared policy network conditioned on r only (no z)",
+      "checkpoints": [
+        {
+          "path": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2_stage4/role_only/ckpts/final_role_only_2v2.pt",
+          "sha256": "be63b1d6d30537a0d4647067ce3181d14d29958d0ab3d76acaeabd359b392822"
+        }
+      ],
+      "student_frozen_record": {
+        "path": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2_stage4/role_only/STUDENT_FROZEN.json",
+        "sha256": "7e165144b522eeaf48c77ed96e6b20656913f3fb5a04dd2ecc9a1c2d61151d21"
+      },
+      "unique_actor_params": 3464631,
+      "holdout_agreement": {
+        "A_teacher": 0.7759883199719381,
+        "B_teacher": 0.630069099858994
+      },
+      "params_M": 3.46,
+      "reduction_vs_ours_pct": 75.0
+    },
+    "No-Role Specialists": {
+      "group": "Comparisons",
+      "organization": "2 separate policy networks: pi_A, pi_B",
+      "checkpoints": [
+        {
+          "path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+          "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f",
+          "actor_params": 3464375,
+          "all_params_incl_critic": 3485496
+        },
+        {
+          "path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+          "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d",
+          "actor_params": 3464375,
+          "all_params_incl_critic": 3485496
+        }
+      ],
+      "unique_actor_params": 6928750,
+      "holdout_agreement": null,
+      "params_M": 6.93,
+      "reduction_vs_ours_pct": 50.0
+    }
+  },
+  "stage4_top50_diagnostic": {
+    "title": "Stage-4 Top-50 diagnostic (post-hoc; matched-128 is the primary evidence for Ours)",
+    "seed_list": {
+      "path": "artifacts/strategic_demand/sppo/dual_branch_v1/matched128_2v2/DUAL_BRANCH_2V2_OWN_TOP50_seed_ids.json",
+      "sha256": "d88a38629dc049b907038fb61d3426adbe049d2d514628a588a87039697a8356",
+      "n": 50
+    },
+    "same_seeds_for_every_row": true,
+    "selection": {
+      "rule": "score(seed)=outcome(strategy A on Pole A)+outcome(strategy B on Pole B); rank descending; tie-break ascending seed ID; take top 50. Post-hoc descriptive subset; primary results remain sealed n=128.",
+      "score_distribution": {
+        "2.0": 27,
+        "1.0": 81,
+        "0.0": 20
+      },
+      "cutoff": {
+        "score": 1.0,
+        "seeds_above": 27,
+        "seeds_tied_at_cutoff": 81,
+        "tie_break": "ascending seed ID (historical rule)"
+      },
+      "composition": "27 score-2 seeds + 23 score-1 seeds chosen by the pre-specified ascending-seed-ID tie-break"
+    },
+    "statistics": "Delta = mean of per-seed paired differences; 95% paired percentile bootstrap (n=20000, rng 7)",
+    "rows": {
+      "Ours": {
+        "source_rows": {
+          "path": "artifacts/strategic_demand/sppo/posthoc_matched128_2v2_dual_branch_specialist_crossover_eval_rows.csv",
+          "sha256": "286cb10c3df4f6472a137149e708381faf9dfbd119d0c85f0f0848fa83f5c97d"
+        },
+        "note": "matched-128 rows restricted to exactly the top-50 seed IDs (deterministic per seed)",
+        "V": {
+          "A@A": 0.86,
+          "A@B": 0.02,
+          "B@A": 0.54,
+          "B@B": 0.68
+        },
+        "Delta_A": {
+          "mean": 0.32,
+          "std": 0.6207303137828694,
+          "lcb95": 0.14,
+          "ucb95": 0.48,
+          "n": 50
+        },
+        "Delta_B": {
+          "mean": 0.66,
+          "std": 0.47851812069840644,
+          "lcb95": 0.52,
+          "ucb95": 0.78,
+          "n": 50
+        }
+      },
+      "Share-Encoder": {
+        "result": {
+          "path": "artifacts/strategic_demand/sppo/OWN50_2V2_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_RESULT.json",
+          "sha256": "6f1cb6860abd6dbf69b7eaa2ef3d2cc540eeb84da8b69c7cc9811e67a9a3686d"
+        },
+        "rows": {
+          "path": "artifacts/strategic_demand/sppo/own50_2v2_stage4_share_encoder_crossover_eval_rows.csv",
+          "sha256": "8944de76609b625d5cc0b87db7550254738df85ac403a3ee1182dbf5ea1799e6"
+        },
+        "episodes": 200,
+        "V": {
+          "A@A": 0.66,
+          "B@A": 0.44,
+          "A@B": 0.08,
+          "B@B": 0.48
+        },
+        "Delta_A": {
+          "mean": 0.22,
+          "std": 0.6157789160643516,
+          "lcb95": 0.06,
+          "ucb95": 0.38,
+          "n": 50
+        },
+        "Delta_B": {
+          "mean": 0.4,
+          "std": 0.6060915267313265,
+          "lcb95": 0.22,
+          "ucb95": 0.56,
+          "n": 50
+        }
+      },
+      "Fully Shared+z+r": {
+        "result": {
+          "path": "artifacts/strategic_demand/sppo/OWN50_2V2_STAGE4_FULLY_SHARED_ZR_CROSSOVER_EVAL_RESULT.json",
+          "sha256": "3de124e42b31128ba371b8f13c8261534d29a26c29b0b937769d15bfc973eaa3"
+        },
+        "rows": {
+          "path": "artifacts/strategic_demand/sppo/own50_2v2_stage4_fully_shared_zr_crossover_eval_rows.csv",
+          "sha256": "4c1e2fef026d8bb2a53979c2d933b762e72fa1722dd0376e8e87320899531913"
+        },
+        "episodes": 200,
+        "V": {
+          "A@A": 0.7,
+          "B@A": 0.42,
+          "A@B": 0.0,
+          "B@B": 0.4
+        },
+        "Delta_A": {
+          "mean": 0.28,
+          "std": 0.7295511619887831,
+          "lcb95": 0.08,
+          "ucb95": 0.48,
+          "n": 50
+        },
+        "Delta_B": {
+          "mean": 0.4,
+          "std": 0.4948716593053935,
+          "lcb95": 0.26,
+          "ucb95": 0.54,
+          "n": 50
+        }
+      },
+      "Role-only (r)": {
+        "result": {
+          "path": "artifacts/strategic_demand/sppo/OWN50_2V2_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_RESULT.json",
+          "sha256": "952fc044977ba5b6f75f05a750d6333ae15c5d313651c9106b7980795755c2ba"
+        },
+        "rows": {
+          "path": "artifacts/strategic_demand/sppo/own50_2v2_stage4_role_only_crossover_eval_rows.csv",
+          "sha256": "60d9633c3bfcb9c9a0265c1e64ea01d709317b2b7c1664a6de8231aed88fafef"
+        },
+        "episodes": 100,
+        "win_rate_pole_A": 0.66,
+        "win_rate_pole_B": 0.02,
+        "note": "no z: one policy on both poles, so no crossover Delta (report Pole A / Pole B win rates)"
+      }
+    }
+  },
+  "reporting_rules": [
+    "no PASS/FAIL column: effects + intervals only",
+    "Role-only reported as Pole A / Pole B win rates, not A@A / A@B",
+    "Fully Shared+z+r described as proposed, outcome-level separation only, until the behavioral-signature check is sealed (amendment 2)"
+  ]
+}

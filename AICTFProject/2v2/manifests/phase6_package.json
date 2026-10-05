@@ -1,0 +1,10 @@
+{
+  "step": "phase6_package",
+  "utc": "2026-10-02T16:45:41Z",
+  "status": "COMPLETE",
+  "team_size": 2,
+  "k_defend": 1,
+  "zip": "2v2\\dual_branch_2v2_full_suite.zip",
+  "rebundle_utc": "2026-10-02T18:11:47Z",
+  "rebundle_reason": "include Stage4 role_only CROSSOVER_EVAL after loader unpack fix"
+}

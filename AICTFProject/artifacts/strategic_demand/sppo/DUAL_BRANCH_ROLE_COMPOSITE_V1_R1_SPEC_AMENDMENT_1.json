@@ -1,0 +1,16 @@
+{
+  "record_id": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC_AMENDMENT_1",
+  "status": "FROZEN_AMENDMENT",
+  "utc": "2026-10-03T06:40:00Z",
+  "amends": "DUAL_BRANCH_ROLE_COMPOSITE_V1_R1_SPEC.json",
+  "amends_sha256": "0d055e7a42f396e83d4df0d5fcf11b980f7731eababddbfdd1f2996883933310",
+  "kind": "WORDING ONLY. No rule, k, seed, run, or evaluation changes. The parent stays byte-identical (R1 training already started under it).",
+  "decided_by": "user 2026-10-03: the parent's comparison sentence overgeneralizes",
+  "correction": {
+    "field": "ALLOCATOR_RULE_locked.vs_V1",
+    "was": "identical to ceil(N/3) at 2v2 and 6v6; differs only at 4v4 (2 -> 1)",
+    "now": "The revised rule changes the tested 4v4 configuration from k=2 to k=1, while leaving the current 2v2 and 6v6 configurations unchanged.",
+    "general_fact": "max(1, floor(N/3 + 1/2)) and ceil(N/3) differ exactly when N = 1 (mod 3) and N >= 4 (N = 4, 7, 10, 13, 16, ...), always by one defender (e.g. N = 7: 3 vs 2); they agree for every other N, including 2, 6 and 8."
+  },
+  "also_corrects": "commit message afa7106b ('the same as ceil(N/3) except at 4v4') -- the same overgeneralization; this record governs"
+}

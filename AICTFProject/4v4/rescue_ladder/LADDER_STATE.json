@@ -1,0 +1,39 @@
+{
+  "rungs": {
+    "R1": {
+      "cells": {
+        "A@A": 0.7265625,
+        "A@B": 0.4140625,
+        "B@A": 0.6796875,
+        "B@B": 0.3046875
+      },
+      "Delta_A": {
+        "mean": 0.046875,
+        "level": 0.9833333333333333,
+        "lcb": -0.0859375,
+        "ucb": 0.1796875,
+        "ci95": {
+          "mean": 0.046875,
+          "lcb95": -0.0625,
+          "ucb95": 0.15625
+        }
+      },
+      "Delta_B": {
+        "mean": -0.109375,
+        "level": 0.9833333333333333,
+        "lcb": -0.2421875,
+        "ucb": 0.03125,
+        "ci95": {
+          "mean": -0.109375,
+          "lcb95": -0.21875,
+          "ucb95": 0.0078125
+        }
+      },
+      "result_sha256": "3630d64eeba339fa2d8568058c3ca80da750f22ea4a137c851a21fb8bcb3f86f",
+      "rows_sha256": "fd5ea7f75d61a8c73210ac1612d1679ed5c52a59ec4b55d7957bbb0e4e6213ff",
+      "pass": false,
+      "evaluated_utc": "2026-10-03T14:41:03Z"
+    }
+  },
+  "outcome": "NO PASS after R1; ladder stopped -- nothing starts automatically; any further change must be cross-scale (same recipe at 2v2, 4v4, 6v6) under a new frozen spec"
+}

@@ -1,0 +1,68 @@
+{
+  "record_id": "DUAL_BRANCH_4V4_POSTHOC_MATCHED128_SPEC",
+  "status": "FROZEN_DIAGNOSTIC",
+  "arm": "POST_HOC_ABLATION",
+  "confirmatory": false,
+  "utc": "2026-10-02T21:21:57Z",
+  "classification": "POST-HOC MATCHED EVALUATION ON THE HISTORICAL 128-SEED 4V4 BLOCK. PRIMARY Stage-3 evidence. Not confirmatory. Not PAPER-FAITHFUL. Historical top-50 is provenance only.",
+  "decided_by": "PI, 2026-10-02: matched-128 = primary; own top-50 = secondary; historical top-50 = provenance only (skipped by default).",
+  "governed_by": [
+    "DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+    "DUAL_BRANCH_4V4_DIAGNOSTIC_SPEC.json",
+    "EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json"
+  ],
+  "THE_QUESTION": "On the identical 128 historical 4v4 seeds, how do the dual-branch role composite's crossover deltas compare with the old asymmetric Ours sealed on that block?",
+  "SYSTEM_locked": {
+    "deploy_manifest": "4v4/dual_branch_deploy_manifest.json",
+    "pi_A_defend": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/final_pi_A_specialist_4v4_dual_branch_v1.zip",
+      "sha256": "e51a667f2b8bd7cffa9d7bc31ec2b3d370a89782a24dd6da64f2af4f777bc695"
+    },
+    "pi_A_attack": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/attack_pi_A_specialist_4v4_dual_branch_v1.zip",
+      "sha256": "591f12d52cfc5def26178a3e1cfa9585d98df9224537e16f1e48ef9b69dbe74a"
+    },
+    "pi_B_defend": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/final_pi_B_specialist_4v4_dual_branch_v1.zip",
+      "sha256": "e0eeccc0b3e7191cc78943dcc9b2cb141213656d07fd07c477b0bd57fa09d9a7"
+    },
+    "pi_B_attack": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/attack_pi_B_specialist_4v4_dual_branch_v1.zip",
+      "sha256": "826e50ed6d1b7ffe4ba6572594290e282d5067680d84d43af55c0e76d046a8a4"
+    },
+    "k_defend": 2,
+    "allocator": "CLOSEST_DEFENDS(k=2), roles fixed for the episode"
+  },
+  "POST_HOC_MATCHED_ROLE_ABLATIONS": {
+    "POSTHOC_MATCHED128_4V4_DUAL_BRANCH": {
+      "registry_experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_EVAL",
+      "block": "21800001..21800128",
+      "primary_record": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "system": "dual-branch role composite",
+      "frozen_attack_A": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/attack_pi_A_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "591f12d52cfc5def26178a3e1cfa9585d98df9224537e16f1e48ef9b69dbe74a"
+      },
+      "frozen_attack_B": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/attack_pi_B_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "826e50ed6d1b7ffe4ba6572594290e282d5067680d84d43af55c0e76d046a8a4"
+      },
+      "episodes": 512,
+      "note": "PRIMARY Stage-3 evidence on the full SPENT block; no seed spent."
+    }
+  },
+  "READING": {
+    "hierarchy": "Matched-128 = primary evidence; own top-50 = secondary descriptive; historical top-50 = provenance only."
+  },
+  "LAUNCH": {
+    "when": "inside 4v4/run_dual_branch_4v4.py after technical seal (default Stage-3)",
+    "eval": ".venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 4 --spec artifacts/strategic_demand/sppo/DUAL_BRANCH_4V4_POSTHOC_MATCHED128_SPEC.json --post-hoc-ablation-spec artifacts/strategic_demand/sppo/DUAL_BRANCH_4V4_POSTHOC_MATCHED128_SPEC.json --seed-base 21800001 --n-seeds 128 --registry-experiment-id DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_EVAL --label POSTHOC_MATCHED128_4V4_DUAL_BRANCH --device cuda --pi-a-path artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/final_pi_A_specialist_4v4_dual_branch_v1.zip --pi-b-path artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/final_pi_B_specialist_4v4_dual_branch_v1.zip --role-fixed-for-episode --role-k-defend 2 --frozen-attack-path artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/attack_pi_A_specialist_4v4_dual_branch_v1.zip --frozen-attack-path-sha256 591f12d52cfc5def26178a3e1cfa9585d98df9224537e16f1e48ef9b69dbe74a --frozen-attack-path-b artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/attack_pi_B_specialist_4v4_dual_branch_v1.zip --frozen-attack-path-b-sha256 826e50ed6d1b7ffe4ba6572594290e282d5067680d84d43af55c0e76d046a8a4 --dual-branch-deploy-manifest 4v4/dual_branch_deploy_manifest.json --resume",
+    "readout": ".venv/Scripts/python.exe experiments/readout_posthoc_matched_crossover.py --spec artifacts/strategic_demand/sppo/DUAL_BRANCH_4V4_POSTHOC_MATCHED128_SPEC.json",
+    "own_top50": ".venv/Scripts/python.exe experiments/select_own_top50.py --rows artifacts/strategic_demand/sppo/posthoc_matched128_4v4_dual_branch_specialist_crossover_eval_rows.csv --label DUAL_BRANCH_4V4_OWN_TOP50 --out artifacts/strategic_demand/sppo/dual_branch_v1/matched128_4v4 --scale 4"
+  },
+  "READOUT_SYSTEMS": {
+    "dual_branch": "artifacts/strategic_demand/sppo/posthoc_matched128_4v4_dual_branch_specialist_crossover_eval_rows.csv",
+    "old_asymmetric_ours": "artifacts/strategic_demand/sppo/defend_attack_split_policy_a_v1_confirmatory_v1_specialist_crossover_eval_rows.csv"
+  },
+  "READOUT_OUT": "artifacts/strategic_demand/sppo/dual_branch_v1/matched128_4v4/MATCHED128_4V4_READOUT"
+}

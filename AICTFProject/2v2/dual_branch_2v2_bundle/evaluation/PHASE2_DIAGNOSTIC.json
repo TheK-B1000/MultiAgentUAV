@@ -1,0 +1,20 @@
+{
+  "record_id": "DUAL_BRANCH_2V2_PHASE2_DIAGNOSTIC",
+  "status": "POST_HOC_DIAGNOSTIC",
+  "utc": "2026-10-02T05:43:37Z",
+  "confirmatory": false,
+  "stops_the_chain": false,
+  "result": "artifacts/strategic_demand/sppo/DUAL_BRANCH_2V2_ROLE_COMPOSITE_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+  "rows": "artifacts/strategic_demand/sppo/dual_branch_2v2_role_composite_specialist_crossover_eval_rows.csv",
+  "delta_A": 0.08,
+  "delta_B": 0.46,
+  "gate_passes": false,
+  "four_cells": {
+    "pi_A@A": 50,
+    "pi_A@B": 50,
+    "pi_B@A": 50,
+    "pi_B@B": 50
+  },
+  "four_cells_complete": true,
+  "note": "Post-hoc on the frozen 2v2 top-50. A bad Delta does not stop Stage 4."
+}

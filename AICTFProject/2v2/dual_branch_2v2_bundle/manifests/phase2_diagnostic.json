@@ -1,0 +1,9 @@
+{
+  "step": "phase2_diagnostic",
+  "utc": "2026-10-02T05:43:37Z",
+  "status": "COMPLETE",
+  "team_size": 2,
+  "k_defend": 1,
+  "label": "POST_HOC_DIAGNOSTIC",
+  "stops_the_chain": false
+}

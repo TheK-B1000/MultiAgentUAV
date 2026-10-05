@@ -9,28 +9,33 @@
     "principle": "rerun the exam, not the students' education",
     "teachers": "NEW dual-branch Ours-Teachers — do not retrain",
     "stage4_dataset": "dedicated collection blocks 27000001.. / 27100001.. under dual_branch_teachers; NOT built from 2v2_ours_top50_seed_ids.json — do not recollect",
-    "students": "Share-Encoder / Ours-Shared / Role-only trained from that dataset — do not retrain; finish Role-only if still running",
+    "students": "Share-Encoder / Fully Shared+(z+r) / Role-only trained from that dataset — do not retrain",
+    "display_name_locked": "use Fully Shared+(z+r), not Ours-Shared, in Stage-4 tables (matches locked amendment)",
     "historical_part": "evaluation seed list only (STANDARDIZED_2V2_STAGE4_SHARING_EVAL_SPEC.json → symmetric_role_top50/2v2_ours_top50_seed_ids.json)"
   },
   "LIVE_2V2_STATUS": {
     "do_not_restart": true,
-    "matched_128_teachers": "clean PRIMARY Stage-3 result once sealed",
-    "own_top50_from_matched_128": "clean SECONDARY Stage-3 view once sealed (CPU; no new episodes)",
+    "matched_128_teachers": "SEALED — clean PRIMARY Stage-3",
+    "own_top50_from_matched_128": "SEALED — clean SECONDARY Stage-3",
     "historical_seed_stage4_eval": {
-      "status": "DIAGNOSTIC ONLY",
+      "status": "DIAGNOSTIC ONLY — CHAPTER CLOSED",
       "why": "STANDARDIZED_2V2_STAGE4_SHARING_EVAL_SPEC.json was already sealed to the historical Ours top-50 seed list before own-top50 existed",
-      "watching": "dual_branch_stage4_eval_*.log.err is evaluation of frozen students, not retraining",
+      "do_not_rerun": true,
+      "do_not_use_as_main_evidence": true,
       "artifacts_preserved": true,
       "not_the_clean_final_2v2_sharing_result": true
     }
   },
   "FOLLOW_UP_LOCKED": {
     "when": "after OWN_TOP50_DONE.txt under dual_branch_v1/matched128_2v2/",
-    "what": "evaluation-only re-score of already-frozen Share-Encoder / Ours-Shared / Role-only students on the current dual-branch own-top50 seeds",
+    "what": "evaluation-only re-score of already-frozen Share-Encoder / Fully Shared+(z+r) / Role-only students on the current dual-branch own-top50 seeds",
+    "paired_comparison": "Fully Shared+(z+r) vs Role-only (r) on the same OWN50 seeds — whether z preserves A/B distinction",
+    "after_own50_finishes": "STOP additional 2v2 experiments unless something fails an audit",
     "no_retraining": true,
     "no_recollecting_dataset": true,
     "no_re_freezing_students": true,
     "no_touching_historical_stage4_eval_artifacts": true,
+    "no_more_historical_top50_compute": true,
     "new_spec": "STANDARDIZED_2V2_STAGE4_OWN50_SHARING_EVAL_SPEC.json",
     "new_labels": [
       "OWN50_2V2_STAGE4_SHARE_ENCODER",
@@ -51,8 +56,10 @@
   "NOT_AUTHORIZED": [
     "restarting the live 2v2 suite to 'clean up' orchestration history",
     "deleting or overwriting TOP50_2V2_STAGE4_* historical-seed Stage-4 results",
+    "rerunning or spending more compute on historical top-50 Stage-4 evals",
     "retraining Stage-4 students for the own-top50 comparison",
     "recollecting the Stage-4 dataset because the eval freeze used historical seeds",
-    "calling the live historical-seed Stage-4 eval the clean final 2v2 sharing result"
+    "calling the historical-seed Stage-4 eval the clean final 2v2 sharing result",
+    "additional 2v2 experiments after OWN50 seals, unless an audit fails"
   ]
 }

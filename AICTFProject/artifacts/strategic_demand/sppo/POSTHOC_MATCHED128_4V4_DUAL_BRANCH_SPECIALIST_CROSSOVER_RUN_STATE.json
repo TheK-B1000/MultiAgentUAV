@@ -1,0 +1,49 @@
+{
+  "label": "POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-10-02T21:22:08Z",
+      "pid": 6544,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "ab19d1b7b870232735df1bd912729e3c961d4c73",
+      "seed_base": 21800001,
+      "n_seeds": 128,
+      "team_size": 4,
+      "pi_a": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_dual_branch_v1\\ckpts\\final_pi_A_specialist_4v4_dual_branch_v1.zip",
+      "pi_b": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_dual_branch_v1\\ckpts\\final_pi_B_specialist_4v4_dual_branch_v1.zip"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-10-03T05:53:12Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-10-03T05:53:12Z",
+      "audit": "POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 14
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-10-03T05:53:12Z",
+      "result": "POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-10-03T05:53:12Z",
+  "pid": 6544,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "ab19d1b7b870232735df1bd912729e3c961d4c73",
+  "seed_base": 21800001,
+  "n_seeds": 128,
+  "team_size": 4,
+  "pi_a": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_dual_branch_v1\\ckpts\\final_pi_A_specialist_4v4_dual_branch_v1.zip",
+  "pi_b": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_dual_branch_v1\\ckpts\\final_pi_B_specialist_4v4_dual_branch_v1.zip",
+  "reason": "all episodes written",
+  "audit": "POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 14,
+  "result": "POSTHOC_MATCHED128_4V4_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+}

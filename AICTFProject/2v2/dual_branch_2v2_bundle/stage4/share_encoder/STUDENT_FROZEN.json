@@ -1,0 +1,41 @@
+{
+  "record": "suite share_encoder 2v2",
+  "utc": "2026-10-02T07:39:55Z",
+  "status": "FROZEN_STUDENT",
+  "checkpoint": "artifacts\\strategic_demand\\sppo\\suite_sharing_std\\2v2_stage4\\share_encoder\\ckpts\\final_share_encoder_2v2.pt",
+  "sha256": "2d36a9a7c4b296c7d0d1c234e19e4020107a8bc054ead2799efa7c1fcd0a4c7b",
+  "unique_actor_params": 3637616,
+  "branch_seeds": [
+    27200001,
+    27200002
+  ],
+  "rung": 1,
+  "final_holdout": {
+    "epoch": 20,
+    "train_kl_A": 0.03794639771730881,
+    "train_kl_B": 0.03487677944046775,
+    "holdout_agree_z0_vs_piA": 0.9089414037721872,
+    "holdout_agree_z1_vs_piB": 0.8929016866948036,
+    "holdout_teacher_argmax_disagreement": 0.5202770764307079,
+    "holdout_kl_A": 0.07000946757589367,
+    "holdout_kl_B": 0.058441931127451587,
+    "holdout_student_z0_z1_jsd": 0.2673283562373635,
+    "holdout_teacher_A_B_jsd": 0.2756584717313624
+  },
+  "recipe": {
+    "epochs": 20,
+    "batch": 256,
+    "lr": 0.0003,
+    "clip": 1.0,
+    "weight_decay": 0.0
+  },
+  "dataset": "artifacts\\strategic_demand\\sppo\\SUITE_DISTILLATION_2V2_STAGE4_DATASET.json",
+  "dataset_manifest_sha256": "56189d6d1270c9c069e967ab0d01b1fcd87b759fa758b0ac214e3bc7e92fdc28",
+  "spec": "STANDARDIZED_2V2_STAGE4_SHARING_SPEC.json",
+  "spec_sha256": "5ba705d8b9f9f5bc00f91ab684801dbba34f3573772aa153b438831ee0976d6e",
+  "seed_block": "STAGE4_2V2_SHARE_ENCODER_TRAINING",
+  "init_seeds": [
+    27200001,
+    27200002
+  ]
+}

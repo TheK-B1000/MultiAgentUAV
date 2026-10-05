@@ -1,0 +1,8 @@
+{
+  "step": "phase1_train",
+  "utc": "2026-10-02T21:21:53Z",
+  "status": "COMPLETE",
+  "team_size": 4,
+  "k_defend": 2,
+  "done_marker": "4v4/SYM_DUAL_BRANCH_4V4_TRAIN_DONE.txt"
+}
