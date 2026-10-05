@@ -1,0 +1,54 @@
+{
+  "id": "HOME_OCCUPANCY_DIAGNOSTIC_4V4_V1",
+  "status": "FROZEN",
+  "frozen_utc": "2026-10-05",
+  "classification": "DIAGNOSTIC (exploratory, read-only). Not performance evidence. Not a rescue of the closed 4v4 specialist-qualification line.",
+  "question": "Do the qualified 4v4 specialists A3 and B2, played natively on Pole B, ever put more agents in their home region than a defense cap of 2 would allow, and if so how often and for how long? Answers whether a dynamic defense-cap allocator (cap = ceil(N/2)) would ever bind, before any such allocator is designed.",
+  "policies": {
+    "A3": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_sq_candA3/ckpts/final_pi_A_specialist_4v4_sq_candA3.zip",
+      "sha256": "dc61dc7ba0670acf97ccbea3e9818c7caceb9f1f24096a2c9ddce998d02e517c"
+    },
+    "B2": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sq_candB2/ckpts/final_pi_B_specialist_4v4_sq_candB2.zip",
+      "sha256": "872ab536f0923c339025ad8312ca476171d0e34b3b62926b9c82c67aa5d40997"
+    }
+  },
+  "team_size": 4,
+  "pole": "B (OP7 + certified genome via pole_attestation.resolve_pole_genome, attested before any episode)",
+  "seeds": {
+    "block": [99970001, 99970016],
+    "n": 16,
+    "class": "smoke (throwaway 999xxxxx family; checked free with seed_registry.py check)",
+    "shared": "the same 16 seeds for A3 and B2"
+  },
+  "episode_path": "Mirrors experiments/eval_specialist_crossover_scaled.py run_cell for a plain (k = 0, non-role, non-split) policy: R2.build_env, install_keyed_opponent_overlays, set_phase/set_next_opponent SCRIPTED OP7, augment_obs_with_entities, assert_live_opponent_batch, min_alive_for_defender == 4 fail-closed, deterministic policy.predict, R2.MAX_STEPS horizon. No perturbation, no roles, no action change, no training.",
+  "decision_tick": "every policy.predict call; the state is snapshotted read-only immediately before env.step (the state the policy acted on).",
+  "home_region": {
+    "source": "experiments/probe_learned_composition.py instrument() with experiments/run_learned_composition_probe.py R_POS = 4.5 ('frozen from the scripted cpu prototype; validated out of sample'); the same radius was used for the 4v4 scaffold trajectory export (R_HOME = 4.5). Adopted unchanged; not tuned.",
+    "radius_cells": 4.5,
+    "center": "the team's own flag HOME position (blue_flag_home)",
+    "home_count_primary": "number of blue agents that are alive, untagged, not carrying, and within 4.5 cells of own flag home (instrument() defend-like count)",
+    "home_count_raw_secondary": "number of alive blue agents within 4.5 cells of own flag home regardless of tagged/carrying status; reported for transparency, NOT used by the decision rule",
+    "no_exclusions": "no opening ticks, spawn ticks or episodes are excluded"
+  },
+  "cap": 2,
+  "cap_source": "ceil(N/2) at N = 4",
+  "metrics_per_policy": [
+    "pct_ticks_over_cap: ticks with home_count_primary > 2 divided by all decision ticks, pooled over the 16 episodes",
+    "pct_episodes_ever_over_cap: episodes with at least one tick home_count_primary > 2, out of 16",
+    "over_cap_periods: maximal runs of consecutive ticks with home_count_primary > 2; report count, mean length in ticks, median, max",
+    "pct_episodes_sustained_over_cap: episodes containing an over-cap period of at least 8 consecutive ticks (8 = H_r, the frozen role hold horizon)",
+    "home_count_primary distribution (fraction of ticks at 0..4)",
+    "the same over-cap numbers computed from home_count_raw_secondary (transparency only)"
+  ],
+  "decision_rule": {
+    "frozen_before_any_episode": true,
+    "GO": "for at least one of A3 or B2: pct_ticks_over_cap > 5% OR pct_episodes_sustained_over_cap >= 25% (>= 4 of 16 episodes)",
+    "NO_GO": "otherwise: the cap essentially never binds for either policy on Pole B, so a dynamic defense-cap allocator would not change behaviour and is not built",
+    "uses": "home_count_primary only",
+    "meaning_of_GO": "licenses DESIGNING (not running) a dynamic defense-cap follow-up under its own frozen spec and fresh seeds; it is not evidence that capping helps"
+  },
+  "not_reported_as_evidence": "episode scores and wins are logged only for traceability and are excluded from the readout; 16 throwaway seeds carry no performance claim",
+  "outputs": "artifacts/strategic_demand/sppo/home_occupancy_4v4/ (per-tick rows CSV, RESULT JSON write-once, README)"
+}
