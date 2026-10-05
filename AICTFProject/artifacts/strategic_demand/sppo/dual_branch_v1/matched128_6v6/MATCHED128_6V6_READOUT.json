@@ -1,0 +1,135 @@
+{
+  "record": "POSTHOC_MATCHED128_6V6_DUAL_BRANCH_READOUT",
+  "utc": "2026-10-03T09:10:49Z",
+  "spec": "DUAL_BRANCH_6V6_POSTHOC_MATCHED128_SPEC.json",
+  "classification": "POST-HOC MATCHED EVALUATION ON THE HISTORICAL 128-SEED 6V6 BLOCK. Not confirmatory. Not fresh seeds. Not PAPER-FAITHFUL. Does not replace any future untouched evaluation of the dual-branch method.",
+  "seeds": {
+    "block": "25800001..25800128",
+    "n": 128
+  },
+  "systems": {
+    "dual_branch": {
+      "rows": "artifacts/strategic_demand/sppo/posthoc_matched128_6v6_dual_branch_specialist_crossover_eval_rows.csv",
+      "win": {
+        "V_A_on_A": 0.84375,
+        "V_B_on_A": 0.90625,
+        "V_A_on_B": 0.265625,
+        "V_B_on_B": 0.84375,
+        "Delta_A": {
+          "mean": -0.0625,
+          "std": 0.4980276057238114,
+          "lcb95": -0.1484375,
+          "ucb95": 0.0234375,
+          "n": 128
+        },
+        "Delta_B": {
+          "mean": 0.578125,
+          "std": 0.5266051577092502,
+          "lcb95": 0.484375,
+          "ucb95": 0.671875,
+          "n": 128
+        }
+      },
+      "margin": {
+        "V_A_on_A": 1.96875,
+        "V_B_on_A": 2.390625,
+        "V_A_on_B": 0.2734375,
+        "V_B_on_B": 1.3984375,
+        "Delta_A": {
+          "mean": -0.421875,
+          "std": 1.6246592616716382,
+          "lcb95": -0.7109375,
+          "ucb95": -0.140625,
+          "n": 128
+        },
+        "Delta_B": {
+          "mean": 1.125,
+          "std": 1.079515785298511,
+          "lcb95": 0.9375,
+          "ucb95": 1.3125,
+          "n": 128
+        }
+      }
+    },
+    "old_asymmetric_ours": {
+      "rows": "artifacts/strategic_demand/sppo/standardized_6v6_split_k1_confirmatory_specialist_crossover_eval_rows.csv",
+      "win": {
+        "V_A_on_A": 0.921875,
+        "V_B_on_A": 0.859375,
+        "V_A_on_B": 0.859375,
+        "V_B_on_B": 0.9765625,
+        "Delta_A": {
+          "mean": 0.0625,
+          "std": 0.411450286890989,
+          "lcb95": -0.0078125,
+          "ucb95": 0.1328125,
+          "n": 128
+        },
+        "Delta_B": {
+          "mean": 0.1171875,
+          "std": 0.34643502191529196,
+          "lcb95": 0.0625,
+          "ucb95": 0.1796875,
+          "n": 128
+        }
+      },
+      "margin": {
+        "V_A_on_A": 2.1640625,
+        "V_B_on_A": 1.3515625,
+        "V_A_on_B": 1.6875,
+        "V_B_on_B": 2.421875,
+        "Delta_A": {
+          "mean": 0.8125,
+          "std": 1.3442792173403664,
+          "lcb95": 0.578125,
+          "ucb95": 1.046875,
+          "n": 128
+        },
+        "Delta_B": {
+          "mean": 0.734375,
+          "std": 1.1870984609144735,
+          "lcb95": 0.53125,
+          "ucb95": 0.9375,
+          "n": 128
+        }
+      }
+    }
+  },
+  "paired_vs": {
+    "dual_branch_minus_old_asymmetric_ours": {
+      "win": {
+        "Delta_A": {
+          "mean": -0.125,
+          "std": 0.6520712004019966,
+          "lcb95": -0.234375,
+          "ucb95": -0.015625,
+          "n": 128
+        },
+        "Delta_B": {
+          "mean": 0.4609375,
+          "std": 0.6508908946151524,
+          "lcb95": 0.34375,
+          "ucb95": 0.5703125,
+          "n": 128
+        }
+      },
+      "margin": {
+        "Delta_A": {
+          "mean": -1.234375,
+          "std": 2.1091640132160583,
+          "lcb95": -1.6015625,
+          "ucb95": -0.8671875,
+          "n": 128
+        },
+        "Delta_B": {
+          "mean": 0.390625,
+          "std": 1.5227119145797572,
+          "lcb95": 0.125,
+          "ucb95": 0.65625,
+          "n": 128
+        }
+      }
+    }
+  },
+  "table_markdown": "# POSTHOC_MATCHED128_6V6_DUAL_BRANCH (n = 128 seeds, block 25800001..25800128)\n\nPOST-HOC MATCHED EVALUATION ON THE HISTORICAL 128-SEED 6V6 BLOCK. Not confirmatory. Not fresh seeds. Not PAPER-FAITHFUL. Does not replace any future untouched evaluation of the dual-branch method.\n\n## Win rate\n\n| System | A@A | B@A | A@B | B@B | \u0394_A mean \u00b1 std [95% CI] | \u0394_B mean \u00b1 std [95% CI] |\n|---|---|---|---|---|---|---|\n| dual_branch | 0.844 | 0.906 | 0.266 | 0.844 | -0.062 \u00b1 0.498 [-0.148, +0.023] | +0.578 \u00b1 0.527 [+0.484, +0.672] |\n| old_asymmetric_ours | 0.922 | 0.859 | 0.859 | 0.977 | +0.062 \u00b1 0.411 [-0.008, +0.133] | +0.117 \u00b1 0.346 [+0.062, +0.180] |\n\nPaired dual_branch_minus_old_asymmetric_ours: \u0394_A -0.125 \u00b1 0.652 [-0.234, -0.016]; \u0394_B +0.461 \u00b1 0.651 [+0.344, +0.570]\n\n## Score margin (blue \u2212 red)\n\n| System | A@A | B@A | A@B | B@B | \u0394_A mean \u00b1 std [95% CI] | \u0394_B mean \u00b1 std [95% CI] |\n|---|---|---|---|---|---|---|\n| dual_branch | 1.969 | 2.391 | 0.273 | 1.398 | -0.422 \u00b1 1.625 [-0.711, -0.141] | +1.125 \u00b1 1.080 [+0.938, +1.312] |\n| old_asymmetric_ours | 2.164 | 1.352 | 1.688 | 2.422 | +0.812 \u00b1 1.344 [+0.578, +1.047] | +0.734 \u00b1 1.187 [+0.531, +0.938] |\n\nPaired dual_branch_minus_old_asymmetric_ours: \u0394_A -1.234 \u00b1 2.109 [-1.602, -0.867]; \u0394_B +0.391 \u00b1 1.523 [+0.125, +0.656]\n"
+}

@@ -868,11 +868,11 @@ def stage4_evals() -> None:
     )
     if rc != 0:
         fail(f"Stage4 eval freeze exited {rc}")
-    # Reuse eval_specialist path via sharing eval if available; otherwise record deferred.
+    # Every requested student evaluation must complete before packaging.
     eval_spec = PROJ / "artifacts/strategic_demand/sppo/STANDARDIZED_6V6_STAGE4_SHARING_EVAL_SPEC.json"
     if not eval_spec.is_file():
         fail(f"missing {eval_spec.name}")
-    # Best-effort: run eval_suite_sharing_crossover with STAGE4 tag when the CLI supports it.
+    # An unavailable evaluator is an execution failure, not a scientific verdict.
     try:
         from experiments import eval_suite_sharing_crossover as EV  # noqa: F401
         has_tag = True
@@ -896,12 +896,12 @@ def stage4_evals() -> None:
                 "--device", "cuda", "--resume",
             ]
             rc = run_logged(argv, f"stage4_eval_{arm}")
-            if not result.is_file():
-                log(f"WARN: Stage4 eval {arm} exited {rc} without result; continuing (diagnostic)")
+            if rc != 0 or not result.is_file():
+                fail(f"Stage4 eval {arm} exited {rc}; evaluation must complete before packaging")
             else:
                 log(f"Stage4 eval {arm} DONE")
     else:
-        log("Stage4 eval CLI unavailable; evals deferred to post-bundle tooling")
+        fail("Stage4 eval CLI unavailable; evaluation must complete before packaging")
 
 
 def _cp_file(src: Path, dst_dir: Path) -> None:
@@ -927,6 +927,8 @@ def _write_summary(out: Path) -> None:
         "Rule: if it is not in this FOR_PROFESSOR folder, you do not need it.",
         "",
         "Stage-3 hierarchy:",
+        "Historical 6v6 evidence is unfavorable, but is not a formal qualification failure.",
+        "Fresh qualification on untouched seeds is still required; qualification remains pending.",
         "  matched 128         PRIMARY evidence (same 128 for dual-branch vs old Ours)",
         "  dual-branch own-50  secondary descriptive (A@A/B@B pushed toward 1 by construction;",
         "                      informative cells are B@A and A@B)",

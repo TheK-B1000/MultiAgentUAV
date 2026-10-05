@@ -1,0 +1,358 @@
+{
+  "record_id": "SUITE_DATASETS_STAGE4_AUDIT_6V6",
+  "utc": "2026-10-03T10:27:04Z",
+  "verdict": "GREEN",
+  "datasets": {
+    "6v6_stage4": "SUITE_DISTILLATION_6V6_STAGE4_DATASET.json"
+  },
+  "rows": {
+    "6v6_stage4": 40354
+  },
+  "checks": [
+    {
+      "scale": "6v6_stage4",
+      "check": "manifest_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_6V6_STAGE4_DATASET.json"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "spec_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_6V6_STAGE4_SPEC.json"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "construction_matches_family",
+      "ok": true,
+      "detail": "dual_branch"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "manifest_FROZEN_DATASET",
+      "ok": true,
+      "detail": "FROZEN_DATASET"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "spec_FROZEN",
+      "ok": true,
+      "detail": "FROZEN_BEFORE_COLLECTION"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "collector_recorded",
+      "ok": true,
+      "detail": {
+        "module": "experiments/collect_suite_distillation_states.py",
+        "spec": "SUITE_DISTILLATION_6V6_STAGE4_SPEC.json",
+        "spec_sha256": "8b4b26b379b5c086a71d5a9e112a6b4d73cca642b965c9bad183183a7668f594",
+        "git_sha": "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a",
+        "git_dirty": false,
+        "scientific_tree_sha256": "d2a203c63adbc35d5fb90b8a44e887b4e0c3354797d120acba46fc172022923c"
+      }
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "spec_sha_matches_manifest",
+      "ok": true,
+      "detail": "8b4b26b379b5c086a71d5a9e112a6b4d73cca642b965c9bad183183a7668f594"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "fingerprint_recorded",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "allocator_CD_k_fixed_H8",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 2,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8
+      }
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "spec_allocator_k",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 2,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8,
+        "source": "k = ceil(N/3) (DUAL_BRANCH_ROLE_COMPOSITE_V1)"
+      }
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pole_A_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "1c17c67afb2ad130a4576202ee3afe160171f093b051fa90f507ceccfd7ac11a",
+        "1c17c67afb2ad130a4576202ee3afe160171f093b051fa90f507ceccfd7ac11a"
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pole_A_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {
+          "min_alive_for_defender": 6
+        },
+        {
+          "min_alive_for_defender": 6
+        }
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pole_B_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "765cf7dc353a7942de0fb0feb8ea0219c2e43c686838e2cb4743abdd420458ad",
+        "765cf7dc353a7942de0fb0feb8ea0219c2e43c686838e2cb4743abdd420458ad"
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pole_B_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {
+          "min_alive_for_defender": 6
+        },
+        {
+          "min_alive_for_defender": 6
+        }
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "teachers_mode_dual_branch",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "acting_equals_teacher_halves",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_D_file_sha",
+      "ok": true,
+      "detail": "e56bd004668f7668"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_D_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_frozen_attack_file_sha",
+      "ok": true,
+      "detail": "22445125e68b1265"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_frozen_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_B_act_file_sha",
+      "ok": true,
+      "detail": "80154f9ea11842a4"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_B_act_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_DB_file_sha",
+      "ok": true,
+      "detail": "318f3b63ef6cb13c"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_DB_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_A_kl_defend_file_sha",
+      "ok": true,
+      "detail": "e56bd004668f7668"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_A_kl_defend_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_A_kl_attack_file_sha",
+      "ok": true,
+      "detail": "22445125e68b1265"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_A_kl_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_B_kl_defend_file_sha",
+      "ok": true,
+      "detail": "318f3b63ef6cb13c"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_B_kl_defend_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_B_kl_attack_file_sha",
+      "ok": true,
+      "detail": "80154f9ea11842a4"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "pin_pi_B_kl_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "shards_A_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        27002001,
+        27002096
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "registry_collection_A_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        27002001,
+        27002096
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "manifest_registry_collection_A",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "shards_B_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        27102001,
+        27102096
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "registry_collection_B_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        27102001,
+        27102096
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "manifest_registry_collection_B",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "manifest_fingerprint_collector_sha",
+      "ok": true,
+      "detail": [
+        "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a",
+        "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a"
+      ]
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "collector_clean_at_collection",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "manifest_scientific_tree_matches_git_sha",
+      "ok": true,
+      "detail": "d2a203c63adbc35d"
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "all_shard_files_present",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "every_shard_from_the_manifest_collector_commit",
+      "ok": true,
+      "detail": {
+        "foreign_shards": 0,
+        "sha": "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a"
+      }
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "every_row_exactly_k_defenders",
+      "ok": true,
+      "detail": {
+        "rows": 40354,
+        "violations": 0
+      }
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "every_row_decision_eligible",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "entity_tensor_shapes_follow_N",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "6v6_stage4",
+      "check": "flags_decision_only_entities_roles",
+      "ok": true,
+      "detail": null
+    }
+  ]
+}

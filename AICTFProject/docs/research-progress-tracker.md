@@ -1,5 +1,23 @@
 # Research Progress Tracker
 
+## 2026-10-05 — 6v6 Role-only evaluation repair; fresh qualification pending
+
+The October 2–3 dual-branch suite completed teacher training, its technical
+seal, matched-128 diagnostics, and all three Stage-4 students. Role-only
+evaluation crashed before collecting rows because its loader returns
+`(model, cfg, payload)` while the evaluator unpacked two values. The repair
+consumes that existing three-value interface; there is no scientific or
+resolved-configuration delta (same checkpoint, frozen seeds, poles, and evaluator
+settings). This is a DIAGNOSTIC evaluation plumbing repair, not a new preset.
+The pipeline now stops on a failed Stage-4 evaluation instead of silently
+packaging it as complete. The missing Role-only evaluation is being recovered
+without retraining; its result and package completion must be verified separately.
+
+Historical 6v6 evidence is unfavorable, but is **not a formal qualification
+failure**. The matched-128 and selected-top-50 results use historical seeds.
+Fresh qualification on untouched seeds remains required and pending; no new
+qualification seeds or training are authorized by this repair record.
+
 **Owner:** This file is the single source of truth for *current* run
 status, *open* decisions, and *recommended next* experiments. It is the
 working logbook of the research effort; it is updated when a run

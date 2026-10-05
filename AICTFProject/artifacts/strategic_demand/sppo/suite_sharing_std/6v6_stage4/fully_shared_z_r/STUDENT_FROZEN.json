@@ -1,0 +1,37 @@
+{
+  "record": "suite fully_shared 6v6",
+  "utc": "2026-10-03T10:37:48Z",
+  "status": "FROZEN_STUDENT",
+  "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/6v6_stage4/fully_shared_z_r/ckpts/final_fully_shared_z_r_6v6.pt",
+  "sha256": "2b180cce7f4124b0abec42794d1020b15ea5819ac907d6707c90c2139e738d03",
+  "unique_actor_params": 3468759,
+  "branch_seeds": null,
+  "rung": null,
+  "final_holdout": {
+    "epoch": 20,
+    "train_kl_A": 0.00525498686527664,
+    "train_kl_B": 0.009778317893065061,
+    "holdout_agree_z0_vs_piA": 0.9858201926262543,
+    "holdout_agree_z1_vs_piB": 0.9785902733677627,
+    "holdout_teacher_argmax_disagreement": 0.6083437374969063,
+    "holdout_kl_A": 0.019944769834344844,
+    "holdout_kl_B": 0.022008675686064228,
+    "holdout_student_z0_z1_jsd": 0.4265435236154805,
+    "holdout_teacher_A_B_jsd": 0.4296073418561056
+  },
+  "recipe": {
+    "epochs": 20,
+    "batch": 256,
+    "lr": 0.0003,
+    "clip": 1.0,
+    "weight_decay": 0.0
+  },
+  "dataset": "artifacts/strategic_demand/sppo/SUITE_DISTILLATION_6V6_STAGE4_DATASET.json",
+  "dataset_manifest_sha256": "e50d39eba3116b8e84d8dfc94729b21405d6e7a336959539db8e112dbc6cb200",
+  "spec": "STANDARDIZED_6V6_STAGE4_SHARING_SPEC.json",
+  "spec_sha256": "826e98fb29c8027a66e355a398a0b1b1ca8eb33d12d118769483371cd4ba9cfb",
+  "seed_block": "STAGE4_6V6_FULLY_SHARED_ZR_TRAINING",
+  "init_seeds": [
+    27302001
+  ]
+}

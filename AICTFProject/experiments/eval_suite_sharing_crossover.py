@@ -271,13 +271,11 @@ def main() -> int:
         from rl import suite_fully_shared_distill as FS
 
         if is_role_only:
-            loader = FS.load_role_only
-        elif is_generalist:
-            loader = FS.load_generalist
+            model, cfg, payload = FS.load_role_only(str(ck), obs_space, act_space, device=device)
         else:
-            loader = FS.load_fully_shared
-        model, payload = loader(str(ck), obs_space, act_space, device=device)
-        cfg = dict(payload.get("cfg") or {})
+            loader = FS.load_generalist if is_generalist else FS.load_fully_shared
+            model, payload = loader(str(ck), obs_space, act_space, device=device)
+            cfg = dict(payload.get("cfg") or {})
         if not no_z:
             cfg["fixed_latent_strategy"] = True
         policy = CustomPPOInferencePolicy(model, device=device, cfg=cfg)

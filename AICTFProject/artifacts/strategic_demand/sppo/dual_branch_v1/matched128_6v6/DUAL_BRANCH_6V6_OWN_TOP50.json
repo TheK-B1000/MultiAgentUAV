@@ -1,0 +1,152 @@
+{
+  "record": "DUAL_BRANCH_6V6_OWN_TOP50",
+  "utc": "2026-10-03T09:10:51Z",
+  "classification": "POST-HOC DESCRIPTIVE SUBSET: best-case strategic capability on the system's own best 50 scenarios. Not an unbiased estimate of general performance; the full-128 readout is.",
+  "scale": "6v6",
+  "rule": "score(seed)=outcome(strategy A on Pole A)+outcome(strategy B on Pole B); rank descending; tie-break ascending seed ID; take top 50. Post-hoc descriptive subset; primary results remain sealed n=128.",
+  "rule_verified_against": "6v6_Ours_heuristic_roles_seeds.json",
+  "rows": "artifacts/strategic_demand/sppo/posthoc_matched128_6v6_dual_branch_specialist_crossover_eval_rows.csv",
+  "rows_sha256": "c855343a13026c5f27b69dcf3f8ba8438cb5d12bfde2b6017a99cedbbc716777",
+  "n_candidates": 128,
+  "selected_seed_ids": [
+    25800002,
+    25800003,
+    25800004,
+    25800005,
+    25800007,
+    25800008,
+    25800009,
+    25800010,
+    25800012,
+    25800013,
+    25800014,
+    25800015,
+    25800016,
+    25800017,
+    25800018,
+    25800019,
+    25800020,
+    25800021,
+    25800022,
+    25800023,
+    25800024,
+    25800025,
+    25800027,
+    25800028,
+    25800029,
+    25800030,
+    25800031,
+    25800032,
+    25800034,
+    25800036,
+    25800038,
+    25800041,
+    25800042,
+    25800043,
+    25800044,
+    25800045,
+    25800046,
+    25800047,
+    25800048,
+    25800049,
+    25800050,
+    25800052,
+    25800053,
+    25800056,
+    25800058,
+    25800059,
+    25800060,
+    25800062,
+    25800063,
+    25800064
+  ],
+  "cutoff": {
+    "score": 2.0,
+    "seeds_above": 0,
+    "seeds_tied_at_cutoff": 93,
+    "tie_break": "ascending seed ID (historical rule)"
+  },
+  "score_distribution": {
+    "2.0": 93,
+    "1.0": 30,
+    "0.0": 5
+  },
+  "top50": {
+    "win": {
+      "V_A_on_A": 1.0,
+      "V_B_on_A": 0.88,
+      "V_A_on_B": 0.34,
+      "V_B_on_B": 1.0,
+      "Delta_A": {
+        "mean": 0.12,
+        "std": 0.3282607226593159,
+        "lcb95": 0.04,
+        "ucb95": 0.22
+      },
+      "Delta_B": {
+        "mean": 0.66,
+        "std": 0.4785181206984065,
+        "lcb95": 0.52,
+        "ucb95": 0.78
+      }
+    },
+    "margin": {
+      "V_A_on_A": 2.4,
+      "V_B_on_A": 2.28,
+      "V_A_on_B": 0.36,
+      "V_B_on_B": 1.56,
+      "Delta_A": {
+        "mean": 0.12,
+        "std": 1.3498299212591676,
+        "lcb95": -0.24,
+        "ucb95": 0.48
+      },
+      "Delta_B": {
+        "mean": 1.2,
+        "std": 0.8329931278350429,
+        "lcb95": 0.98,
+        "ucb95": 1.44
+      }
+    }
+  },
+  "all_128": {
+    "win": {
+      "V_A_on_A": 0.84375,
+      "V_B_on_A": 0.90625,
+      "V_A_on_B": 0.265625,
+      "V_B_on_B": 0.84375,
+      "Delta_A": {
+        "mean": -0.0625,
+        "std": 0.4980276057238114,
+        "lcb95": -0.1484375,
+        "ucb95": 0.0234375
+      },
+      "Delta_B": {
+        "mean": 0.578125,
+        "std": 0.5266051577092502,
+        "lcb95": 0.484375,
+        "ucb95": 0.671875
+      }
+    },
+    "margin": {
+      "V_A_on_A": 1.96875,
+      "V_B_on_A": 2.390625,
+      "V_A_on_B": 0.2734375,
+      "V_B_on_B": 1.3984375,
+      "Delta_A": {
+        "mean": -0.421875,
+        "std": 1.6246592616716382,
+        "lcb95": -0.7109375,
+        "ucb95": -0.140625
+      },
+      "Delta_B": {
+        "mean": 1.125,
+        "std": 1.079515785298511,
+        "lcb95": 0.9375,
+        "ucb95": 1.3125
+      }
+    }
+  },
+  "overlap_with_old_ours_top50": 39,
+  "table_markdown": "# DUAL_BRANCH_6V6_OWN_TOP50\n\nPOST-HOC DESCRIPTIVE SUBSET: best-case strategic capability on the system's own best 50 scenarios. Not an unbiased estimate of general performance; the full-128 readout is.\n\nRule (historical, verified to reproduce the old 6v6 list): score(seed)=outcome(strategy A on Pole A)+outcome(strategy B on Pole B); rank descending; tie-break ascending seed ID; take top 50. Post-hoc descriptive subset; primary results remain sealed n=128.\n\nScores over 128 seeds: both won (2) 93, one (1) 30, neither (0) 5. Cutoff score 2: 0 seeds above, 93 tied (tie-break ascending seed ID). Overlap with the old Ours top-50: 39/50.\n\n## Win rate\n\n| Seeds | A@A | B@A | A@B | B@B | \u0394_A mean \u00b1 std [95% CI] | \u0394_B mean \u00b1 std [95% CI] |\n|---|---|---|---|---|---|---|\n| own top-50 | 1.000 | 0.880 | 0.340 | 1.000 | +0.120 \u00b1 0.328 [+0.040, +0.220] | +0.660 \u00b1 0.479 [+0.520, +0.780] |\n| all 128 | 0.844 | 0.906 | 0.266 | 0.844 | -0.062 \u00b1 0.498 [-0.148, +0.023] | +0.578 \u00b1 0.527 [+0.484, +0.672] |\n\n## Score margin (blue \u2212 red)\n\n| Seeds | A@A | B@A | A@B | B@B | \u0394_A mean \u00b1 std [95% CI] | \u0394_B mean \u00b1 std [95% CI] |\n|---|---|---|---|---|---|---|\n| own top-50 | 2.400 | 2.280 | 0.360 | 1.560 | +0.120 \u00b1 1.350 [-0.240, +0.480] | +1.200 \u00b1 0.833 [+0.980, +1.440] |\n| all 128 | 1.969 | 2.391 | 0.273 | 1.398 | -0.422 \u00b1 1.625 [-0.711, -0.141] | +1.125 \u00b1 1.080 [+0.938, +1.312] |\n"
+}

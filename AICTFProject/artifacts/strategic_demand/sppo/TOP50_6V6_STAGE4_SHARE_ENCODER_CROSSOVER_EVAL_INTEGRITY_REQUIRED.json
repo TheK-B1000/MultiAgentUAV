@@ -1,0 +1,13 @@
+{
+  "record": "TOP50_6V6_STAGE4_SHARE_ENCODER crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-10-03T11:42:57Z",
+  "triggered_by": [
+    "delta_A"
+  ],
+  "point_estimates": {
+    "delta_A": 0.0,
+    "delta_B": 0.36
+  },
+  "raw_rows": "artifacts/strategic_demand/sppo/top50_6v6_stage4_share_encoder_crossover_eval_rows.csv"
+}

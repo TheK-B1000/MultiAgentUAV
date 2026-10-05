@@ -1,0 +1,150 @@
+{
+  "record": "TOP50_6V6_STAGE4_SHARE_ENCODER crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-10-03T11:42:57Z",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "STANDARDIZED_6V6_STAGE4_SHARING_EVAL_SPEC.json#EVALUATION",
+  "suite_arm": "share_encoder",
+  "team_size": 6,
+  "device": "cuda",
+  "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/6v6_stage4/share_encoder/ckpts/final_share_encoder_6v6.pt",
+  "checkpoint_sha256": "6c05d4d6768726d90fe1b928cb6348d395057abd89a791b73cffbc9574ffcc11",
+  "seeds": {
+    "block": [
+      25800001,
+      25800128
+    ],
+    "n": 50,
+    "shared_across_z_and_poles": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_6V6_SEPARATED_EVAL",
+    "shared_by_labels": null,
+    "seed_ids": [
+      25800002,
+      25800003,
+      25800004,
+      25800005,
+      25800007,
+      25800008,
+      25800009,
+      25800010,
+      25800012,
+      25800013,
+      25800014,
+      25800015,
+      25800016,
+      25800017,
+      25800018,
+      25800019,
+      25800020,
+      25800021,
+      25800022,
+      25800023,
+      25800024,
+      25800025,
+      25800027,
+      25800028,
+      25800029,
+      25800030,
+      25800031,
+      25800032,
+      25800034,
+      25800036,
+      25800038,
+      25800041,
+      25800042,
+      25800043,
+      25800044,
+      25800045,
+      25800046,
+      25800047,
+      25800048,
+      25800049,
+      25800050,
+      25800052,
+      25800053,
+      25800056,
+      25800058,
+      25800059,
+      25800060,
+      25800062,
+      25800063,
+      25800064
+    ],
+    "post_hoc": {
+      "primary_record": "STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "block_status_unchanged": true
+    }
+  },
+  "poles": {
+    "A": {
+      "policy": "A",
+      "team_size": 6,
+      "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+      "certification_sha256": "7996126d831ca6506dd8e5d5afac79bdc42f21b9733873430e6c771b261adf6b",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 6
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "1c17c67afb2ad130a4576202ee3afe160171f093b051fa90f507ceccfd7ac11a",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 6
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 6,
+      "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+      "certification_sha256": "7996126d831ca6506dd8e5d5afac79bdc42f21b9733873430e6c771b261adf6b",
+      "genome_id": "SDS_PARENT_OP7",
+      "base_opponent": "OP7",
+      "overlay": {
+        "min_alive_for_defender": 6
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "765cf7dc353a7942de0fb0feb8ea0219c2e43c686838e2cb4743abdd420458ad",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 6
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.0,
+      "lcb95": -0.1,
+      "ucb95": 0.12,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": 0.36,
+      "lcb95": 0.18,
+      "ucb95": 0.54,
+      "passes": true
+    },
+    "passes": false
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 200,
+  "claim_boundary": "",
+  "integrity_flag": "artifacts/strategic_demand/sppo/TOP50_6V6_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+  "status": "SEALED",
+  "sealed_utc": "2026-10-03T11:42:57Z",
+  "git_sha": "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a",
+  "AUDIT": {
+    "path": "TOP50_6V6_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 13,
+    "n_gating": 11,
+    "failed_checks": [],
+    "rows_sha256": "976585782d987004e357b31c3b0d0dc7b404d85d06d18af92f986b4d725d7512"
+  }
+}

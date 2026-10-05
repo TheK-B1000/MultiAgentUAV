@@ -1,0 +1,14 @@
+{
+  "record": "POSTHOC_MATCHED128_6V6_DUAL_BRANCH specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-10-03T09:10:47Z",
+  "implements": "DUAL_BRANCH_6V6_POSTHOC_MATCHED128_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_A"
+  ],
+  "point_estimates": {
+    "delta_A": -0.0625,
+    "delta_B": 0.578125
+  },
+  "rule": "requires a row-level integrity audit before any scientific interpretation. Raw rows: posthoc_matched128_6v6_dual_branch_specialist_crossover_eval_rows.csv. Sealing still proceeds for immutability."
+}
