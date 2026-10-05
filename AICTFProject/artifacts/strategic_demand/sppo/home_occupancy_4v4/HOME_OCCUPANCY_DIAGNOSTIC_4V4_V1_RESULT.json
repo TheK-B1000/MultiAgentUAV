@@ -1,0 +1,310 @@
+{
+  "id": "HOME_OCCUPANCY_DIAGNOSTIC_4V4_V1",
+  "status": "SEALED",
+  "spec": "HOME_OCCUPANCY_DIAGNOSTIC_4V4_V1_SPEC.json",
+  "spec_sha256": "5d9c2f02dd36a985007a33c3080e8567e21d42ec04ff7a86052101c42c95bda6",
+  "device": "cuda",
+  "seeds": [
+    99970001,
+    99970016
+  ],
+  "cap": 2,
+  "r_home": 4.5,
+  "sustain_ticks": 8,
+  "decision_rule": {
+    "pct_ticks": 5.0,
+    "pct_episodes_sustained": 25.0
+  },
+  "decision": "GO",
+  "primary": {
+    "A3": {
+      "n_episodes": 16,
+      "n_ticks": 2782,
+      "pct_ticks_over_cap": 25.66498921639109,
+      "n_episodes_ever_over_cap": 16,
+      "pct_episodes_ever_over_cap": 100.0,
+      "n_episodes_sustained_over_cap": 4,
+      "pct_episodes_sustained_over_cap": 25.0,
+      "over_cap_periods": {
+        "count": 89,
+        "mean_ticks": 8.02247191011236,
+        "median_ticks": 5.0,
+        "max_ticks": 45
+      },
+      "home_count_distribution": {
+        "0": 0.29403306973400434,
+        "1": 0.28468727534148097,
+        "2": 0.16462976276060387,
+        "3": 0.2415528396836808,
+        "4": 0.01509705248023005
+      }
+    },
+    "B2": {
+      "n_episodes": 16,
+      "n_ticks": 3561,
+      "pct_ticks_over_cap": 16.512215669755687,
+      "n_episodes_ever_over_cap": 16,
+      "pct_episodes_ever_over_cap": 100.0,
+      "n_episodes_sustained_over_cap": 8,
+      "pct_episodes_sustained_over_cap": 50.0,
+      "over_cap_periods": {
+        "count": 122,
+        "mean_ticks": 4.819672131147541,
+        "median_ticks": 3.0,
+        "max_ticks": 25
+      },
+      "home_count_distribution": {
+        "0": 0.2561078348778433,
+        "1": 0.32771693344566133,
+        "2": 0.2510530749789385,
+        "3": 0.16062903678741927,
+        "4": 0.004493119910137602
+      }
+    }
+  },
+  "raw_secondary_transparency_only": {
+    "A3": {
+      "n_episodes": 16,
+      "n_ticks": 2782,
+      "pct_ticks_over_cap": 36.16103522645579,
+      "n_episodes_ever_over_cap": 16,
+      "pct_episodes_ever_over_cap": 100.0,
+      "n_episodes_sustained_over_cap": 6,
+      "pct_episodes_sustained_over_cap": 37.5,
+      "over_cap_periods": {
+        "count": 80,
+        "mean_ticks": 12.575,
+        "median_ticks": 5.0,
+        "max_ticks": 168
+      },
+      "home_count_distribution": {
+        "0": 0.18475916606757728,
+        "1": 0.2685118619698059,
+        "2": 0.18511861969805896,
+        "3": 0.11574406901509705,
+        "4": 0.24586628324946083
+      }
+    },
+    "B2": {
+      "n_episodes": 16,
+      "n_ticks": 3561,
+      "pct_ticks_over_cap": 34.962089300758215,
+      "n_episodes_ever_over_cap": 16,
+      "pct_episodes_ever_over_cap": 100.0,
+      "n_episodes_sustained_over_cap": 9,
+      "pct_episodes_sustained_over_cap": 56.25,
+      "over_cap_periods": {
+        "count": 113,
+        "mean_ticks": 11.017699115044248,
+        "median_ticks": 6.0,
+        "max_ticks": 62
+      },
+      "home_count_distribution": {
+        "0": 0.14434147711317047,
+        "1": 0.2957034540859309,
+        "2": 0.21033417579331648,
+        "3": 0.19180005616399887,
+        "4": 0.15782083684358325
+      }
+    }
+  },
+  "terminals_traceability_only_not_evidence": {
+    "A3": [
+      {
+        "seed": 99970001,
+        "blue": 3,
+        "red": 0,
+        "ticks": 85
+      },
+      {
+        "seed": 99970002,
+        "blue": 2,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970003,
+        "blue": 3,
+        "red": 0,
+        "ticks": 122
+      },
+      {
+        "seed": 99970004,
+        "blue": 2,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970005,
+        "blue": 3,
+        "red": 0,
+        "ticks": 93
+      },
+      {
+        "seed": 99970006,
+        "blue": 3,
+        "red": 0,
+        "ticks": 93
+      },
+      {
+        "seed": 99970007,
+        "blue": 3,
+        "red": 0,
+        "ticks": 238
+      },
+      {
+        "seed": 99970008,
+        "blue": 3,
+        "red": 0,
+        "ticks": 130
+      },
+      {
+        "seed": 99970009,
+        "blue": 3,
+        "red": 0,
+        "ticks": 121
+      },
+      {
+        "seed": 99970010,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970011,
+        "blue": 3,
+        "red": 0,
+        "ticks": 168
+      },
+      {
+        "seed": 99970012,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970013,
+        "blue": 3,
+        "red": 0,
+        "ticks": 155
+      },
+      {
+        "seed": 99970014,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970015,
+        "blue": 3,
+        "red": 0,
+        "ticks": 137
+      },
+      {
+        "seed": 99970016,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      }
+    ],
+    "B2": [
+      {
+        "seed": 99970001,
+        "blue": 1,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970002,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970003,
+        "blue": 1,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970004,
+        "blue": 2,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970005,
+        "blue": 2,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970006,
+        "blue": 3,
+        "red": 0,
+        "ticks": 177
+      },
+      {
+        "seed": 99970007,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970008,
+        "blue": 2,
+        "red": 1,
+        "ticks": 240
+      },
+      {
+        "seed": 99970009,
+        "blue": 1,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970010,
+        "blue": 2,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970011,
+        "blue": 3,
+        "red": 0,
+        "ticks": 141
+      },
+      {
+        "seed": 99970012,
+        "blue": 1,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970013,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970014,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970015,
+        "blue": 0,
+        "red": 0,
+        "ticks": 240
+      },
+      {
+        "seed": 99970016,
+        "blue": 3,
+        "red": 0,
+        "ticks": 123
+      }
+    ]
+  },
+  "rows_csv": "home_occupancy_4v4_ticks.csv"
+}
