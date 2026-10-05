@@ -1,0 +1,26 @@
+{
+  "record_id": "SQ_4V4_GATE_SEALED",
+  "status": "SEALED_GATE",
+  "utc": "2026-10-05T05:58:00Z",
+  "git_head": "53699d2588f3250117f6832395497b5800989661",
+  "block": [
+    29600001,
+    29600064
+  ],
+  "pair": {
+    "A": "A3",
+    "B": "B2"
+  },
+  "cells": {
+    "A@A": 0.84375,
+    "A@B": 0.65625,
+    "B@A": 0.609375,
+    "B@B": 0.734375
+  },
+  "Delta_A_base": 0.234375,
+  "Delta_B_base": 0.078125,
+  "criterion": "mean Delta_A^base > 0 AND mean Delta_B^base > 0",
+  "qualified": true,
+  "result_sha256": "430614468004b59470e74ceaeadcd7a0f116bf1abdc2ee0f9670d544ef431e54",
+  "on_fail": "STOP the 4v4 line: no further batch, no second-best candidate, no new k"
+}

@@ -1,0 +1,8 @@
+{
+  "record_id": "SPECIALIST_QUALIFICATION_V1_4V4_CONFIRM_EVAL_SPEC",
+  "status": "FROZEN_CONFIRMATION_EVAL",
+  "utc": "2026-10-05T12:10:31Z",
+  "confirmatory": true,
+  "parent": "SPECIALIST_QUALIFICATION_V1_SPEC",
+  "purpose": "evaluator spec for the final fresh confirmation only"
+}

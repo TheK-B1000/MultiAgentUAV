@@ -1,0 +1,14 @@
+{
+  "record": "SQ_4V4_SELECT_C3 specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-10-05T02:59:50Z",
+  "implements": "SPECIALIST_QUALIFICATION_V1_4V4_EVAL_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.4375,
+    "delta_B": -0.109375
+  },
+  "rule": "requires a row-level integrity audit before any scientific interpretation. Raw rows: sq_4v4_select_c3_specialist_crossover_eval_rows.csv. Sealing still proceeds for immutability."
+}

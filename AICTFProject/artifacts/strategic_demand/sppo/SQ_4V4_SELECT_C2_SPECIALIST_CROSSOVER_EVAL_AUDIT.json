@@ -1,0 +1,163 @@
+{
+  "record": "audit of SQ_4V4_SELECT_C2_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+  "audit_utc": "2026-10-05T02:56:47Z",
+  "git_sha": "53699d2588f3250117f6832395497b5800989661",
+  "passed": true,
+  "n_checks": 14,
+  "n_gating": 12,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 256,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_DEVELOPMENT_EVAL'",
+      "spec": "SPECIALIST_QUALIFICATION_V1_4V4_EVAL_SPEC.json",
+      "sha256": "3b2aa37782738394405e8385757ebdd619af516d7ccc497161f2328a5fbc7b90",
+      "status": "FROZEN_DEVELOPMENT_EVAL"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "sq_4v4_select_c2_specialist_crossover_eval_rows.csv (6443 bytes)",
+      "sha256": "3c09f0ebe3a05de21cdeff9291ddb302462319447df3606e04d128c58b458af2"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "256 rows, expected 256",
+      "found": 256,
+      "expected": 256
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "4 cells; 0 with a seed set != frozen block 29500001..29500064 (n=64)",
+      "n_cells": 4,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win takes values [0, 1]",
+      "field": "win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "checkpoint::pi_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pi_A sha 008081a4354a... vs frozen 008081a4354a...",
+      "path": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_sq_candA2\\ckpts\\final_pi_A_specialist_4v4_sq_candA2.zip",
+      "sha256": "008081a4354a34de8ecc374273753e7ed036f514fcc8c5c5adf75e8b2f3bedcf",
+      "frozen_sha256": "008081a4354a34de8ecc374273753e7ed036f514fcc8c5c5adf75e8b2f3bedcf"
+    },
+    {
+      "name": "checkpoint::pi_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pi_B sha 872ab536f092... vs frozen 872ab536f092...",
+      "path": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_sq_candB2\\ckpts\\final_pi_B_specialist_4v4_sq_candB2.zip",
+      "sha256": "872ab536f0923c339025ad8312ca476171d0e34b3b62926b9c82c67aa5d40997",
+      "frozen_sha256": "872ab536f0923c339025ad8312ca476171d0e34b3b62926b9c82c67aa5d40997"
+    },
+    {
+      "name": "claim::delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.203125,
+        "lcb95": 0.046875,
+        "ucb95": 0.359375
+      },
+      "rederived": {
+        "mean": 0.203125,
+        "lcb95": 0.046875,
+        "ucb95": 0.359375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.03125,
+        "lcb95": -0.125,
+        "ucb95": 0.1875
+      },
+      "rederived": {
+        "mean": 0.03125,
+        "lcb95": -0.125,
+        "ucb95": 0.1875
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "split_half::delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.2812 | second half +0.1250",
+      "first_half": 0.28125,
+      "second_half": 0.125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.0312 | second half +0.0938  <-- SIGN FLIP between halves",
+      "first_half": -0.03125,
+      "second_half": 0.09375,
+      "sign_flip": true
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to SQ_4V4_SELECT (status RESERVED) -- same block, no conflict",
+      "seed_class": "exploratory",
+      "experiment_id": "SQ_4V4_SELECT"
+    }
+  ]
+}

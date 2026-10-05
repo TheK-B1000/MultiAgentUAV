@@ -1,0 +1,9 @@
+{
+  "record_id": "SPECIALIST_QUALIFICATION_V1_4V4_EVAL_SPEC",
+  "status": "FROZEN_DEVELOPMENT_EVAL",
+  "utc": "2026-10-04T22:29:59Z",
+  "confirmatory": false,
+  "parent": "SPECIALIST_QUALIFICATION_V1_SPEC.json",
+  "parent_sha256": "935cac8bd6998d3fcfbdf1f640046fe286f8d29fbb4b897c40d7a018ec62f8d4",
+  "purpose": "evaluator spec for D_select and D_gate (development blocks) only"
+}

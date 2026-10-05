@@ -3250,7 +3250,7 @@
       "lo": 29500001,
       "hi": 29500064,
       "n": 64,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SPECIALIST_QUALIFICATION_V1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-10-04T02:40:28Z",
@@ -3258,7 +3258,22 @@
         "SQ_4V4_SELECT_C1",
         "SQ_4V4_SELECT_C2",
         "SQ_4V4_SELECT_C3"
-      ]
+      ],
+      "notes": [
+        {
+          "utc": "2026-10-05T02:56:47Z",
+          "note": "label SQ_4V4_SELECT_C2 sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-10-05T02:59:50Z",
+          "note": "label SQ_4V4_SELECT_C3 sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-10-05T03:03:31Z",
+          "note": "all shared labels sealed (last: SQ_4V4_SELECT_C1)"
+        }
+      ],
+      "spent_utc": "2026-10-05T03:03:31Z"
     },
     {
       "experiment_id": "SQ_4V4_GATE",
@@ -3267,12 +3282,19 @@
       "lo": 29600001,
       "hi": 29600064,
       "n": 64,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SPECIALIST_QUALIFICATION_V1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-10-04T02:40:28Z",
       "shared_by_labels": [
         "SQ_4V4_GATE"
+      ],
+      "spent_utc": "2026-10-05T05:57:05Z",
+      "notes": [
+        {
+          "utc": "2026-10-05T05:57:05Z",
+          "note": "all shared labels sealed (last: SQ_4V4_GATE)"
+        }
       ]
     },
     {
@@ -3306,14 +3328,25 @@
       "lo": 29900001,
       "hi": 29900064,
       "n": 64,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SPECIALIST_QUALIFICATION_V1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-10-04T02:40:28Z",
       "shared_by_labels": [
         "SQ_4V4_ROLE_DEV_K0",
         "SQ_4V4_ROLE_DEV_K1"
-      ]
+      ],
+      "notes": [
+        {
+          "utc": "2026-10-05T11:57:17Z",
+          "note": "label SQ_4V4_ROLE_DEV_K0 sealed SEALED; block stays RESERVED for the remaining shared labels"
+        },
+        {
+          "utc": "2026-10-05T12:09:53Z",
+          "note": "all shared labels sealed (last: SQ_4V4_ROLE_DEV_K1)"
+        }
+      ],
+      "spent_utc": "2026-10-05T12:09:53Z"
     },
     {
       "experiment_id": "SQ_4V4_CONFIRM_SPECIALIST_CROSSOVER",
@@ -3328,7 +3361,7 @@
       "allocated_utc": "2026-10-04T02:40:28Z"
     }
   ],
-  "updated_utc": "2026-10-04T08:42:45Z",
+  "updated_utc": "2026-10-05T12:09:53Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
