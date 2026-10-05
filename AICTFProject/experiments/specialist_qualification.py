@@ -51,6 +51,11 @@ def now() -> str:
 
 
 # ====================================================================== pure scientific rules (unit-tested)
+def k_role(n: int) -> int:
+    """Frozen cross-scale rule (SPECIALIST_QUALIFICATION_V1_ROLE_MENU_RULE.json): max(1, floor(N/3 + 1/2))."""
+    return max(1, (2 * int(n) + 3) // 6)
+
+
 def qualifies(cells: dict) -> tuple[float, float, bool]:
     """Mean-level qualification / gate: (Delta_A, Delta_B, both > 0). cells: {"A@A","B@A","A@B","B@B"}."""
     dA, dB = cells["A@A"] - cells["B@A"], cells["B@B"] - cells["A@B"]
@@ -117,8 +122,8 @@ def validate_config(cfg: dict, *, for_run: bool) -> list[str]:
     if over:
         p.append(f"overlapping seed blocks: {over}")
     menu = (cfg.get("role") or {}).get("menu")
-    if menu is not None and (0 not in menu or len(set(menu)) != len(menu)):
-        p.append("role.menu must contain 0 and no duplicates")
+    if menu is not None and n in (2, 4, 6) and list(menu) != [0, k_role(n)]:
+        p.append(f"role.menu {menu} != K(N) = [0, k_role({n})] = {[0, k_role(n)]} (SPECIALIST_QUALIFICATION_V1_ROLE_MENU_RULE)")
     if menu is not None and (cfg["role"].get("defender_k") not in menu or cfg["role"].get("defender_k") == 0):
         p.append("role.defender_k must be the nonzero menu value")
     if for_run:

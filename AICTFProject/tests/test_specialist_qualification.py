@@ -113,7 +113,8 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(SQ.validate_config(SQ.load_config(4), for_run=True), [])
         for n in (2, 6):
             probs = SQ.validate_config(SQ.load_config(n), for_run=True)
-            self.assertTrue(any("FROZEN" in p for p in probs) and any("menu" in p for p in probs), n)
+            self.assertTrue(any("FROZEN" in p for p in probs), n)
+            self.assertFalse(any("menu" in p for p in probs), n)
 
     def test_4v4_config_equals_frozen_spec(self):
         c = SQ.load_config(4)
@@ -131,8 +132,18 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(c["role"]["defender_seeds"], rs["defenders"]["training_seeds"])
         self.assertEqual(c["role"]["menu"], [0, 1])
 
-    def test_6v6_menu_not_inferred(self):
-        self.assertIsNone(SQ.load_config(6)["role"]["menu"])
+    def test_menus_follow_the_frozen_cross_scale_rule(self):
+        rule = json.loads((ROOT / "artifacts/strategic_demand/sppo/SPECIALIST_QUALIFICATION_V1_ROLE_MENU_RULE.json").read_text(encoding="utf-8"))
+        for n, want in ((2, [0, 1]), (4, [0, 1]), (6, [0, 2])):
+            c = SQ.load_config(n)
+            self.assertEqual(c["role"]["menu"], want)
+            self.assertEqual(rule["by_scale"][f"{n}v{n}"], want)
+            self.assertEqual(c["role"]["defender_k"], want[1])
+
+    def test_any_other_menu_is_rejected(self):
+        c = copy.deepcopy(SQ.load_config(6))
+        c["role"]["menu"], c["role"]["defender_k"] = [0, 1], 1      # e.g. copying 4v4's menu to 6v6
+        self.assertTrue(any("K(N)" in p for p in SQ.validate_config(c, for_run=False)))
 
 
 class PipelineTests(unittest.TestCase):

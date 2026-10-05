@@ -1,0 +1,33 @@
+{
+  "record_id": "SPECIALIST_QUALIFICATION_V1_ROLE_MENU_RULE",
+  "status": "FROZEN_CROSS_SCALE_RULE",
+  "utc": "2026-10-05T13:22:35Z",
+  "decided_by": "user 2026-10-05: one rule for every team size; never choose k separately for A and B",
+  "rule": {
+    "k_role": "k_role(N) = max(1, floor(N/3 + 1/2)); integer form max(1, (2N + 3) // 6)",
+    "menu": "K(N) = {0, k_role(N)}: 0 = plain specialists (no roles); k_role(N) = defender-only construction with k_role(N) defenders",
+    "selection": "S(k) = [V(A,k,Pole A) + V(B,k,Pole B)] / 2; k* = argmax S(k), exact tie -> smaller k; k_A = k_B = k* always",
+    "forbidden": "strategy-specific role counts; any (k_A, k_B) with k_A != k_B; any menu other than K(N)"
+  },
+  "by_scale": {
+    "2v2": [
+      0,
+      1
+    ],
+    "4v4": [
+      0,
+      1
+    ],
+    "6v6": [
+      0,
+      2
+    ]
+  },
+  "why": "the rule depends only on team size and is fixed before any 2v2/6v6 role outcome; it keeps roughly the same organizational share as N grows (1 of 2, 1 of 4, 2 of 6) instead of a fixed count; it is the R1 count rule already used at 4v4",
+  "consistency": "4v4 already ran with K(4) = {0,1} under SPECIALIST_QUALIFICATION_V1_SPEC (k* = 0 sealed); this record only fixes 2v2 and 6v6 to the same rule",
+  "outcomes_possible": {
+    "2v2": "(0,0) or (1,1)",
+    "4v4": "(0,0) or (1,1)",
+    "6v6": "(0,0) or (2,2)"
+  }
+}
