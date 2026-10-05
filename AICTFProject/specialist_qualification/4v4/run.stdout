@@ -32,3 +32,5 @@
 2026-10-05T12:10:01Z role_dev_k1 exited 1
 2026-10-05T12:10:31Z ROLE SELECTION SEALED: k* = 0  S = {0: 0.65625, 1: 0.5390625}
 2026-10-05T12:10:31Z exec[confirm]: experiments/eval_specialist_crossover_scaled.py --team-size 4 --spec artifacts/strategic_demand/sppo/SPECIALIST_QUALIFICATION_V1_4V4_CONFIRM_EVAL_SPEC.json --seed-base 30000001 --n-seeds 128 --label SQ_4V4_CONFIRM --device cuda --pi-a-path artifacts/scale_4v4_specialists/pi_A_specialist_4v4_sq_candA3/ckpts/final_pi_A_specialist_4v4_sq_candA3.zip --pi-b-path artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sq_candB2/ckpts/final_pi_B_specialist_4v4_sq_candB2.zip --resume
+2026-10-05T17:52:31Z confirm exited 1
+2026-10-05T17:53:02Z CONFIRMATION READOUT WRITTEN -- STOP (no Stage 4, no 2v2/6v6 without approval)

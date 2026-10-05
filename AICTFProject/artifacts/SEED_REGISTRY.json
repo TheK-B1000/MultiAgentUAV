@@ -3355,13 +3355,20 @@
       "lo": 30000001,
       "hi": 30000128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SPECIALIST_QUALIFICATION_V1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-10-04T02:40:28Z"
+      "allocated_utc": "2026-10-04T02:40:28Z",
+      "spent_utc": "2026-10-05T17:52:30Z",
+      "notes": [
+        {
+          "utc": "2026-10-05T17:52:30Z",
+          "note": "sealed SEALED; gate_passes=False"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-10-05T12:09:53Z",
+  "updated_utc": "2026-10-05T17:52:30Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
