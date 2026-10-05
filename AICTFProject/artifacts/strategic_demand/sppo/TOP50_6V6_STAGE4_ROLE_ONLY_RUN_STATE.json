@@ -1,0 +1,49 @@
+{
+  "label": "TOP50_6V6_STAGE4_ROLE_ONLY",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-10-05T18:10:54Z",
+      "pid": 3893996,
+      "host": "cis-dutta-gpu1",
+      "python": "3.11.14",
+      "git_sha": "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a",
+      "checkpoint": "/home/n01388138/Desktop/MultiAgentUAV-cuda/MultiAgentUAV/.worktrees/new-macros/AICTFProject/artifacts/strategic_demand/sppo/suite_sharing_std/6v6_stage4/role_only/ckpts/final_role_only_6v6.pt",
+      "seed_base": 25800002,
+      "n_seeds": 50,
+      "team_size": 6,
+      "arm": "role_only"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-10-05T18:45:10Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-10-05T18:45:10Z",
+      "audit": "TOP50_6V6_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 13
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-10-05T18:45:10Z",
+      "result": "TOP50_6V6_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-10-05T18:45:10Z",
+  "pid": 3893996,
+  "host": "cis-dutta-gpu1",
+  "python": "3.11.14",
+  "git_sha": "86ec0e8294e8e29fa335e38f56edcfdf80c0ce0a",
+  "checkpoint": "/home/n01388138/Desktop/MultiAgentUAV-cuda/MultiAgentUAV/.worktrees/new-macros/AICTFProject/artifacts/strategic_demand/sppo/suite_sharing_std/6v6_stage4/role_only/ckpts/final_role_only_6v6.pt",
+  "seed_base": 25800002,
+  "n_seeds": 50,
+  "team_size": 6,
+  "arm": "role_only",
+  "reason": "all episodes written",
+  "audit": "TOP50_6V6_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 13,
+  "result": "TOP50_6V6_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_RESULT.json"
+}

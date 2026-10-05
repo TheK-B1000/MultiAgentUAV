@@ -1,0 +1,148 @@
+{
+  "record": "TOP50_6V6_STAGE4_ROLE_ONLY crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-10-05T18:45:10Z",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "STANDARDIZED_6V6_STAGE4_SHARING_EVAL_SPEC.json#EVALUATION",
+  "suite_arm": "role_only",
+  "team_size": 6,
+  "device": "cuda",
+  "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/6v6_stage4/role_only/ckpts/final_role_only_6v6.pt",
+  "checkpoint_sha256": "f0c910e19e3d063307988a44108ed311950dc7ac47a9fb09a8432fefb245a452",
+  "seeds": {
+    "block": [
+      25800001,
+      25800128
+    ],
+    "n": 50,
+    "shared_across_z_and_poles": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "STANDARDIZED_6V6_SEPARATED_EVAL",
+    "shared_by_labels": null,
+    "seed_ids": [
+      25800002,
+      25800003,
+      25800004,
+      25800005,
+      25800007,
+      25800008,
+      25800009,
+      25800010,
+      25800012,
+      25800013,
+      25800014,
+      25800015,
+      25800016,
+      25800017,
+      25800018,
+      25800019,
+      25800020,
+      25800021,
+      25800022,
+      25800023,
+      25800024,
+      25800025,
+      25800027,
+      25800028,
+      25800029,
+      25800030,
+      25800031,
+      25800032,
+      25800034,
+      25800036,
+      25800038,
+      25800041,
+      25800042,
+      25800043,
+      25800044,
+      25800045,
+      25800046,
+      25800047,
+      25800048,
+      25800049,
+      25800050,
+      25800052,
+      25800053,
+      25800056,
+      25800058,
+      25800059,
+      25800060,
+      25800062,
+      25800063,
+      25800064
+    ],
+    "post_hoc": {
+      "primary_record": "STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "block_status_unchanged": true
+    }
+  },
+  "poles": {
+    "A": {
+      "policy": "A",
+      "team_size": 6,
+      "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+      "certification_sha256": "7996126d831ca6506dd8e5d5afac79bdc42f21b9733873430e6c771b261adf6b",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 6
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "1c17c67afb2ad130a4576202ee3afe160171f093b051fa90f507ceccfd7ac11a",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 6
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 6,
+      "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+      "certification_sha256": "7996126d831ca6506dd8e5d5afac79bdc42f21b9733873430e6c771b261adf6b",
+      "genome_id": "SDS_PARENT_OP7",
+      "base_opponent": "OP7",
+      "overlay": {
+        "min_alive_for_defender": 6
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "765cf7dc353a7942de0fb0feb8ea0219c2e43c686838e2cb4743abdd420458ad",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 6
+    }
+  },
+  "PRIMARY_GATE": {
+    "V_pole_A": {
+      "mean": 0.74,
+      "lcb95": 0.62,
+      "ucb95": 0.86
+    },
+    "V_pole_B": {
+      "mean": 0.12,
+      "lcb95": 0.04,
+      "ucb95": 0.22
+    },
+    "note": "Role-only has no z; report per-pole value. Strategy preservation is read from behavioral signatures vs Fully Shared+z+r, not from Delta."
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 100,
+  "claim_boundary": "",
+  "integrity_flag": null,
+  "status": "SEALED",
+  "sealed_utc": "2026-10-05T18:45:10Z",
+  "git_sha": "ce706c0badb52dbc1b3e9bc7bee6c6fa0a7e4b62",
+  "AUDIT": {
+    "path": "TOP50_6V6_STAGE4_ROLE_ONLY_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 13,
+    "n_gating": 11,
+    "failed_checks": [],
+    "rows_sha256": "4bd9423b85fd8c448d5bce88f451b464bbea742790ef85a2973253bf664656e1"
+  }
+}

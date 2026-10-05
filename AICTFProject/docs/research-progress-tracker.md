@@ -9784,3 +9784,8 @@ required failure → NO LATENT BIRTH, NO ROUTER.
 | v6i2 frozen gate thresholds (pre-confirmatory)  | [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md)                    |
 | Codeâ†”manuscript trace                             | [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md)                    |
 | Algorithm sketch                                  | [`../../docs/algorithm.md`](../../docs/algorithm.md)                                |
+
+
+### 6v6 Role-only recovery completed
+
+2026-10-05T18:45:26Z: Role-only evaluation SEALED on the original 50 historical seeds; professor folder and ZIP regenerated with the missing result. No retraining. Fresh qualification remains pending, not a formal failure.
