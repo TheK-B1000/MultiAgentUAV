@@ -1,10 +1,12 @@
 {
   "id": "REPLICATION_2V2_DUAL_BRANCH_V1",
-  "status": "DRAFT_NOT_FROZEN",
-  "drafted_utc": "2026-10-05",
-  "freeze_rule": "Freeze (status FROZEN, training and evaluation seeds allocated, commit) before any replicate training starts. Every replicate is reported; none may be dropped, retrained or selected.",
+  "status": "FROZEN",
+  "frozen_utc": "2026-10-05",
+  "approved_by": "user 2026-10-05 ('Approve all three ... make it symmetric and fair'), with the clarifications applied below",
+  "freeze_rule": "Nothing in this file changes after freezing; changes go in an amendment. Every replicate is reported; none may be dropped, retrained, ranked or selected.",
+  "paper_question": "Does the same PPO recipe repeatedly produce the A/B distinction? (independent of BEHAVIOR_SIGNATURES_2V2_V1 and Z_INTERVENTION_2V2_V1; results are not combined)",
   "classification": "Independent training-seed replication of the 2v2 Ours teachers. Same recipe, new training seeds only.",
-  "question": "Does complementary A/B specialisation re-emerge when the exact 2v2 dual-branch recipe is retrained from the same foundations with new seeds, or was the original pair one lucky PPO seed?",
+  "symmetry": "A and B of every replicate use the identical recipe, step budget, foundations-of-their-own-side and evaluation block; the four pairs are read on identical seeds.",
   "recipe_frozen": {
     "source": "2v2/run_dual_branch_2v2.py train_args (the recipe that produced the sealed 2v2 teachers); identical argv except --seed, --experiment-id and --run-label-suffix",
     "foundations": {
@@ -26,27 +28,30 @@
   },
   "replicates": {
     "count": 3,
-    "proposed_training_seeds": {
+    "training_seeds": {
       "rep1": {"A": 31100001, "B": 31100002},
       "rep2": {"A": 31100011, "B": 31100012},
       "rep3": {"A": 31100021, "B": 31100022}
     },
+    "registry_experiment_ids": "REPLICATION_2V2_REP{1,2,3}_{A,B}_TRAIN (one single-seed block each)",
     "suffixes": "_dual_branch_rep1 / _rep2 / _rep3",
-    "seed_class": "training (one registry entry per run)",
-    "compute": "6 runs of 200k steps; the original took about 50 min per run; run 3 at a time"
+    "compute": "6 runs of 200k steps; about 50 min per run; 3 at a time"
   },
   "evaluation_frozen": {
-    "pairs": "rep1, rep2, rep3 AND the original sealed pair (so all four pairs are read on identical seeds)",
-    "proposed_block": [31200001, 31200128],
-    "seed_class": "sealed_confirmatory, shared by all four pairs",
+    "pairs": "rep1, rep2, rep3 AND the original sealed pair (dual_branch_v1), all read on identical seeds",
+    "block": [31200001, 31200128],
+    "registry_experiment_id": "REPLICATION_2V2_DUAL_BRANCH_V1_EVAL",
+    "seed_class": "sealed_confirmatory, shared by exactly the four pair labels",
     "episode_path": "experiments/eval_specialist_crossover_scaled.py with the dual-branch composite flags used for the 2v2 matched-128 (--role-fixed-for-episode --role-k-defend 1 --frozen-attack-path(-b) + shas, --dual-branch-deploy-manifest per pair)",
     "episodes": "4 pairs x 4 cells x 128 = 2048 2v2 episodes"
   },
   "analysis_frozen": {
+    "statistical_unit": "the seed (paired across the four cells of a pair)",
     "per_pair": "Delta_A = V(A,A) - V(B,A), Delta_B = V(B,B) - V(A,B), win, paired bootstrap 95% (n = 20000, rng 7)",
-    "headline": "per-pair mean Delta_A and Delta_B for all four pairs, plus the mean and range across the three NEW replicates",
-    "replication_count": "number of new replicates (of 3) with BOTH mean Delta_A > 0 and mean Delta_B > 0, reported as k/3",
+    "headline": "k/3 = number of NEW replicates with BOTH mean Delta_A > 0 and mean Delta_B > 0",
+    "secondary_descriptive": "number of NEW replicates with BOTH 95% lower bounds > 0, reported as a count only; it is NOT a gate and does not change the headline",
+    "also_reported": "every pair's Delta_A, Delta_B with 95% intervals (original included), and the mean and range across the three new replicates",
     "no_selection": "replicates are never ranked, filtered or swapped; a replicate that fails to train is reported as such"
   },
-  "depends_on": "nothing; runs after the 4v4 Stage-4 chain finishes (user ordering)"
+  "launch": "after the 4v4 Stage-4 chain finishes (user ordering)"
 }

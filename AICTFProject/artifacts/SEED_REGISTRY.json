@@ -2927,9 +2927,123 @@
           "note": "STUDENT_FROZEN.json written (role_only 6v6)"
         }
       ]
+    },
+    {
+      "experiment_id": "BEHAVIOR_SIGNATURES_2V2_V1",
+      "purpose": "2v2 behaviour signatures, Ours + Fully Shared+z+r, all four cells share seeds",
+      "seed_class": "sealed_confirmatory",
+      "lo": 31000001,
+      "hi": 31000128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/BEHAVIOR_SIGNATURES_2V2_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z"
+    },
+    {
+      "experiment_id": "REPLICATION_2V2_REP1_A_TRAIN",
+      "purpose": "2v2 dual-branch replicate 1 pi_A training seed",
+      "seed_class": "exploratory",
+      "lo": 31100001,
+      "hi": 31100001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/REPLICATION_2V2_DUAL_BRANCH_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z"
+    },
+    {
+      "experiment_id": "REPLICATION_2V2_REP1_B_TRAIN",
+      "purpose": "2v2 dual-branch replicate 1 pi_B training seed",
+      "seed_class": "exploratory",
+      "lo": 31100002,
+      "hi": 31100002,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/REPLICATION_2V2_DUAL_BRANCH_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z"
+    },
+    {
+      "experiment_id": "REPLICATION_2V2_REP2_A_TRAIN",
+      "purpose": "2v2 dual-branch replicate 2 pi_A training seed",
+      "seed_class": "exploratory",
+      "lo": 31100011,
+      "hi": 31100011,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/REPLICATION_2V2_DUAL_BRANCH_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z"
+    },
+    {
+      "experiment_id": "REPLICATION_2V2_REP2_B_TRAIN",
+      "purpose": "2v2 dual-branch replicate 2 pi_B training seed",
+      "seed_class": "exploratory",
+      "lo": 31100012,
+      "hi": 31100012,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/REPLICATION_2V2_DUAL_BRANCH_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z"
+    },
+    {
+      "experiment_id": "REPLICATION_2V2_REP3_A_TRAIN",
+      "purpose": "2v2 dual-branch replicate 3 pi_A training seed",
+      "seed_class": "exploratory",
+      "lo": 31100021,
+      "hi": 31100021,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/REPLICATION_2V2_DUAL_BRANCH_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z"
+    },
+    {
+      "experiment_id": "REPLICATION_2V2_REP3_B_TRAIN",
+      "purpose": "2v2 dual-branch replicate 3 pi_B training seed",
+      "seed_class": "exploratory",
+      "lo": 31100022,
+      "hi": 31100022,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/REPLICATION_2V2_DUAL_BRANCH_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z"
+    },
+    {
+      "experiment_id": "REPLICATION_2V2_DUAL_BRANCH_V1_EVAL",
+      "purpose": "2v2 replication crossover: original + rep1-3 on identical seeds",
+      "seed_class": "sealed_confirmatory",
+      "lo": 31200001,
+      "hi": 31200128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/REPLICATION_2V2_DUAL_BRANCH_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z",
+      "shared_by_labels": [
+        "REPLICATION_2V2_ORIGINAL",
+        "REPLICATION_2V2_REP1",
+        "REPLICATION_2V2_REP2",
+        "REPLICATION_2V2_REP3"
+      ]
+    },
+    {
+      "experiment_id": "Z_INTERVENTION_2V2_V1",
+      "purpose": "2v2 Fully Shared+z+r causal z probe states",
+      "seed_class": "sealed_confirmatory",
+      "lo": 31300001,
+      "hi": 31300064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/2v2_strengthening/Z_INTERVENTION_2V2_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-10-05T19:51:08Z"
     }
   ],
-  "updated_utc": "2026-10-03T10:41:08Z",
+  "updated_utc": "2026-10-05T19:51:08Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

@@ -1,38 +1,45 @@
 {
   "id": "Z_INTERVENTION_2V2_V1",
-  "status": "DRAFT_NOT_FROZEN",
-  "drafted_utc": "2026-10-05",
-  "freeze_rule": "Freeze (status FROZEN, seeds allocated, commit) before any state is collected on the confirmatory block. Smoke on 999xxxxx only.",
+  "status": "FROZEN",
+  "frozen_utc": "2026-10-05",
+  "approved_by": "user 2026-10-05 ('Approve all three ... make it symmetric and fair'), with the clarifications applied below",
+  "freeze_rule": "Nothing in this file changes after freezing; changes go in an amendment. Smoke on 999xxxxx only; no state is collected on the confirmatory block before this file is committed.",
+  "paper_question": "Does changing only the latent strategy input causally steer the shared policy toward the corresponding teacher? (independent of BEHAVIOR_SIGNATURES_2V2_V1 and REPLICATION_2V2_DUAL_BRANCH_V1; results are not combined)",
   "classification": "Causal intervention on the strategy input of the shared student. Read-only; no training.",
-  "question": "In Fully Shared+z+r, with observation and role held fixed, does changing only z change the action distribution, and does it move it toward the matching teacher (z=A toward Ours-A, z=B toward Ours-B)? I.e. does z control strategy rather than act as decorative metadata?",
+  "symmetry": "The two contrasts are mirror images (C_A for teacher A, C_B for teacher B), use the same distance, the same states and the same rule; probe states come from both z values on both poles in equal numbers.",
   "subject": {
     "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2_stage4/fully_shared_z_r/ckpts/final_fully_shared_z_r_2v2.pt",
     "sha256": "ec909203a242095ed74bae21b90d2a533df0f50c68e712a532612ba0f740acf0",
-    "mechanism": "rl/custom_ppo/inference_policy.CustomPPOInferencePolicy.get_distribution(obs, z_idx=...) on the SAME observation dict (roles attached as in eval_suite_sharing_crossover), once with z_idx = 0 (A) and once with z_idx = 1 (B)"
+    "intervention": "on the IDENTICAL observation dict (roles attached as in eval_suite_sharing_crossover), student logits are computed twice via CustomPPOInferencePolicy.get_distribution(obs, z_idx=...): z_idx = 0 (A) and z_idx = 1 (B). Only z differs."
   },
-  "teachers_reference": {
-    "what": "2v2 Ours dual-branch composites (pins as BEHAVIOR_SIGNATURES_2V2_V1); per agent, the teacher distribution is the branch its role selects (DEFEND -> pi_X final, ATTACK -> exported attack branch)",
-    "use": "direction test only; teachers are evaluated on the identical observations"
+  "teachers": {
+    "what": "2v2 Ours dual-branch composites (pins as BEHAVIOR_SIGNATURES_2V2_V1)",
+    "teacher_distribution": "rl/teacher_distillation.dual_branch_composite_logits (mode dual_branch_role_gated): CLOSEST_DEFENDS roles in obs['roles'] select the DEFEND model's logits or the exported ATTACK branch's logits per agent. This is the exact teacher the Stage-4 distillation loss (distillation_loss) used, so the reference is the object the student was distilled toward"
+  },
+  "distance_frozen": {
+    "convention": "the distillation convention of rl/teacher_distillation.py: forward KL(teacher || student) per action head (kl_per_head on head_logits, i.e. the legality-masked distributions), summed over heads, at decision-boundary agents only (decision_mask_from_core, as the Stage-4 collector records it)",
+    "notation": "d(T, z) = KL(T || pi_student(. | o, r, z)) on one agent-state"
   },
   "state_collection": {
-    "proposed_block": [31300001, 31300032],
+    "block": [31300001, 31300064],
+    "registry_experiment_id": "Z_INTERVENTION_2V2_V1",
     "seed_class": "sealed_confirmatory",
-    "rollouts": "the student itself, natural episodes, z in {A, B} x pole in {A, B}, 32 seeds each (128 episodes); every decision tick is a probe state",
+    "rollouts": "the student itself, natural episodes, z in {A, B} x pole in {A, B}, 64 seeds each (256 episodes); every decision-boundary agent-state is a probe",
     "why_both_z": "probe states come from both strategies' own visitation so neither z is favoured by the state distribution"
   },
-  "metrics_frozen": {
-    "S1_divergence": "per agent per state: Jensen-Shannon divergence between pi(.|o,r,z=A) and pi(.|o,r,z=B), summed over the action heads (macro, target); averaged over agents and states",
-    "S2_argmax_flip": "fraction of agent-states where the deterministic (argmax) joint action differs between z=A and z=B",
-    "S3_direction_A": "mean over states of JSD(pi_s(z=A), T_A) - JSD(pi_s(z=A), T_B); negative = z=A sits closer to teacher A",
-    "S4_direction_B": "mean over states of JSD(pi_s(z=B), T_B) - JSD(pi_s(z=B), T_A); negative = z=B sits closer to teacher B",
-    "S5_teacher_scale": "mean JSD(T_A, T_B) on the same states, so S1 can be read as a fraction of the teachers' own A-B difference"
+  "primary_frozen": {
+    "C_A": "d(T_A, z=B) - d(T_A, z=A): positive = z=A puts the student closer to teacher A than z=B does",
+    "C_B": "d(T_B, z=A) - d(T_B, z=B): positive = z=B puts the student closer to teacher B than z=A does",
+    "statistical_unit": "THE PROBE SEED: each contrast is averaged over all decision-boundary agent-states from that seed's four episodes, giving one value per seed (n = 64); states, agents and ticks are never independent samples",
+    "uncertainty": "95% bootstrap interval over seeds (n = 20000, rng 7)",
+    "decision_rule": "z causally steers the shared policy toward the corresponding teacher when BOTH C_A and C_B have 95% lower bounds > 0 (intersection-union: both must hold, so no further multiplicity correction)"
   },
-  "analysis_frozen": {
-    "uncertainty": "episode-clustered bootstrap (resample episodes, n = 20000, rng 7); states within an episode are not independent",
-    "breakdown": "every metric reported overall and per (collection z, pole) cell and per role (ATTACK / DEFEND)",
-    "decision_rule": "z is causally effective when the S1 interval excludes 0 AND S3 < 0 AND S4 < 0 with intervals excluding 0. Effective but not teacher-directed (S1 > 0 without S3/S4) is reported as such.",
-    "trajectory_level": "trajectory consequences of forcing z come from BEHAVIOR_SIGNATURES_2V2_V1 (its Fully Shared+z+r arm); not duplicated here",
-    "reporting": "mean effects with 95% intervals; no metric dropped"
+  "secondary_descriptive": {
+    "S1_divergence": "Jensen-Shannon divergence between pi(.|o,r,z=A) and pi(.|o,r,z=B) (jsd_per_head, summed over heads), seed-level mean with 95% interval",
+    "S2_argmax_flip": "fraction of decision-boundary agent-states where the argmax joint action differs between z=A and z=B; NOT required to be non-zero, since z can change the distribution without changing its top action",
+    "S3_teacher_scale": "KL(T_A || T_B) and KL(T_B || T_A) on the same states, to scale C_A and C_B",
+    "breakdown": "all primary and secondary quantities also per (collection z, pole) cell and per role (ATTACK / DEFEND), descriptive"
   },
-  "depends_on": "nothing; runs after the 4v4 Stage-4 chain finishes (user ordering)"
+  "trajectory_level": "trajectory consequences of forcing z come from BEHAVIOR_SIGNATURES_2V2_V1 (its Fully Shared+z+r arm); not duplicated here",
+  "launch": "after the 4v4 Stage-4 chain finishes (user ordering)"
 }

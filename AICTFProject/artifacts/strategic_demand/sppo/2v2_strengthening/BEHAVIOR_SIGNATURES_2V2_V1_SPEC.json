@@ -1,10 +1,12 @@
 {
   "id": "BEHAVIOR_SIGNATURES_2V2_V1",
-  "status": "DRAFT_NOT_FROZEN",
-  "drafted_utc": "2026-10-05",
-  "freeze_rule": "Freeze (status FROZEN, seeds allocated in the registry, commit) before any episode on the confirmatory block. Implementation may be smoke-tested only on 999xxxxx seeds. Nothing in this file may change after freezing; changes go in an amendment.",
+  "status": "FROZEN",
+  "frozen_utc": "2026-10-05",
+  "approved_by": "user 2026-10-05 ('Approve all three ... make it symmetric and fair'), with the clarifications applied below",
+  "freeze_rule": "Nothing in this file changes after freezing; changes go in an amendment. Implementation is smoke-tested on 999xxxxx seeds only. No episode on the confirmatory block before this file is committed.",
+  "paper_question": "Are A and B actually behaviourally different? (independent of REPLICATION_2V2_DUAL_BRANCH_V1 and Z_INTERVENTION_2V2_V1; results are not combined)",
   "classification": "Pre-registered behavioural measurement. Read-only rollouts of existing sealed checkpoints. No training, no action change.",
-  "question": "Do the 2v2 A and B strategies behave differently in ways that hold on BOTH poles (a property of the strategy), as opposed to differences forced by the opponent? And do those differences survive distillation into Fully Shared+z+r?",
+  "symmetry": "A and B are treated identically: same seeds, same cells, same metrics, two-sided tests, no presumed direction for any metric. Both systems use the same block and the same analysis.",
   "systems": {
     "Ours": {
       "what": "2v2 dual-branch teachers (DUAL_BRANCH_ROLE_COMPOSITE_V1), CLOSEST_DEFENDS k=1, roles fixed per episode, H_r=8; DEFEND slots -> pi_X final, ATTACK slots -> exported attack branch",
@@ -26,31 +28,34 @@
   },
   "design": {
     "cells": "for each system: strategy in {A, B} x pole in {A, B}; deterministic policies",
-    "seeds": "one fresh block shared by every cell and both systems (same seed = same start for all four cells)",
-    "proposed_block": [31000001, 31000128],
-    "seed_class": "sealed_confirmatory",
+    "seeds": {
+      "block": [31000001, 31000128],
+      "registry_experiment_id": "BEHAVIOR_SIGNATURES_2V2_V1",
+      "seed_class": "sealed_confirmatory",
+      "shared": "every cell of both systems uses the same 128 seeds (same seed = same start)"
+    },
     "episodes": "2 systems x 4 cells x 128 = 1024 2v2 episodes",
-    "snapshot": "read-only state snapshot at every decision tick, before env.step (same pattern as HOME_OCCUPANCY / probe_learned_composition._snap); the chosen macro is read from the action actually sent to the env"
+    "snapshot": "read-only state snapshot at every decision tick, before env.step; the chosen macro is read from the action actually sent to the env"
   },
+  "statistical_unit": "THE EPISODE (one seed in one cell). Ticks and agents are never treated as independent samples: each metric is first reduced to ONE number per episode, and every test pairs the two strategies' episodes by seed (n = 128 pairs per pole).",
   "metrics_frozen": {
-    "unit": "one value per episode, averaged over that episode's decision ticks (blue team)",
-    "M1_home_share": "fraction of active blue agents (alive, untagged) that are not carrying and within 4.5 cells of own flag home (the frozen composition-probe instrument, R_POS = 4.5)",
-    "M2_forward_share": "fraction of active blue agents on the enemy half (the side of the midline x = cols/2 that contains the enemy flag home)",
-    "M3_enemy_flag_distance": "mean distance (cells) from active blue agents to the enemy flag's current position",
-    "M4_spacing": "mean distance (cells) between the two blue agents on ticks where both are active",
-    "M5_first_grab_tick": "decision tick of the first blue flag grab; episodes with no grab take the episode length (censored), and grab occurrence is reported alongside",
-    "M6_macro_mix": "per-episode share of each of the 5 macros among blue decisions; tested as one vector via Jensen-Shannon divergence between strategies",
-    "no_other_metrics": "metrics M1-M6 only; any further metric is exploratory and labelled so"
+    "M1_home_share": "per tick with >= 1 active blue agent (alive, untagged): (number of active blue agents not carrying and within 4.5 cells of own flag home) / (number of active blue agents); episode value = mean over those ticks. 4.5 = the frozen composition-probe instrument R_POS.",
+    "M2_forward_share": "per tick with >= 1 active blue agent: (number of active blue agents on the enemy half, i.e. the side of the midline x = cols/2 containing the enemy flag home) / (number active); episode value = mean over those ticks.",
+    "M3_enemy_flag_distance": "per tick with >= 1 active blue agent: mean distance (cells) from active blue agents to the enemy flag's current position; episode value = mean over those ticks.",
+    "M4_spacing": "per tick where both blue agents are active: distance (cells) between them; episode value = mean over those ticks. If an episode has no such tick, M4 is undefined for that episode and its seed pair is dropped from that pole's M4 test; the number dropped is reported.",
+    "M5_first_grab_tick": "decision tick (0-based) at which a blue agent first picks up the enemy flag. If no blue grab occurs in the episode (however the episode ends), the value is the episode horizon R2.MAX_STEPS = 240. Grab occurrence (0/1) is reported descriptively alongside.",
+    "M6_macro_distribution": "DESCRIPTIVE ONLY. Per-episode share of each of the 5 macros among blue decisions, reported per strategy x pole x system with 95% intervals. Excluded from all tests and from the signature count."
   },
   "analysis_frozen": {
-    "strategy_effect": "for each pole p and metric m: D_m(p) = mean over seeds of [m(A on p) - m(B on p)], paired by seed; paired bootstrap (n = 20000, rng 7, as eval_hog_psp_v3._mean_ci)",
-    "M6_test": "JSD between pooled A and B macro mixes on each pole; null by permuting strategy labels within seed (10000 permutations, rng 7)",
-    "multiplicity": "Holm over 12 tests per system (6 metrics x 2 poles), family-wise alpha 0.05",
-    "signature_definition": "metric m is a STRATEGY SIGNATURE of a system when D_m has the same sign on both poles and both Holm-adjusted tests reject (for M6: both poles reject)",
-    "decision_rule": "behaviourally distinct strategies are supported for a system when at least 2 of M1-M6 are strategy signatures. Fully Shared+z+r preserves a signature when that metric is a signature for Ours and for Fully Shared+z+r with the same sign.",
-    "opponent_effect": "m(X on A) - m(X on B) for each strategy, reported descriptively only",
-    "reporting": "mean effects with 95% intervals for every metric, both poles, both systems; no metric is dropped"
+    "difference": "for system S, pole p, metric m in M1-M5: d_s = m(A on p, seed s) - m(B on p, seed s); D_m(p) = mean over seeds of d_s",
+    "p_value": "two-sided paired sign-flip permutation test on the seed-level d_s (20000 random sign flips, rng 7)",
+    "interval": "95% paired bootstrap interval of D_m(p) over seeds (n = 20000, rng 7, as eval_hog_psp_v3._mean_ci); reported, not used for the decision",
+    "test_family": "per system, exactly 10 tests: M1-M5 x pole A, pole B. Holm step-down at family-wise alpha 0.05 within that family. The two systems are separate families.",
+    "signature_definition": "metric m is a STRATEGY SIGNATURE of system S when D_m(A) and D_m(B) have the same sign AND both pole tests are rejected after Holm",
+    "decision_rule": "behaviourally distinct strategies are supported for system S when at least 2 of M1-M5 are strategy signatures. Fully Shared+z+r PRESERVES a signature when that metric is a signature for both Ours and Fully Shared+z+r with the same sign.",
+    "opponent_effect": "m(X on A) - m(X on B) for each strategy, descriptive only",
+    "reporting": "mean effects with 95% intervals for every metric, both poles, both systems, plus Holm-adjusted p-values; no metric is dropped"
   },
   "not_evidence": "wins and scores are recorded for traceability; this experiment makes no performance claim",
-  "depends_on": "nothing; runs after the 4v4 Stage-4 chain finishes (user ordering)"
+  "launch": "after the 4v4 Stage-4 chain finishes (user ordering)"
 }
