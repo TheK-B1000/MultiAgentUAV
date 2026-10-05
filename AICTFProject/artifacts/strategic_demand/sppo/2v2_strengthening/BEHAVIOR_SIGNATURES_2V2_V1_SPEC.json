@@ -1,0 +1,56 @@
+{
+  "id": "BEHAVIOR_SIGNATURES_2V2_V1",
+  "status": "DRAFT_NOT_FROZEN",
+  "drafted_utc": "2026-10-05",
+  "freeze_rule": "Freeze (status FROZEN, seeds allocated in the registry, commit) before any episode on the confirmatory block. Implementation may be smoke-tested only on 999xxxxx seeds. Nothing in this file may change after freezing; changes go in an amendment.",
+  "classification": "Pre-registered behavioural measurement. Read-only rollouts of existing sealed checkpoints. No training, no action change.",
+  "question": "Do the 2v2 A and B strategies behave differently in ways that hold on BOTH poles (a property of the strategy), as opposed to differences forced by the opponent? And do those differences survive distillation into Fully Shared+z+r?",
+  "systems": {
+    "Ours": {
+      "what": "2v2 dual-branch teachers (DUAL_BRANCH_ROLE_COMPOSITE_V1), CLOSEST_DEFENDS k=1, roles fixed per episode, H_r=8; DEFEND slots -> pi_X final, ATTACK slots -> exported attack branch",
+      "deploy_manifest": "2v2/dual_branch_deploy_manifest.json",
+      "pins": {
+        "pi_A_defend": "15ced67ab0f45e46d017885f35d6fb9cbaee0375a213ee157c937e470cbf8dd1",
+        "pi_A_attack": "7963a593dda91dcf1dbfc9b417546f4f3b7e9df9fdad9b532853c0e0e733b45f",
+        "pi_B_defend": "7dca0e25482796943e97b4198836ee5a3845f855604a3d963a4b4b50540c5868",
+        "pi_B_attack": "cdd1ad83b96835cb6793a1098a771e7414c1cd484cffcd6551dcfc1325f00a8a"
+      },
+      "episode_path": "experiments/eval_specialist_crossover_scaled.py run_cell (dual-branch composite, --role-fixed-for-episode --role-k-defend 1)"
+    },
+    "Fully_Shared_z_r": {
+      "what": "2v2 Stage-4 student pi(a | o, z, r), z forced per episode",
+      "checkpoint": "artifacts/strategic_demand/sppo/suite_sharing_std/2v2_stage4/fully_shared_z_r/ckpts/final_fully_shared_z_r_2v2.pt",
+      "sha256": "ec909203a242095ed74bae21b90d2a533df0f50c68e712a532612ba0f740acf0",
+      "episode_path": "experiments/eval_suite_sharing_crossover.py run_cell (arm fully_shared, --spec-tag STAGE4)"
+    }
+  },
+  "design": {
+    "cells": "for each system: strategy in {A, B} x pole in {A, B}; deterministic policies",
+    "seeds": "one fresh block shared by every cell and both systems (same seed = same start for all four cells)",
+    "proposed_block": [31000001, 31000128],
+    "seed_class": "sealed_confirmatory",
+    "episodes": "2 systems x 4 cells x 128 = 1024 2v2 episodes",
+    "snapshot": "read-only state snapshot at every decision tick, before env.step (same pattern as HOME_OCCUPANCY / probe_learned_composition._snap); the chosen macro is read from the action actually sent to the env"
+  },
+  "metrics_frozen": {
+    "unit": "one value per episode, averaged over that episode's decision ticks (blue team)",
+    "M1_home_share": "fraction of active blue agents (alive, untagged) that are not carrying and within 4.5 cells of own flag home (the frozen composition-probe instrument, R_POS = 4.5)",
+    "M2_forward_share": "fraction of active blue agents on the enemy half (the side of the midline x = cols/2 that contains the enemy flag home)",
+    "M3_enemy_flag_distance": "mean distance (cells) from active blue agents to the enemy flag's current position",
+    "M4_spacing": "mean distance (cells) between the two blue agents on ticks where both are active",
+    "M5_first_grab_tick": "decision tick of the first blue flag grab; episodes with no grab take the episode length (censored), and grab occurrence is reported alongside",
+    "M6_macro_mix": "per-episode share of each of the 5 macros among blue decisions; tested as one vector via Jensen-Shannon divergence between strategies",
+    "no_other_metrics": "metrics M1-M6 only; any further metric is exploratory and labelled so"
+  },
+  "analysis_frozen": {
+    "strategy_effect": "for each pole p and metric m: D_m(p) = mean over seeds of [m(A on p) - m(B on p)], paired by seed; paired bootstrap (n = 20000, rng 7, as eval_hog_psp_v3._mean_ci)",
+    "M6_test": "JSD between pooled A and B macro mixes on each pole; null by permuting strategy labels within seed (10000 permutations, rng 7)",
+    "multiplicity": "Holm over 12 tests per system (6 metrics x 2 poles), family-wise alpha 0.05",
+    "signature_definition": "metric m is a STRATEGY SIGNATURE of a system when D_m has the same sign on both poles and both Holm-adjusted tests reject (for M6: both poles reject)",
+    "decision_rule": "behaviourally distinct strategies are supported for a system when at least 2 of M1-M6 are strategy signatures. Fully Shared+z+r preserves a signature when that metric is a signature for Ours and for Fully Shared+z+r with the same sign.",
+    "opponent_effect": "m(X on A) - m(X on B) for each strategy, reported descriptively only",
+    "reporting": "mean effects with 95% intervals for every metric, both poles, both systems; no metric is dropped"
+  },
+  "not_evidence": "wins and scores are recorded for traceability; this experiment makes no performance claim",
+  "depends_on": "nothing; runs after the 4v4 Stage-4 chain finishes (user ordering)"
+}

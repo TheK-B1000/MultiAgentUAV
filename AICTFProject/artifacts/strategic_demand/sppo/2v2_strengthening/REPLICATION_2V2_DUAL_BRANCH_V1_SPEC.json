@@ -1,0 +1,52 @@
+{
+  "id": "REPLICATION_2V2_DUAL_BRANCH_V1",
+  "status": "DRAFT_NOT_FROZEN",
+  "drafted_utc": "2026-10-05",
+  "freeze_rule": "Freeze (status FROZEN, training and evaluation seeds allocated, commit) before any replicate training starts. Every replicate is reported; none may be dropped, retrained or selected.",
+  "classification": "Independent training-seed replication of the 2v2 Ours teachers. Same recipe, new training seeds only.",
+  "question": "Does complementary A/B specialisation re-emerge when the exact 2v2 dual-branch recipe is retrained from the same foundations with new seeds, or was the original pair one lucky PPO seed?",
+  "recipe_frozen": {
+    "source": "2v2/run_dual_branch_2v2.py train_args (the recipe that produced the sealed 2v2 teachers); identical argv except --seed, --experiment-id and --run-label-suffix",
+    "foundations": {
+      "A": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip", "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"},
+      "B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip", "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"}
+    },
+    "argv_fixed": [
+      "--team-size", "2", "--device", "cuda", "--total-timesteps", "200000",
+      "--entity-repair-enabled", "--entity-hidden-dim", "32",
+      "--role-conditioning-enabled", "--role-hold-ticks", "8", "--role-fixed-for-episode", "--role-k-defend", "1",
+      "--split-attack-defend-enabled", "--split-attack-defend-frozen-ckpt <foundation X>", "--split-attack-defend-frozen-ckpt-sha256 <sha X>",
+      "--load-path <foundation X>",
+      "--dual-branch-role-composite-enabled", "--dual-branch-spec", "artifacts/strategic_demand/sppo/DUAL_BRANCH_ROLE_COMPOSITE_V1_SPEC.json",
+      "--defend-teacher-lambda", "0.1", "--defend-teacher-lambda-end", "0.0",
+      "--defend-teacher-decay-start-step", "50000", "--defend-teacher-decay-end-step", "150000",
+      "--defend-teacher-cadence", "4"
+    ],
+    "after_training": "export each ATTACK branch exactly as the 2v2 driver does (export_attack_branch), then a technical seal per replicate"
+  },
+  "replicates": {
+    "count": 3,
+    "proposed_training_seeds": {
+      "rep1": {"A": 31100001, "B": 31100002},
+      "rep2": {"A": 31100011, "B": 31100012},
+      "rep3": {"A": 31100021, "B": 31100022}
+    },
+    "suffixes": "_dual_branch_rep1 / _rep2 / _rep3",
+    "seed_class": "training (one registry entry per run)",
+    "compute": "6 runs of 200k steps; the original took about 50 min per run; run 3 at a time"
+  },
+  "evaluation_frozen": {
+    "pairs": "rep1, rep2, rep3 AND the original sealed pair (so all four pairs are read on identical seeds)",
+    "proposed_block": [31200001, 31200128],
+    "seed_class": "sealed_confirmatory, shared by all four pairs",
+    "episode_path": "experiments/eval_specialist_crossover_scaled.py with the dual-branch composite flags used for the 2v2 matched-128 (--role-fixed-for-episode --role-k-defend 1 --frozen-attack-path(-b) + shas, --dual-branch-deploy-manifest per pair)",
+    "episodes": "4 pairs x 4 cells x 128 = 2048 2v2 episodes"
+  },
+  "analysis_frozen": {
+    "per_pair": "Delta_A = V(A,A) - V(B,A), Delta_B = V(B,B) - V(A,B), win, paired bootstrap 95% (n = 20000, rng 7)",
+    "headline": "per-pair mean Delta_A and Delta_B for all four pairs, plus the mean and range across the three NEW replicates",
+    "replication_count": "number of new replicates (of 3) with BOTH mean Delta_A > 0 and mean Delta_B > 0, reported as k/3",
+    "no_selection": "replicates are never ranked, filtered or swapped; a replicate that fails to train is reported as such"
+  },
+  "depends_on": "nothing; runs after the 4v4 Stage-4 chain finishes (user ordering)"
+}
