@@ -1,0 +1,55 @@
+{
+  "schema": "specialist_qualification_config_v1",
+  "team_size": 4,
+  "status": "FROZEN",
+  "frozen_spec": "artifacts/strategic_demand/sppo/SPECIALIST_QUALIFICATION_V1_SPEC.json",
+  "note": "Reference implementation. Every value below equals SPECIALIST_QUALIFICATION_V1_SPEC.json (+AMENDMENT_1); tests/test_specialist_qualification.py cross-checks them.",
+  "opponents": {"A": "OP6", "B": "OP7"},
+  "existing_specialists": {
+    "A": {"path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+          "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"},
+    "B": {"path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+          "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"}
+  },
+  "existing_pair_qualification": {
+    "source": "sealed_artifact",
+    "label": "SCK_4V4_CONFIRM",
+    "block": [28800001, 28800128],
+    "valid_iff": {"record": "strategy_conditioned_k/4v4/SCK_4V4_SELECTION_SEALED.json", "selected": {"k_A": 0, "k_B": 0}},
+    "note": "frozen before that block produced any outcome (SPECIALIST_QUALIFICATION_V1_SPEC_AMENDMENT_1)"
+  },
+  "candidates": {
+    "count_per_strategy": 3,
+    "budget_steps": 1000000,
+    "recipe": {
+      "A": ["--team-size", "4", "--policy", "A", "--total-timesteps", "1000000", "--entity-repair-enabled", "--entity-hidden-dim", "32",
+            "--load-path", "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip"],
+      "B": ["--team-size", "4", "--policy", "B", "--total-timesteps", "1000000", "--entity-repair-enabled", "--entity-hidden-dim", "32",
+            "--pole-b-genome-json", "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+            "--load-path", "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip"]
+    },
+    "parents": {
+      "A": {"path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip",
+            "sha256": "011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0"},
+      "B": {"path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip",
+            "sha256": "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8"}
+    },
+    "training_seeds": {"A1": 28900001, "A2": 29000001, "A3": 29100001, "B1": 29200001, "B2": 29300001, "B3": 29400001}
+  },
+  "blocks": {
+    "d_select": [29500001, 29500064],
+    "d_gate": [29600001, 29600064],
+    "role_dev": [29900001, 29900064],
+    "final_confirmation": [30000001, 30000128]
+  },
+  "role": {
+    "menu": [0, 1],
+    "menu_source": "SPECIALIST_QUALIFICATION_V1_SPEC.json#ROLE_STAGE_unchanged.selection: K(4) = {0,1}",
+    "defender_k": 1,
+    "defender_seeds": {"A": 29700001, "B": 29800001},
+    "defender_recipe": {"total_timesteps": 200000, "defend_teacher_lambda": 0.1, "defend_teacher_lambda_end": 0.0,
+                        "defend_teacher_decay_start_step": 50000, "defend_teacher_decay_end_step": 150000,
+                        "defend_teacher_cadence": 4, "role_hold_ticks": 8, "entity_hidden_dim": 32}
+  },
+  "report": {"levels": [0.95, 0.9833333333333333], "multiplicity_source": "1 - 0.05/3 (pre-agreed for the 4v4 sequence)"}
+}

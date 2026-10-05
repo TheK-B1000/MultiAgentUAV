@@ -1,0 +1,50 @@
+{
+  "schema": "specialist_qualification_config_v1",
+  "team_size": 2,
+  "status": "PREPARED_NOT_FROZEN",
+  "frozen_spec": null,
+  "note": "Prepared from the sealed 2v2 specialists' recorded training commands (run_config argv). NOT frozen: seeds, blocks and the role menu are decided only when a 2v2 spec is frozen with PI/user approval. Nothing may run.",
+  "opponents": {"A": "OP6", "B": "OP7"},
+  "existing_specialists": {
+    "A": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_entity_repair/ckpts/final_pi_A_specialist_2v2_std_entity_repair.zip",
+          "sha256": "858805dde3588a686868ae15cfcc4b4c2d63f30d23222dfe6ae421ab7a563b7f"},
+    "B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std_entity_repair/ckpts/final_pi_B_specialist_2v2_std_entity_repair.zip",
+          "sha256": "9ee024ad6356ea79ee765c7d55bba184a510a73fe8a4738a1f7203630636fd0d"}
+  },
+  "existing_pair_qualification": {
+    "source": "fresh_block",
+    "label": "SQ_2V2_EXISTING_PAIR",
+    "block": null,
+    "note": "no valid untouched plain-pair block exists: TOP50_2V2_NOROLE is a selected subset, and historical no-role runs were not fresh. A fresh 128-seed block must be reserved at freeze."
+  },
+  "candidates": {
+    "count_per_strategy": 3,
+    "budget_steps": 1000000,
+    "recipe": {
+      "A": ["--team-size", "2", "--policy", "A", "--total-timesteps", "1000000", "--entity-repair-enabled", "--entity-hidden-dim", "32",
+            "--load-path", "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip"],
+      "B": ["--team-size", "2", "--policy", "B", "--total-timesteps", "1000000", "--entity-repair-enabled", "--entity-hidden-dim", "32",
+            "--load-path", "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip"]
+    },
+    "recipe_source": "argv of pi_{A,B}_specialist_2v2_std_entity_repair_run_config.json (git 7fbfdafc), seed/experiment-id/run-label removed",
+    "parents": {
+      "A": {"path": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std/ckpts/final_pi_A_specialist_2v2_std.zip", "sha256": null},
+      "B": {"path": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_std/ckpts/final_pi_B_specialist_2v2_std.zip", "sha256": null}
+    },
+    "training_seeds": null
+  },
+  "blocks": {"d_select": null, "d_gate": null, "role_dev": null, "final_confirmation": null},
+  "role": {
+    "menu": null,
+    "menu_note": "NOT prospectively frozen for 2v2. The strategy-conditioned-k formula K(N) = {0, max(1, floor(N/3 + 1/2))} would give {0, 1}; that formula was stated as cross-scale on 2026-10-03 but only the 4v4 value was frozen in a spec. Needs explicit confirmation.",
+    "defender_k": null,
+    "defender_seeds": null,
+    "existing_defender_candidates": {"A": "artifacts/scale_2v2_specialists/pi_A_specialist_2v2_std_split_defend_k1",
+                                     "B": "artifacts/scale_2v2_specialists/pi_B_specialist_2v2_sym_B_top50",
+                                     "note": "defender-only k=1 runs on the EXISTING specialists; pass the frozen defender recipe check (strategy_conditioned_k --verify). Reusable only if the existing pair qualifies."},
+    "defender_recipe": {"total_timesteps": 200000, "defend_teacher_lambda": 0.1, "defend_teacher_lambda_end": 0.0,
+                        "defend_teacher_decay_start_step": 50000, "defend_teacher_decay_end_step": 150000,
+                        "defend_teacher_cadence": 4, "role_hold_ticks": 8, "entity_hidden_dim": 32}
+  },
+  "report": {"levels": [0.95], "multiplicity_source": null}
+}

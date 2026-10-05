@@ -1,0 +1,50 @@
+{
+  "schema": "specialist_qualification_config_v1",
+  "team_size": 6,
+  "status": "PREPARED_NOT_FROZEN",
+  "frozen_spec": null,
+  "note": "Prepared from the sealed 6v6 c2 specialists' recorded training commands (trained on the school PC). NOT frozen: seeds, blocks and the role menu are decided only when a 6v6 spec is frozen with PI/user approval. Nothing may run.",
+  "opponents": {"A": "OP6", "B": "OP7"},
+  "existing_specialists": {
+    "A": {"path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip",
+          "sha256": "3298000480acd899e715eb78312938a9d20610a1eb0bcf73d382fd268577009e"},
+    "B": {"path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip",
+          "sha256": "fc0043235d3abc23f87f5157a46920921f5eced0e9aa252347084d2b500258b5"}
+  },
+  "existing_pair_qualification": {
+    "source": "fresh_block",
+    "label": "SQ_6V6_EXISTING_PAIR",
+    "block": null,
+    "note": "no plain-pair evaluation on a block reserved for this rule exists. STANDARDIZED_6V6_NOROLE (25800001..128) is a full, unselected historical block of the same plain pair; whether it may serve instead of a fresh block is a scientific decision (unresolved)."
+  },
+  "candidates": {
+    "count_per_strategy": 3,
+    "budget_steps": 1000000,
+    "recipe": {
+      "A": ["--team-size", "6", "--policy", "A", "--total-timesteps", "1000000", "--entity-repair-enabled", "--entity-hidden-dim", "32",
+            "--load-path", "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip"],
+      "B": ["--team-size", "6", "--policy", "B", "--total-timesteps", "1000000", "--entity-repair-enabled", "--entity-hidden-dim", "32",
+            "--load-path", "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip"]
+    },
+    "recipe_source": "argv of pi_{A,B}_specialist_6v6_c2_entity_repair_run_config.json (git 832ab860, school PC), seed/run-label removed",
+    "parents": {
+      "A": {"path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip", "sha256": null},
+      "B": {"path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip", "sha256": null}
+    },
+    "training_seeds": null
+  },
+  "blocks": {"d_select": null, "d_gate": null, "role_dev": null, "final_confirmation": null},
+  "role": {
+    "menu": null,
+    "menu_note": "NOT prospectively frozen for 6v6. The strategy-conditioned-k formula would give {0, 2}; only the 4v4 value {0,1} was frozen in a spec. Must not be inferred from 4v4: needs an explicit PI/user decision.",
+    "defender_k": null,
+    "defender_seeds": null,
+    "existing_defender_candidates": {"A": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_sym_A_k2_top50",
+                                     "B": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_sym_B_top50",
+                                     "note": "k=2 defender-only runs from the school-PC package; not present on this machine; reusable only if the existing pair qualifies and they pass the defender recipe check"},
+    "defender_recipe": {"total_timesteps": 200000, "defend_teacher_lambda": 0.1, "defend_teacher_lambda_end": 0.0,
+                        "defend_teacher_decay_start_step": 50000, "defend_teacher_decay_end_step": 150000,
+                        "defend_teacher_cadence": 4, "role_hold_ticks": 8, "entity_hidden_dim": 32}
+  },
+  "report": {"levels": [0.95], "multiplicity_source": null}
+}
