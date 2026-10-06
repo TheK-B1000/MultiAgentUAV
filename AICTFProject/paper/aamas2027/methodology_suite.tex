@@ -5,22 +5,18 @@
 \label{sec:method-suite}
 
 \paragraph{Live dual-branch framing (locked).}
-Under the current end-to-end story, the dual-branch role-organized A/B teachers
-are \textbf{Ours-Teachers}, and Fully Shared+\(z+r\)
-(\(\pi(a\mid o,z,r)\)) distilled from those teachers is
-\textbf{Ours-Shared}---the shared latent-strategy realization of the proposed
-framework, not a neutral baseline. Share-Encoder remains a comparison;
-Role-only \(\pi(a\mid o,r)\) is the critical ablation of Ours-Shared.
-Stage~4 writeups use the section title
-\emph{Strategic Representation Under Parameter Sharing}
-rather than ``Parameter-Sharing Baselines.''
-Research questions: (RQ1)~strategic differentiation of Ours-Teachers;
-(RQ2)~role mechanism vs no-role specialists;
-(RQ3)~shared latent representation under Ours-Shared;
-(RQ4)~necessity of \(z\) via Role-only.
-Historical Generalist / Fully Shared+\(z\) tables below remain provenance under
-asymmetric teachers and are not relabeled Ours-Shared.
-% Locked: EXPERIMENTAL_FRAMING_OURS_TEACHERS_SHARED_V1.json
+The paper's main empirical claim uses one method at three team sizes: the
+symmetric dual-branch construction with the same A/B treatment, the same
+training recipe, the same ATTACK/DEFEND organization on both poles, the same
+role rule \(k=\lceil N/3\rceil\), and the same crossover test. Fully
+Shared+\(z+r\) (\(\pi(a\mid o,z,r)\)) distilled from those teachers is the
+shared latent-strategy realization of that framework when Stage~4 is scored
+on the dual-branch teachers' own distinction. Share-Encoder remains a
+comparison; Role-only \(\pi(a\mid o,r)\) is the critical ablation of Fully
+Shared+\(z+r\). Historical asymmetric role constructions, specialist
+candidate-selection (SQ), and shared-\(k\) menus on pre-existing specialists
+(SCK) are excluded from the main claim.
+% Locked method: DUAL_BRANCH_ROLE_COMPOSITE_V1; k=ceil(N/3)
 
 \subsection{Problem: one team, two opponent regimes}
 \label{sec:method-problem}
@@ -73,12 +69,12 @@ applicable, and the same evaluation seeds.
   observation encoder (with private strategy bodies) or sharing all weights
   and receiving \(z\) as an input. These arms test whether specialization
   survives that compression when strategy identity remains available.
-  \item \textbf{Ours (heuristic roles)}: the specialists plus explicit team
-  organization. A deterministic rule, CLOSEST\_DEFENDS(\(k\)), assigns the
-  \(k\) living agents nearest their own flag to DEFEND for the whole episode
-  and the remaining agents to ATTACK (\(k=1\) at 2v2 and 6v6, \(k=2\) at 4v4).
-  The Pole-A strategy then runs a committed ATTACK/DEFEND split, while the
-  Pole-B strategy is the Pole-B specialist.
+  \item \textbf{Ours (symmetric dual-branch)}: both strategies use the same
+  ATTACK/DEFEND construction. A deterministic rule, CLOSEST\_DEFENDS(\(k\)),
+  assigns the \(k\) living agents nearest their own flag to DEFEND for the
+  whole episode and the remaining agents to ATTACK, with
+  \(k=\lceil N/3\rceil\) (\(k=1,2,2\) at \(N=2,4,6\)). The same rule and
+  training recipe are applied to A and to B.
 \end{itemize}
 
 \begin{table}[t]
@@ -178,3 +174,6 @@ nominal top-50 seed IDs only, carried into the perturbed conditions so
 comparisons stay paired. This subset does not replace the sealed \(n=128\)
 tables; regenerators are \texttt{build\_true\_top50.py} (tables and plots
 \texttt{fig\_*\_true\_top50}).
+Bootstrap intervals on a post-hoc ranked subset are descriptive summaries of
+that subset; they do not account for the selection procedure and must not be
+labeled as statistically supported confirmatory effects.

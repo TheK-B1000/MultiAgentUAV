@@ -1,5 +1,90 @@
 # Research Progress Tracker
 
+## 2026-10-06 — Matched-128 Stage-4 student re-eval LAUNCHED (was missing)
+
+**Answer: we did not already have it.** Sealed Stage-4 student crossovers exist
+only as `TOP50_*` (historical selected) and `OWN50_*` (selected subset of
+matched-128). Teachers on full matched-128 are sealed
+(`POSTHOC_MATCHED128_2V2_DUAL_BRANCH`). Student M128 rows were absent.
+
+**Checkpoint-selection audit (pass).** Students frozen by fixed-epoch
+distillation (`STUDENT_FROZEN.json`); distill data blocks `27000001..` /
+`27100001..`. Eval block `23600001..23600128` was not used to select
+checkpoints. OWN50 scored a post-freeze subset only.
+
+**Auth / runner.** `STAGE4_2V2_MATCHED128_REEVAL_V1.json`;
+`experiments/reeval_stage4_on_matched128.py --team-size 2`. New labels
+`M128_2V2_STAGE4_{SHARE_ENCODER,FULLY_SHARED_ZR,ROLE_ONLY}`. Does not touch
+TOP50/OWN50. Dry-run PASS; full CUDA re-eval launched 2026-10-06.
+
+**Report when DONE.** Teachers + three students: four WR cells, paired
+\(\Delta_A/\Delta_B\) 95% CIs; paired student−teacher intended-regime gaps;
+Role-only absolute WR on both poles. Interpret each arm by the LCB\(_{95}>0\)
+table. Even if both poles clear: specialization ≠ absolute performance or
+training reliability.
+
+## 2026-10-06 — Ending framing locked; unselected student eval is decisive
+
+**Assessment.** Honesty about selection bias, training variability, and
+incomplete compression validation improves credibility, but does **not** by
+itself make the empirical contribution AAMAS-ready. Stronger central evidence
+is still required.
+
+**Strongest defensible claim (use this wording):**
+> We evaluate whether opponent-conditioned specialization survives policy
+> sharing under a common role organization. The evaluated teachers establish
+> two-sided specialization at 2v2, but exhibit different one-sided limitations
+> at larger team sizes. Distillation substantially reduces actor parameters,
+> while closed-loop preservation remains incompletely validated.
+
+**6v6 interpretation correction.** On unselected matched-128 dual-branch
+teachers, Pole~A is not established
+(\(\Delta_A=-0.062\), CI \([-0.148,+0.023]\)). A Stage-4 student lacking
+A-side crossover therefore does **not** show that compression destroyed an
+established distinction. Positive teacher \(\Delta_A\) on TOP50 is selected
+and diagnostic only.
+
+**TOP50 / OWN50 wording.** Use explicitly *descriptive* language. Ordinary
+bootstrap intervals on a post-hoc selected subset do not account for the
+selection procedure — do not call them “statistically supported.”
+
+**Paper draft edits (local `aamas2027`).** Finding-first takeaway added to
+`experiments.tex` / `experiments_revised.tex`; 6v6 compression-destruction
+misread corrected; TOP50 descriptive fence strengthened in methodology.
+Numbered §§5.7 / 5.9 / 5.11 / 5.12 are not present in the local TeX tree —
+consolidation applies when that external draft is merged: one takeaway +
+limits-once, free space for evidence.
+
+**Next decisive step (authorized priority).** Unselected evaluation of
+compressed 2v2 students (Share-Encoder / Fully Shared+\(z{+}r\) / Role-only)
+on the same matched seed block as the dual-branch teachers. If both
+crossover advantages survive there, 4v4 and 6v6 become carefully bounded
+failure cases. Until then, Stage-4 OWN50/TOP50 remains diagnostic.
+
+## 2026-10-05 — Paper claim: one dual-branch method only (no SQ, no SCK)
+
+**Locked Experimental Evaluation story.**
+\[
+\text{same symmetric dual-branch method} \rightarrow 2\mathrm{v}2,\;4\mathrm{v}4,\;6\mathrm{v}6
+\]
+Same A/B treatment, same recipe, same ATTACK/DEFEND on both poles, same
+\(k=\lceil N/3\rceil\), same crossover. **No SQ. No SCK. No historical
+asymmetric rescue in the main claim.**
+
+| Scale | \(\Delta_A\) | \(\Delta_B\) (95% CI) | Artifact |
+|---|---|---|---|
+| 2v2 | \(+0.156\) | \(+0.422\) \([+0.336,+0.508]\) | `POSTHOC_MATCHED128_2V2_DUAL_BRANCH` |
+| 4v4 | \(+0.195\) | \(-0.086\) \([-0.148,-0.031]\) | `POSTHOC_MATCHED128_4V4_DUAL_BRANCH` |
+| 6v6 | \(-0.062\) | \(+0.578\) \([+0.484,+0.672]\) | `POSTHOC_MATCHED128_6V6_DUAL_BRANCH` |
+
+Only 2v2 meets two-sided complementarity. Baseline/noise tables that reuse
+asymmetric constructions are fenced as provenance in
+`experiments.tex` §`baselines-provenance`. SQ/SCK remain archival on disk,
+not paper evidence.
+
+**Paper edit.** Main table + narrative rewritten; method box in
+`methodology_suite.tex`; `k=\lceil N/3\rceil` stated.
+
 ## 2026-10-05 — 6v6 Role-only evaluation repair; fresh qualification pending
 
 The October 2–3 dual-branch suite completed teacher training, its technical

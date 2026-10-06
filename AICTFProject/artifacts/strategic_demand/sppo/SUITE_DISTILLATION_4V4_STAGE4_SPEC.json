@@ -1,0 +1,146 @@
+{
+  "record_id": "SUITE_DISTILLATION_4V4_STAGE4_SPEC",
+  "status": "FROZEN_BEFORE_COLLECTION",
+  "utc": "2026-10-05T18:59:07Z",
+  "classification": "DIAGNOSTIC Stage-4 dataset under dual-branch teachers. Post-hoc; not confirmatory. Not PAPER-FAITHFUL.",
+  "authorized_by": "STAGE4_4V4_FULL_SUITE_SPEC.json + STAGE4_SHARING_INTERPRETATION_V1.json",
+  "supersedes_for_suite_use": "SUITE_DISTILLATION_4V4_SPEC.json / SUITE_DISTILLATION_4V4_DATASET.json -- invalidated (collected on plain OP7, not certified B3-3; SUITE_4V4_DISTILLED_ARMS_POLE_B_INVALIDATION.json). They stay on disk as provenance only; nothing from them is read here.",
+  "parent": [
+    "SUITE_DISTILLATION_4V4_V2_SPEC.json",
+    "STAGE4_SHARING_INTERPRETATION_V1.json",
+    "STAGE4_4V4_FULL_SUITE_SPEC.json",
+    "4v4/dual_branch_deploy_manifest.json"
+  ],
+  "RESEARCH_ROLE": "Matched teacher-state set for the 4v4 sharing-family distillation arms (Share-Encoder, Fully Shared+z, and the Generalist once its objective is frozen), collected on the CERTIFIED poles.",
+  "ALLOCATOR_locked": {
+    "rule": "CLOSEST_DEFENDS",
+    "k_defend": 2,
+    "fixed_for_episode": true,
+    "hold_ticks_H_r": 8,
+    "source": "k = ceil(N/3) (DUAL_BRANCH_ROLE_COMPOSITE_V1)"
+  },
+  "ACTING_DEPLOYMENT_locked": {
+    "construction": "dual_branch",
+    "why": "both poles visited by dual-branch composites; KL teachers are those composites",
+    "Pole_A": {
+      "policy": "DEFEND_ATTACK_SPLIT composite",
+      "pi_D": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/final_pi_A_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "e51a667f2b8bd7cffa9d7bc31ec2b3d370a89782a24dd6da64f2af4f777bc695"
+      },
+      "frozen_attack_pi_A": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/attack_pi_A_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "591f12d52cfc5def26178a3e1cfa9585d98df9224537e16f1e48ef9b69dbe74a"
+      },
+      "splice": "rl.custom_ppo.split_attack_defend.splice_actions; deterministic=True"
+    },
+    "Pole_B": {
+      "policy": "DEFEND_ATTACK_SPLIT composite",
+      "pi_D": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/final_pi_B_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "e0eeccc0b3e7191cc78943dcc9b2cb141213656d07fd07c477b0bd57fa09d9a7"
+      },
+      "frozen_attack_pi_B": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/attack_pi_B_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "826e50ed6d1b7ffe4ba6572594290e282d5067680d84d43af55c0e76d046a8a4"
+      },
+      "splice": "rl.custom_ppo.split_attack_defend.splice_actions; deterministic=True"
+    },
+    "teachers_are_the_acting_composites": true
+  },
+  "KL_TEACHERS_locked": {
+    "mode": "dual_branch_role_gated",
+    "note": "Stage 4: role-gated dual-branch composites are the KL targets (not the 1M foundation specialists).",
+    "pi_A": {
+      "defend": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/final_pi_A_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "e51a667f2b8bd7cffa9d7bc31ec2b3d370a89782a24dd6da64f2af4f777bc695"
+      },
+      "attack": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/attack_pi_A_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "591f12d52cfc5def26178a3e1cfa9585d98df9224537e16f1e48ef9b69dbe74a"
+      },
+      "z": 0
+    },
+    "pi_B": {
+      "defend": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/final_pi_B_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "e0eeccc0b3e7191cc78943dcc9b2cb141213656d07fd07c477b0bd57fa09d9a7"
+      },
+      "attack": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/attack_pi_B_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "826e50ed6d1b7ffe4ba6572594290e282d5067680d84d43af55c0e76d046a8a4"
+      },
+      "z": 1
+    },
+    "teacher_targets_not_cached": true
+  },
+  "DATASET": {
+    "n_per_pole": 96,
+    "decision_rows_only": true,
+    "decision_mask_source": "rl.causal_supervision.decision_mask_from_core(core, 4, side='blue')",
+    "stored_obs_keys": [
+      "grid",
+      "vec",
+      "agent_mask",
+      "mask",
+      "global_state",
+      "teammates",
+      "teammates_valid",
+      "enemies",
+      "enemies_valid",
+      "roles",
+      "decision_mask",
+      "step"
+    ],
+    "roles_provenance": "CLOSEST_DEFENDS roles attached at the stored pre-action tick (Pole A composite requires them for acting; stored for allocator audit; KL teachers ignore roles)",
+    "entities_required": "entity-repair teachers fail closed without teammates/enemies tensors at distillation time"
+  },
+  "SEEDS": {
+    "collection_A": "27001001..27001096",
+    "collection_B": "27101001..27101096",
+    "registry_experiment_ids": {
+      "collection_A": "STAGE4_4V4_SUITE_DATASET_POLE_A",
+      "collection_B": "STAGE4_4V4_SUITE_DATASET_POLE_B"
+    },
+    "seed_class": "exploratory",
+    "chosen_by": "prepare_stage4_baselines.blocks"
+  },
+  "POLES": {
+    "source": "the governing 4v4 certification (STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json) through pole_attestation; the collector refuses if these overlays disagree with the certified poles, and asserts the live overlay each episode",
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      }
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {
+        "lock_defender": 10,
+        "enable_2v1": true,
+        "min_alive_for_defender": 4
+      }
+    },
+    "size_normalized_gate": "live min_alive_for_defender must equal 4 (NOT a pole check: plain OP7 also has 4)"
+  },
+  "COLLECTOR": {
+    "module": "experiments/collect_suite_distillation_states.py --team-size 4 --dataset-tag V2 (the same collector commit as the 2v2 collection)",
+    "records_in_manifest": "git identity, spec sha256, run fingerprint, seed-registry blocks, pole identity, allocator, acting pins, KL teacher pins, dataset_tag, per-shard counts",
+    "crash_recovery": "--resume reuses shards whose embedded fingerprint matches exactly"
+  },
+  "LAUNCH": {
+    "command": ".venv/Scripts/python.exe experiments/collect_suite_distillation_states.py --team-size 4 --dataset-tag STAGE4 --device cuda --resume"
+  },
+  "OUTPUTS": {
+    "dataset_manifest": "SUITE_DISTILLATION_4V4_STAGE4_DATASET.json",
+    "state_shards": "artifacts/strategic_demand/sppo/suite_distillation_stage4/4v4/states/"
+  },
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "using foundation specialists as KL teachers",
+    "presenting historical Fully Shared+z / Generalist as Stage 4",
+    "claiming confirmatory or PAPER-FAITHFUL status"
+  ],
+  "SEQUENCE": "freeze this spec -> smoke -> collect once -> SUITE_DISTILLATION_4V4_V2_DATASET.json -> cross-scale dataset audit with the 2v2 set -> distillation specs",
+  "derived_from": "SUITE_DISTILLATION_4V4_V2_SPEC.json"
+}

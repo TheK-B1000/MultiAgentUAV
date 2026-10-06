@@ -1,0 +1,83 @@
+{
+  "record_id": "SQ_4V4_SELECTION_SEALED",
+  "status": "SEALED_SELECTION",
+  "utc": "2026-10-05T03:04:29Z",
+  "git_head": "53699d2588f3250117f6832395497b5800989661",
+  "spec": {
+    "path": "SPECIALIST_QUALIFICATION_V1_SPEC.json",
+    "sha256": "935cac8bd6998d3fcfbdf1f640046fe286f8d29fbb4b897c40d7a018ec62f8d4"
+  },
+  "block": [
+    29500001,
+    29500064
+  ],
+  "score": "Q_A = V(A,A) - V(A,B); Q_B = V(B,B) - V(B,A)",
+  "tie_break": "higher Q -> higher intended-pole win -> lowest preassigned training seed",
+  "candidates": {
+    "A1": {
+      "seed": 28900001,
+      "final": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_sq_candA1/ckpts/final_pi_A_specialist_4v4_sq_candA1.zip",
+      "sha256": "93fac275d1f7cc04ae8e1f0a0dacf7f1d3d21ab45c95ed3a57fbf93774bff1ef",
+      "V_own": 0.875,
+      "V_off": 0.734375,
+      "Q": 0.140625
+    },
+    "A2": {
+      "seed": 29000001,
+      "final": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_sq_candA2/ckpts/final_pi_A_specialist_4v4_sq_candA2.zip",
+      "sha256": "008081a4354a34de8ecc374273753e7ed036f514fcc8c5c5adf75e8b2f3bedcf",
+      "V_own": 0.671875,
+      "V_off": 0.6875,
+      "Q": -0.015625
+    },
+    "A3": {
+      "seed": 29100001,
+      "final": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_sq_candA3/ckpts/final_pi_A_specialist_4v4_sq_candA3.zip",
+      "sha256": "dc61dc7ba0670acf97ccbea3e9818c7caceb9f1f24096a2c9ddce998d02e517c",
+      "V_own": 0.828125,
+      "V_off": 0.609375,
+      "Q": 0.21875
+    },
+    "B1": {
+      "seed": 29200001,
+      "final": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sq_candB1/ckpts/final_pi_B_specialist_4v4_sq_candB1.zip",
+      "sha256": "9637e9abada7630a009b869d0fad59d07e48486b207dd6e3c898b16b1807a97b",
+      "V_own": 0.453125,
+      "V_off": 0.4375,
+      "Q": 0.015625
+    },
+    "B2": {
+      "seed": 29300001,
+      "final": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sq_candB2/ckpts/final_pi_B_specialist_4v4_sq_candB2.zip",
+      "sha256": "872ab536f0923c339025ad8312ca476171d0e34b3b62926b9c82c67aa5d40997",
+      "V_own": 0.71875,
+      "V_off": 0.46875,
+      "Q": 0.25
+    },
+    "B3": {
+      "seed": 29400001,
+      "final": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_sq_candB3/ckpts/final_pi_B_specialist_4v4_sq_candB3.zip",
+      "sha256": "4dcae52dbdb7da12cc06a1e14df9453fad6012ce0ffca2726bd7b712c5a29a66",
+      "V_own": 0.5,
+      "V_off": 0.390625,
+      "Q": 0.109375
+    }
+  },
+  "result_files": {
+    "C1": {
+      "result_sha256": "3449e22562869c6ea15fd07ce79102c9e0a4369b7cc3c6365b831c3166ac8317"
+    },
+    "C2": {
+      "result_sha256": "e7239ec3aa754d33adf340e1f7eedb805cdb16eb3398ccbbf05705eca940f933"
+    },
+    "C3": {
+      "result_sha256": "f0a9220307e8112779183ccdf54a5cbd896d07d3fc62d4c99ef23186aea721c9"
+    }
+  },
+  "note": "A_i and B_i were evaluated in one run per i for execution only; each policy's score uses only its own cells",
+  "selected": {
+    "A": "A3",
+    "B": "B2"
+  },
+  "locked": "no reselection"
+}

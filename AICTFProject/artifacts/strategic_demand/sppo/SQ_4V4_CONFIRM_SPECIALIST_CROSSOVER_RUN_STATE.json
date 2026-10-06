@@ -1,0 +1,49 @@
+{
+  "label": "SQ_4V4_CONFIRM_SPECIALIST_CROSSOVER",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-10-05T12:10:34Z",
+      "pid": 42472,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "53699d2588f3250117f6832395497b5800989661",
+      "seed_base": 30000001,
+      "n_seeds": 128,
+      "team_size": 4,
+      "pi_a": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_sq_candA3\\ckpts\\final_pi_A_specialist_4v4_sq_candA3.zip",
+      "pi_b": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_sq_candB2\\ckpts\\final_pi_B_specialist_4v4_sq_candB2.zip"
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-10-05T17:52:30Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-10-05T17:52:30Z",
+      "audit": "SQ_4V4_CONFIRM_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+      "n_checks": 14
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-10-05T17:52:30Z",
+      "result": "SQ_4V4_CONFIRM_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-10-05T17:52:30Z",
+  "pid": 42472,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "53699d2588f3250117f6832395497b5800989661",
+  "seed_base": 30000001,
+  "n_seeds": 128,
+  "team_size": 4,
+  "pi_a": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_sq_candA3\\ckpts\\final_pi_A_specialist_4v4_sq_candA3.zip",
+  "pi_b": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_sq_candB2\\ckpts\\final_pi_B_specialist_4v4_sq_candB2.zip",
+  "reason": "all episodes written",
+  "audit": "SQ_4V4_CONFIRM_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+  "n_checks": 14,
+  "result": "SQ_4V4_CONFIRM_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+}

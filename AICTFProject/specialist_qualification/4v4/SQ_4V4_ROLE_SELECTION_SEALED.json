@@ -1,0 +1,21 @@
+{
+  "record_id": "SQ_4V4_ROLE_SELECTION_SEALED",
+  "status": "SEALED_SELECTION",
+  "utc": "2026-10-05T12:10:31Z",
+  "block": [
+    29900001,
+    29900064
+  ],
+  "rule": "S(k) = [V(A,k,A) + V(B,k,B)]/2, k* = argmax, tie -> smaller k; k_A = k_B = k*",
+  "intended_pole": {
+    "A@A_k0": 0.765625,
+    "A@A_k1": 0.703125,
+    "B@B_k0": 0.546875,
+    "B@B_k1": 0.375
+  },
+  "S": {
+    "0": 0.65625,
+    "1": 0.5390625
+  },
+  "selected_k": 0
+}

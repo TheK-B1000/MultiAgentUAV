@@ -1,0 +1,42 @@
+{
+  "record_id": "STAGE4_2V2_MATCHED128_REEVAL_V1",
+  "status": "LOCKED",
+  "utc": "2026-10-06T12:30:00Z",
+  "classification": "EVALUATION-ONLY FOLLOW-UP. Not PAPER-FAITHFUL. Not a license to retrain.",
+  "decided_by": "PI, 2026-10-06: run frozen 2v2 students on full matched-128 provided seeds were not used to tune or select student checkpoints.",
+  "CHECKPOINT_SELECTION_AUDIT": {
+    "student_freeze_rule": "final weights after fixed distillation epochs (STUDENT_FROZEN.json)",
+    "distillation_data_blocks": "27000001.. / 27100001.. (SUITE_DISTILLATION_2V2_STAGE4_DATASET)",
+    "matched128_eval_block": "23600001..23600128",
+    "overlap_with_checkpoint_selection": false,
+    "note": "OWN50 is a post-hoc subset of this block scored after freeze; it did not select checkpoints. Full matched-128 remains the unselected primary for closed-loop preservation."
+  },
+  "WHAT": {
+    "teachers": "already sealed: POSTHOC_MATCHED128_2V2_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "students": [
+      "M128_2V2_STAGE4_SHARE_ENCODER",
+      "M128_2V2_STAGE4_FULLY_SHARED_ZR",
+      "M128_2V2_STAGE4_ROLE_ONLY"
+    ],
+    "same_checkpoints_as": ["TOP50_2V2_STAGE4_*", "OWN50_2V2_STAGE4_*"],
+    "report": [
+      "four crossover win rates and paired 95% CIs for Delta_A, Delta_B",
+      "paired student-teacher differences in intended-regime performance",
+      "Role-only absolute win rates on both poles"
+    ],
+    "interpretation_table": {
+      "both_LCB95_gt_0": "two-sided specialization survives sharing for this evaluated checkpoint",
+      "one_LCB95_gt_0": "only one side is established",
+      "neither_LCB95_gt_0": "preservation remains unestablished"
+    },
+    "even_if_both_clear": "preserved specialization does not establish preserved absolute performance or training reliability"
+  },
+  "RUNNER": "experiments/reeval_stage4_on_matched128.py --team-size 2",
+  "SPEC": "STANDARDIZED_2V2_STAGE4_M128_SHARING_EVAL_SPEC.json",
+  "NOT_AUTHORIZED": [
+    "retraining or re-freezing any Stage-4 student",
+    "overwriting TOP50_* or OWN50_* artifacts",
+    "fresh seed spend",
+    "calling M128 results confirmatory of training reliability without independent replication"
+  ]
+}

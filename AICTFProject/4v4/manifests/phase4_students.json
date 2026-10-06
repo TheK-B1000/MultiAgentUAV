@@ -1,0 +1,13 @@
+{
+  "step": "phase4_students",
+  "utc": "2026-10-05T21:59:25Z",
+  "status": "COMPLETE",
+  "team_size": 4,
+  "k_defend": 2,
+  "ladder": [
+    "Separated=teachers",
+    "share_encoder",
+    "fully_shared_z_r",
+    "role_only"
+  ]
+}

@@ -1,0 +1,362 @@
+{
+  "record_id": "SUITE_DATASETS_STAGE4_AUDIT_4V4",
+  "utc": "2026-10-05T21:43:00Z",
+  "verdict": "GREEN",
+  "datasets": {
+    "4v4_stage4": "SUITE_DISTILLATION_4V4_STAGE4_DATASET.json"
+  },
+  "rows": {
+    "4v4_stage4": 41700
+  },
+  "checks": [
+    {
+      "scale": "4v4_stage4",
+      "check": "manifest_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_4V4_STAGE4_DATASET.json"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "spec_exists",
+      "ok": true,
+      "detail": "SUITE_DISTILLATION_4V4_STAGE4_SPEC.json"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "construction_matches_family",
+      "ok": true,
+      "detail": "dual_branch"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "manifest_FROZEN_DATASET",
+      "ok": true,
+      "detail": "FROZEN_DATASET"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "spec_FROZEN",
+      "ok": true,
+      "detail": "FROZEN_BEFORE_COLLECTION"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "collector_recorded",
+      "ok": true,
+      "detail": {
+        "module": "experiments/collect_suite_distillation_states.py",
+        "spec": "SUITE_DISTILLATION_4V4_STAGE4_SPEC.json",
+        "spec_sha256": "240456de928c371a5fc727ec78caa1a833f34f49ad106cf9c889933eff79d02e",
+        "git_sha": "27e60eb61bd64ae91f43382845fd9d9ddf18e2eb",
+        "git_dirty": false,
+        "scientific_tree_sha256": "856996269f0cb767cba92e5c6a4cd4e3583b5e68df12083dace6fcb6c295c05d"
+      }
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "spec_sha_matches_manifest",
+      "ok": true,
+      "detail": "240456de928c371a5fc727ec78caa1a833f34f49ad106cf9c889933eff79d02e"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "fingerprint_recorded",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "allocator_CD_k_fixed_H8",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 2,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8
+      }
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "spec_allocator_k",
+      "ok": true,
+      "detail": {
+        "rule": "CLOSEST_DEFENDS",
+        "k_defend": 2,
+        "fixed_for_episode": true,
+        "hold_ticks_H_r": 8,
+        "source": "k = ceil(N/3) (DUAL_BRANCH_ROLE_COMPOSITE_V1)"
+      }
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pole_A_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+        "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85"
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pole_A_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {
+          "min_alive_for_defender": 4
+        },
+        {
+          "min_alive_for_defender": 4
+        }
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pole_B_hash_equals_certification",
+      "ok": true,
+      "detail": [
+        "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+        "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e"
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pole_B_spec_overlay_equals_certification",
+      "ok": true,
+      "detail": [
+        {
+          "enable_2v1": true,
+          "lock_defender": 10,
+          "min_alive_for_defender": 4
+        },
+        {
+          "enable_2v1": true,
+          "lock_defender": 10,
+          "min_alive_for_defender": 4
+        }
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "teachers_mode_dual_branch",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "acting_equals_teacher_halves",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_D_file_sha",
+      "ok": true,
+      "detail": "e51a667f2b8bd7cf"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_D_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_frozen_attack_file_sha",
+      "ok": true,
+      "detail": "591f12d52cfc5def"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_frozen_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_B_act_file_sha",
+      "ok": true,
+      "detail": "826e50ed6d1b7ffe"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_B_act_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_DB_file_sha",
+      "ok": true,
+      "detail": "e0eeccc0b3e7191c"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_DB_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_A_kl_defend_file_sha",
+      "ok": true,
+      "detail": "e51a667f2b8bd7cf"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_A_kl_defend_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_A_kl_attack_file_sha",
+      "ok": true,
+      "detail": "591f12d52cfc5def"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_A_kl_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_B_kl_defend_file_sha",
+      "ok": true,
+      "detail": "e0eeccc0b3e7191c"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_B_kl_defend_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_B_kl_attack_file_sha",
+      "ok": true,
+      "detail": "826e50ed6d1b7ffe"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "pin_pi_B_kl_attack_manifest_equals_spec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "shards_A_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        27001001,
+        27001096
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "registry_collection_A_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        27001001,
+        27001096
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "manifest_registry_collection_A",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "shards_B_exact_registered_block",
+      "ok": true,
+      "detail": [
+        96,
+        27101001,
+        27101096
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "registry_collection_B_SPENT",
+      "ok": true,
+      "detail": [
+        "SPENT",
+        27101001,
+        27101096
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "manifest_registry_collection_B",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "manifest_fingerprint_collector_sha",
+      "ok": true,
+      "detail": [
+        "27e60eb61bd64ae91f43382845fd9d9ddf18e2eb",
+        "27e60eb61bd64ae91f43382845fd9d9ddf18e2eb"
+      ]
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "collector_clean_at_collection",
+      "ok": true,
+      "detail": false
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "manifest_scientific_tree_matches_git_sha",
+      "ok": true,
+      "detail": "856996269f0cb767"
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "all_shard_files_present",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "every_shard_from_the_manifest_collector_commit",
+      "ok": true,
+      "detail": {
+        "foreign_shards": 0,
+        "sha": "27e60eb61bd64ae91f43382845fd9d9ddf18e2eb"
+      }
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "every_row_exactly_k_defenders",
+      "ok": true,
+      "detail": {
+        "rows": 41700,
+        "violations": 0
+      }
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "every_row_decision_eligible",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "entity_tensor_shapes_follow_N",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "scale": "4v4_stage4",
+      "check": "flags_decision_only_entities_roles",
+      "ok": true,
+      "detail": null
+    }
+  ]
+}

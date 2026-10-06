@@ -1,0 +1,7 @@
+{
+  "step": "phase2_historical_top50_SKIPPED",
+  "utc": "2026-10-05T18:59:06Z",
+  "reason": "historical top-50 is provenance only; default suite skips the spend",
+  "opt_in": "--allow-historical-top50",
+  "existing_results_preserved": true
+}

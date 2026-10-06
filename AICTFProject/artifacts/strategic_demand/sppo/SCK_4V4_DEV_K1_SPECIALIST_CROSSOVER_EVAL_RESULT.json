@@ -1,0 +1,167 @@
+{
+  "record": "SCK_4V4_DEV_K1 specialist crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-10-04T02:59:36Z",
+  "arm": "DEVELOPMENT_SELECTION",
+  "confirmatory": false,
+  "post_hoc_ablation": null,
+  "implements": "STRATEGY_CONDITIONED_K_4V4_DEV_EVAL_SPEC.json#EVALUATION",
+  "team_size": 4,
+  "device": "cuda",
+  "perturbation": {
+    "family": "nominal"
+  },
+  "role_fixed_for_episode": true,
+  "seeds": {
+    "block": [
+      28700001,
+      28700064
+    ],
+    "n": 64,
+    "shared_across_policies": true,
+    "seed_class": "exploratory",
+    "registry_experiment_id": "SCK_4V4_DEV_SELECTION",
+    "shared_by_labels": [
+      "SCK_4V4_DEV_K0",
+      "SCK_4V4_DEV_K1"
+    ]
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "candidate_genome_id": null
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {
+        "lock_defender": 10,
+        "enable_2v1": true,
+        "min_alive_for_defender": 4
+      },
+      "candidate_genome_id": null
+    }
+  },
+  "pole_identity": {
+    "A": {
+      "policy": "A",
+      "team_size": 4,
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 4
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 4,
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "base_opponent": "OP7",
+      "overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "lock_defender": 10,
+      "enable_2v1": true,
+      "min_alive_for_defender": 4
+    }
+  },
+  "pole_attestations": {
+    "A": {
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS2_A_payoff_INIT_3",
+      "certified_overlay": {
+        "min_alive_for_defender": 4
+      },
+      "live_overlay": {
+        "min_alive_for_defender": 4
+      },
+      "certified_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "live_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "hashes_match": true
+    },
+    "B": {
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "certified_overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "live_overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "hashes_match": true
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.203125,
+      "lcb95": 0.03125,
+      "ucb95": 0.359375,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": -0.4375,
+      "lcb95": -0.59375,
+      "ucb95": -0.265625,
+      "passes": false
+    },
+    "passes": false
+  },
+  "checkpoints": {
+    "pi_A": "b8f73eb7f0068eee17a7576194f6c08a4cc37464d95999cc44a7a748139aff83",
+    "pi_B": "024d7de8936ec12642dff1533482fd933e67ebd99aff740d0c23c91893db1826"
+  },
+  "split_policy_pi_B": {
+    "pi_D_path": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_sym_defonly_k1\\ckpts\\final_pi_B_specialist_4v4_sym_defonly_k1.zip",
+    "frozen_attack_path": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_b3_entity_repair_corrected\\ckpts\\final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+    "frozen_attack_sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+  },
+  "seed_ids": null,
+  "split_policy_pi_A": {
+    "pi_D_path": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_sym_defonly_k1\\ckpts\\final_pi_A_specialist_4v4_sym_defonly_k1.zip",
+    "frozen_attack_path": "artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_b3_entity_repair\\ckpts\\final_pi_A_specialist_4v4_b3_entity_repair.zip",
+    "frozen_attack_sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 256,
+  "integrity_flag": "artifacts\\strategic_demand\\sppo\\SCK_4V4_DEV_K1_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+  "status": "SEALED",
+  "sealed_utc": "2026-10-04T02:59:36Z",
+  "git_sha": "6ffeee4acaaec05c333e0806338b69dffccb1797",
+  "AUDIT": {
+    "path": "SCK_4V4_DEV_K1_SPECIALIST_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 14,
+    "n_gating": 12,
+    "failed_checks": [],
+    "rows_sha256": "37bf9ff90abbc2c1b8ae3c606ef01f5398e1410019c5f4042764ec2bc9d75daa"
+  }
+}

@@ -68,12 +68,14 @@ def _family(n: int, tag: str = "") -> str:
         return f"{n}v{n}_stage4"
     if tag == "STAGE4_OWN50":
         return f"{n}v{n}_stage4_own50"
+    if tag == "STAGE4_M128":
+        return f"{n}v{n}_stage4_m128"
     return f"{n}v{n}" + (f"_{tag.lower()}" if tag else "")
 
 
 def _is_stage4(tag: str) -> bool:
-    """STAGE4 = historical-seed diagnostic; STAGE4_OWN50 = clean own-top50 re-score."""
-    return tag in ("STAGE4", "STAGE4_OWN50")
+    """STAGE4 = historical-seed diagnostic; STAGE4_OWN50 = own-top50; STAGE4_M128 = full matched-128."""
+    return tag in ("STAGE4", "STAGE4_OWN50", "STAGE4_M128")
 
 
 def resolve_seeds(spec: dict, label: str) -> dict:
@@ -149,10 +151,10 @@ def main() -> int:
     ap.add_argument(
         "--spec-tag",
         default="",
-        choices=("", "SYM", "STAGE4", "STAGE4_OWN50"),
+        choices=("", "SYM", "STAGE4", "STAGE4_OWN50", "STAGE4_M128"),
         help="SYM = symmetric-role family; STAGE4 = dual-branch z+r / role-only "
-             "(historical-seed diagnostic); STAGE4_OWN50 = same students re-scored on "
-             "dual-branch own top-50 (clean Stage-4 comparison; new OWN50_* labels)",
+             "(historical-seed diagnostic); STAGE4_OWN50 = same students on own top-50; "
+             "STAGE4_M128 = same students on full unselected matched-128 (new M128_* labels)",
     )
     args = ap.parse_args()
 
@@ -306,7 +308,11 @@ def main() -> int:
     )
     if _is_stage4(STAG) and not needs_roles:
         raise SystemExit("REFUSING: Stage-4 students require role_conditioning_enabled")
-    k_defend = -(-N_AGENTS // 3) if STAG in ("SYM", "STAGE4", "STAGE4_OWN50") else {2: 1, 4: 2, 6: 1}[N_AGENTS]
+    k_defend = (
+        -(-N_AGENTS // 3)
+        if STAG in ("SYM", "STAGE4", "STAGE4_OWN50", "STAGE4_M128")
+        else {2: 1, 4: 2, 6: 1}[N_AGENTS]
+    )
 
     def _attach_roles(obs, core, hold, *, force: bool):
         from rl.custom_ppo.rule_role_assignment import roles_from_core

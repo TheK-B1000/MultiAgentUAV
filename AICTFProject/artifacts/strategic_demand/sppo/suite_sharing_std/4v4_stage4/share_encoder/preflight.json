@@ -1,0 +1,49 @@
+{
+  "record": "suite share_encoder 4v4 preflight",
+  "utc": "2026-10-05T21:43:24Z",
+  "spec": "STANDARDIZED_4V4_STAGE4_SHARING_SPEC.json",
+  "spec_sha256": "17563d33bb3ccf881ab78b760473339dd3b7c53ae739a316393a05e2aa9fddf0",
+  "seed_block": "STAGE4_4V4_SHARE_ENCODER_TRAINING",
+  "init_seeds": [
+    27201001,
+    27201002
+  ],
+  "checks": {
+    "spec:dataset_is_the_spec_manifest": true,
+    "spec:dataset_not_forbidden": true,
+    "spec:dataset_FROZEN": true,
+    "spec:dataset_manifest_sha256": true,
+    "spec:dataset_content_sha256": true,
+    "spec:audit_record_GREEN": true,
+    "spec:live_dataset_audit_all_pass": true,
+    "spec:pole_hashes_equal_spec": true,
+    "spec:teachers_equal_spec_and_manifest": true,
+    "spec:teachers_are_dual_branch": true,
+    "spec:N_and_k": true,
+    "spec:recipe_equals_spec": true,
+    "spec:split_rows_equal_spec": true,
+    "spec:scientific_tree_clean": true,
+    "spec:seed_blocks_RESERVED": true,
+    "spec:stage4_forbids_generalist": true,
+    "dataset_both_poles": true,
+    "dataset_has_roles": true,
+    "student_role_conditioning": true,
+    "teacher_self_kl_zero": true,
+    "z_changes_logits": true,
+    "encoder_shared_identity_and_arithmetic": true,
+    "loss_finite_positive": true,
+    "grad_shared_and_both_private_none_critic": true,
+    "step_moves_shared_and_private_critic_still": true,
+    "roundtrip": true
+  },
+  "passed": "26/26",
+  "initial_loss": 1.0479156970977783,
+  "unique_actor_params": 3638128,
+  "branch_seeds": [
+    27201001,
+    27201002
+  ],
+  "rung": 1,
+  "stage4": true,
+  "VERDICT": "PASS"
+}

@@ -380,6 +380,45 @@ def own50_labels(n: int) -> dict:
     }
 
 
+def matched128_labels(n: int) -> dict:
+    """Distinct labels for evaluation-only re-score on the full matched-128 block."""
+    p = f"M128_{n}V{n}_{TAG}"
+    return {
+        "share_encoder": f"{p}_SHARE_ENCODER",
+        "fully_shared": f"{p}_FULLY_SHARED_ZR",
+        "role_only": f"{p}_ROLE_ONLY",
+    }
+
+
+def matched128_seed_ids_path(n: int) -> Path:
+    return (
+        ROOT / "artifacts/strategic_demand/sppo/dual_branch_v1"
+        / f"matched128_{n}v{n}" / f"DUAL_BRANCH_{n}V{n}_MATCHED128_seed_ids.json"
+    )
+
+
+def ensure_matched128_seed_ids(n: int) -> Path:
+    """Write (or verify) the contiguous matched-128 seed list for post-hoc student re-score."""
+    reg_id, _primary = SPENT_EVAL[n]
+    from experiments import seed_registry as SR
+    b = next((x for x in SR.load()["blocks"] if x["experiment_id"] == reg_id), None)
+    if b is None:
+        raise SystemExit(f"REFUSING: {reg_id} not registered")
+    lo, hi = int(b["lo"]), int(b["hi"])
+    if hi - lo + 1 != 128:
+        raise SystemExit(f"REFUSING: {reg_id} span is not n=128 ({lo}..{hi})")
+    seed_ids = list(range(lo, hi + 1))
+    path = matched128_seed_ids_path(n)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_file():
+        got = [int(x) for x in json.loads(path.read_text(encoding="utf-8"))]
+        if got != seed_ids:
+            raise SystemExit(f"REFUSING: {path.name} exists with different seed list")
+        return path
+    path.write_text(json.dumps(seed_ids) + "\n", encoding="utf-8")
+    return path
+
+
 def eval_spec(n: int) -> Path:
     """Post-hoc top-50 eval for Stage-4 students (diagnostic). Pins must already be frozen.
 
@@ -606,6 +645,116 @@ def own_top50_eval_spec(n: int) -> Path:
     return _write_frozen(SD / name, doc)
 
 
+def matched128_eval_spec(n: int) -> Path:
+    """Evaluation-only Stage-4 re-score on the full matched-128 block (unselected).
+
+    Pins the SAME frozen student checkpoints as TOP50/OWN50. Writes NEW M128_*
+    labels so sealed TOP50_* and OWN50_* results are never touched.
+    """
+    hist_spec_p = SD / f"STANDARDIZED_{n}V{n}_{TAG}_SHARING_EVAL_SPEC.json"
+    if not hist_spec_p.is_file():
+        raise SystemExit(
+            f"REFUSING: need sealed historical Stage-4 eval spec {hist_spec_p.name} "
+            f"(students must already be frozen)"
+        )
+    hist = _load(hist_spec_p)
+    seeds_file = ensure_matched128_seed_ids(n)
+    seed_ids = [int(s) for s in json.loads(seeds_file.read_text(encoding="utf-8"))]
+    if len(seed_ids) != 128:
+        raise SystemExit(f"REFUSING: {seeds_file.name} must list exactly 128 seeds")
+    reg_id, primary = SPENT_EVAL[n]
+    from experiments import seed_registry as SR
+    b = next((x for x in SR.load()["blocks"] if x["experiment_id"] == reg_id), None)
+    if b is None:
+        raise SystemExit(f"REFUSING: {reg_id} not registered")
+    block = f"{b['lo']}..{b['hi']}"
+    if seed_ids != list(range(int(b["lo"]), int(b["hi"]) + 1)):
+        raise SystemExit(f"REFUSING: matched-128 seed list is not exactly {block}")
+    lab = matched128_labels(n)
+    arms = {}
+    for key, arm in (hist.get("ARMS") or {}).items():
+        ck = ROOT / arm["checkpoint"]
+        if not ck.is_file():
+            raise SystemExit(f"REFUSING: Stage-4 student missing: {arm['checkpoint']}")
+        got = _sha(ck)
+        if got != arm["sha256"]:
+            raise SystemExit(f"REFUSING: {arm['checkpoint']} sha drifted vs sealed Stage-4 eval pin")
+        a_name = {
+            "share_encoder": "share_encoder",
+            "fully_shared_z_r": "fully_shared",
+            "role_only": "role_only",
+        }[key]
+        arms[key] = {
+            "label": lab[a_name],
+            "checkpoint": arm["checkpoint"],
+            "sha256": got,
+            "format": arm["format"],
+            "same_student_as": hist["ARMS"][key]["label"],
+        }
+    base = {
+        "registry_experiment_id": reg_id,
+        "block": block,
+        "primary_record": primary,
+        "seed_ids": seed_ids,
+        "seed_ids_file": _rel(seeds_file.relative_to(ROOT)),
+        "paired_teacher_record": f"POSTHOC_MATCHED128_{n}V{n}_DUAL_BRANCH_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    }
+    post_hoc = {lab[a]: {**base, "system": a} for a in ARMS}
+    name = f"STANDARDIZED_{n}V{n}_{TAG}_M128_SHARING_EVAL_SPEC.json"
+    auth = (
+        "STAGE4_2V2_MATCHED128_REEVAL_V1.json"
+        if n == 2
+        else f"STAGE4_{n}V{n}_MATCHED128_REEVAL_V1.json"
+    )
+    doc = {
+        "record_id": name[:-5],
+        "status": "FROZEN_BEFORE_EVAL",
+        "arm": "POST_HOC_ABLATION",
+        "confirmatory": False,
+        "utc": _now(),
+        "classification": (
+            "EVALUATION-ONLY Stage-4 re-score of already-frozen students on the full "
+            "unselected matched-128 block (same seeds as dual-branch teachers). "
+            "Does NOT replace TOP50_* or OWN50_*. Not confirmatory. Students were "
+            "frozen by fixed-epoch distillation; these seeds were not used to select "
+            "student checkpoints."
+        ),
+        "decided_by": auth,
+        "parent": [hist_spec_p.name, auth, AUTH_FOR[n].name],
+        "seed_source": "dual_branch_matched128_full_block",
+        "historical_stage4_eval_is": "DIAGNOSTIC_ONLY_preserved",
+        "own50_stage4_eval_is": "SELECTED_SUBSET_DIAGNOSTIC_preserved",
+        "ARMS": arms,
+        "SEEDS": {
+            "registry_experiment_id": reg_id,
+            "block": block,
+            "n": len(seed_ids),
+            "seed_class": "post_hoc",
+            "seed_source": "dual_branch_matched128_full_block",
+            "seed_ids_file": _rel(seeds_file.relative_to(ROOT)),
+            "seed_ids_sha256": _sha(seeds_file),
+        },
+        "POST_HOC_MATCHED_ROLE_ABLATIONS": post_hoc,
+        "POLES": hist["POLES"],
+        "EVALUATION": hist.get("EVALUATION", {}),
+        "LAUNCH": {
+            a: (
+                f".venv/Scripts/python.exe experiments/eval_suite_sharing_crossover.py "
+                f"--team-size {n} --arm {a} --spec-tag STAGE4_M128 --device cuda --resume"
+            )
+            for a in ARMS
+        },
+        "NOT_AUTHORIZED_BY_THIS_SPEC": [
+            "retraining any Stage-4 student",
+            "overwriting TOP50_* or OWN50_* Stage-4 results",
+            "fresh seed spend",
+            "claiming confirmatory status from this post-hoc re-score alone",
+            "claiming preserved absolute performance or training reliability",
+        ],
+    }
+    return _write_frozen(SD / name, doc)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--reserve", action="store_true")
@@ -619,6 +768,12 @@ def main() -> int:
         help="freeze evaluation-only Stage-4 re-score spec on dual-branch own top-50 seeds "
              "(new OWN50_* labels; does not touch sealed TOP50_* historical-seed results)",
     )
+    ap.add_argument(
+        "--matched128-eval",
+        action="store_true",
+        help="freeze evaluation-only Stage-4 re-score spec on the full matched-128 block "
+             "(new M128_* labels; does not touch sealed TOP50_* or OWN50_* results)",
+    )
     a = ap.parse_args()
     if a.reserve:
         done = reserve()
@@ -626,7 +781,8 @@ def main() -> int:
         return 0
     if a.team_size is None:
         raise SystemExit(
-            "need --team-size N with --collection / --sharing / --eval / --own50-eval, or --reserve"
+            "need --team-size N with --collection / --sharing / --eval / "
+            "--own50-eval / --matched128-eval, or --reserve"
         )
     n = int(a.team_size)
     if a.collection:
@@ -641,7 +797,10 @@ def main() -> int:
     if a.own50_eval:
         p = own_top50_eval_spec(n)
         print(f"froze {p.name}")
-    if not (a.collection or a.sharing or a.eval or a.own50_eval):
+    if a.matched128_eval:
+        p = matched128_eval_spec(n)
+        print(f"froze {p.name}")
+    if not (a.collection or a.sharing or a.eval or a.own50_eval or a.matched128_eval):
         raise SystemExit("nothing to do")
     return 0
 

@@ -1,0 +1,14 @@
+{
+  "record": "SCK_4V4_CONFIRM specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-10-04T08:42:45Z",
+  "implements": "STRATEGY_CONDITIONED_K_4V4_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.2890625,
+    "delta_B": -0.171875
+  },
+  "rule": "requires a row-level integrity audit before any scientific interpretation. Raw rows: sck_4v4_confirm_specialist_crossover_eval_rows.csv. Sealing still proceeds for immutability."
+}

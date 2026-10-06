@@ -1,0 +1,85 @@
+{
+  "record": "SCK_4V4_CONFIRM_READOUT",
+  "utc": "2026-10-04T08:42:46Z",
+  "git_head": "6ffeee4acaaec05c333e0806338b69dffccb1797",
+  "spec_sha256": "aa407a8a17ec99677646ba28505138932d2ae640da53cc01213c0c9a571ce10e",
+  "selection_record_sha256": "829752a0c39babc0659ecbbd3fc39cd49b852ce9ca51401135db3ab958942b3d",
+  "k_A": 0,
+  "k_B": 0,
+  "result_sha256": "61984263c8271e2fa97297d97b3c8d6bdc7bbe8afcc12f64a9308dfc63afd8f3",
+  "rows_sha256": "475e09e5dbc6caa5071379ca88615bddb4b8f45c7c8207a8b762a8e8bc9c9ce5",
+  "seeds": [
+    28800001,
+    28800128
+  ],
+  "bootstrap": {
+    "n": 20000,
+    "rng": 7,
+    "levels": [
+      0.95,
+      0.9833333333333333
+    ]
+  },
+  "win": {
+    "A@A": 0.7734375,
+    "A@B": 0.7578125,
+    "B@A": 0.484375,
+    "B@B": 0.5859375,
+    "Delta_A": {
+      "mean": 0.2890625,
+      "std": 0.6167267385793648,
+      "ci95": [
+        0.1796875,
+        0.3984375
+      ],
+      "ci9833": [
+        0.15625,
+        0.421875
+      ]
+    },
+    "Delta_B": {
+      "mean": -0.171875,
+      "std": 0.590067058780837,
+      "ci95": [
+        -0.2734375,
+        -0.0703125
+      ],
+      "ci9833": [
+        -0.296875,
+        -0.046875
+      ]
+    }
+  },
+  "margin": {
+    "A@A": 0.9921875,
+    "A@B": 1.84375,
+    "B@A": 0.71875,
+    "B@B": 0.8515625,
+    "Delta_A": {
+      "mean": 0.2734375,
+      "std": 1.1753025661706198,
+      "ci95": [
+        0.0703125,
+        0.4765625
+      ],
+      "ci9833": [
+        0.0234375,
+        0.5234375
+      ]
+    },
+    "Delta_B": {
+      "mean": -0.9921875,
+      "std": 1.503256799065618,
+      "ci95": [
+        -1.25,
+        -0.734375
+      ],
+      "ci9833": [
+        -1.296875,
+        -0.671875
+      ]
+    }
+  },
+  "interpretation": "the selected organization happens to remain structurally symmetric",
+  "table_markdown": "# 4v4 strategy-conditioned role allocation: fresh confirmation (28800001..28800128)\n\nSelected on the development block (intended pole only): **k_A = 0, k_B = 0**. the selected organization happens to remain structurally symmetric\n\n| | A@A | B@A | A@B | B@B | \u0394_A (95%) | \u0394_B (95%) |\n|---|---|---|---|---|---|---|\n| win | 0.773 | 0.484 | 0.758 | 0.586 | +0.289 \u00b1 0.617 [+0.180, +0.398] | -0.172 \u00b1 0.590 [-0.273, -0.070] |\n| margin | 0.992 | 0.719 | 1.844 | 0.852 | +0.273 \u00b1 1.175 [+0.070, +0.477] | -0.992 \u00b1 1.503 [-1.250, -0.734] |\n\n98.33% (1 - 0.05/3): \u0394_A [+0.156, +0.422], \u0394_B [-0.297, -0.047]\n\nRevised hypothesis motivated by the sealed 4v4 scaling results; not the original fixed-k method."
+}

@@ -59,9 +59,13 @@ intervals over 128 seeds.}
 \label{fig:crossover}
 \end{figure}
 
-Both effects are positive in mean at all three team sizes
-(Table~\ref{tab:main_specialization}, Figure~\ref{fig:crossover}).
-Separation is largest at 2v2 and 4v4.
+Both effects are positive in mean at 2v2 under the symmetric dual-branch
+method (Table~\ref{tab:main_specialization} of \texttt{experiments.tex}):
+\(\Delta_A=+0.156\), \(\Delta_B=+0.422\). At 4v4 the same method gives
+\(\Delta_A=+0.195\), \(\Delta_B=-0.086\); at 6v6,
+\(\Delta_A=-0.062\), \(\Delta_B=+0.578\). Only 2v2 meets the two-sided
+complementarity criterion. Historical asymmetric table rows
+(\(\Delta_B=+0.406\) at 4v4) are provenance only and are not the method.
 At 6v6 the binary effects are smaller (\(+0.062\), \(+0.117\)), largely
 because every evaluated system wins 0.86--0.98 of 6v6 games, which leaves
 little room for win/loss outcomes to differ. On score margin, which is not
@@ -459,7 +463,10 @@ subset from the nominal condition only so perturbations stay paired
 (Tables~\ref{tab:true_top50_ours}--\ref{tab:true_top50_noise},
 Figures~\ref{fig:baselines_true_top50} and~\ref{fig:noise_true_top50}).
 That \(n=50\) view is secondary and must not replace the sealed \(n=128\)
-conclusions.
+conclusions. Any bootstrap intervals computed on the selected subset are
+descriptive summaries of that subset only; they do not correct for the
+selection procedure and must not be described as statistically supported
+confirmatory effects.
 
 \input{true_top50_tables}
 
@@ -469,7 +476,8 @@ conclusions.
 \caption{Same baseline comparison as Figure~\ref{fig:baselines}, restricted to
 the post-hoc top-50 seeds by deployed score
 $\mathrm{outcome}(A{\to}A)+\mathrm{outcome}(B{\to}B)$ per method and team
-size. Descriptive only; primary results remain the sealed $n=128$ tables.}
+size. Descriptive only; primary results remain the sealed $n=128$ tables.
+Bootstrap intervals on this subset do not account for selection.}
 \label{fig:baselines_true_top50}
 \end{figure*}
 
@@ -478,6 +486,19 @@ size. Descriptive only; primary results remain the sealed $n=128$ tables.}
 \includegraphics[width=\textwidth]{figures/fig_noise_true_top50.pdf}
 \caption{Same noise comparison as Figure~\ref{fig:noise}, on the top-50 seeds
 selected from the nominal condition and carried into each perturbation.
-Descriptive only; primary results remain the sealed $n=128$ tables.}
+Descriptive only; primary results remain the sealed $n=128$ tables.
+Bootstrap intervals on this subset do not account for selection.}
 \label{fig:noise_true_top50}
 \end{figure*}
+
+\subsection{What the experiments show}
+\label{sec:exp-takeaway}
+
+We evaluate whether opponent-conditioned specialization survives policy
+sharing under a common role organization. The evaluated teachers establish
+two-sided specialization at 2v2, but exhibit different one-sided limitations
+at larger team sizes. Distillation substantially reduces actor parameters,
+while closed-loop preservation remains incompletely validated on unselected
+seeds. Selected top-50 Stage-4 contrasts are diagnostic only; the decisive
+next measurement is unselected evaluation of the compressed 2v2 students on
+the teachers' matched seed block.

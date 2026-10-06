@@ -16,94 +16,92 @@ implications of the results.}
 
 \subsection{Specialization Across Team Sizes}
 
-We first evaluate whether the standardized role-allocated system exhibits the
-intended strategic specialization across team sizes. For each team size, we
-report
-\(\Delta_A\), the mean advantage of the Pole-A policy on Pole A, and
-\(\Delta_B\), the mean advantage of the Pole-B policy on Pole B. Positive
-values indicate specialization in the intended direction.
+The Experimental Evaluation reports one method at three team sizes:
+\[
+\text{same symmetric dual-branch method}\ \rightarrow\ 2\mathrm{v}2,\;4\mathrm{v}4,\;6\mathrm{v}6.
+\]
+Same A/B treatment, same training recipe and budget, same ATTACK/DEFEND
+construction, same role rule \(k=\lceil N/3\rceil\)
+(\(k=1,2,2\) at \(N=2,4,6\)), and the same crossover test. No candidate
+selection, no alternative role menu, and no historical asymmetric rescue
+enters this claim.
 
-Following the reporting convention used here, the main text emphasizes the
-mean effects, while confidence intervals are reported separately in the
-figures. Standard deviations in the tables are computed across the per-seed
-paired win differences. Since each per-seed win difference takes values in
-\(\{-1,0,+1\}\), the standard deviation can be large relative to the mean.
-
-All three results are confirmatory evaluations with \(n=128\) fresh seeds.
-(An earlier exploratory 6v6 evaluation with \(n=64\) seeds gave
-\(\Delta_A=+0.016\), \(\Delta_B=+0.078\); it remains on record.)
+For each team size we report \(\Delta_A\) and \(\Delta_B\), the mean
+advantage of each strategy on its own regime. Positive values on
+\emph{both} poles are required for two-sided complementarity. Tables use
+mean \(\pm\) sample standard deviation of per-seed paired win differences
+(\(\{-1,0,+1\}\)); bootstrap confidence intervals are stated in the text.
+All three rows are the sealed dual-branch matched-128 evaluations
+(\(n=128\)).
 
 \begin{table}[t]
 \centering
-\caption{Specialization effects of the proposed role-allocated system across
-team sizes. Values are mean $\pm$ standard deviation across evaluation seeds.
-Positive $\Delta_A$ and $\Delta_B$ indicate specialization in the intended
-direction. All rows are confirmatory evaluations on 128 fresh seeds.}
+\caption{Specialization of the symmetric dual-branch method across team
+sizes. Values are mean $\pm$ standard deviation across the matched-128
+evaluation seeds. Positive $\Delta_A$ and $\Delta_B$ together indicate
+two-sided complementarity. Role rule $k=\lceil N/3\rceil$.}
 \label{tab:main_specialization}
-\begin{tabular}{c|c|cc}
+\begin{tabular}{c|cc}
 \hline
-Team size & Evaluation & $\Delta_A$ & $\Delta_B$ \\
+Team size & $\Delta_A$ & $\Delta_B$ \\
 \hline
-2v2 & Confirmatory
-& $+0.117 \pm 0.749$
-& $+0.539 \pm 0.546$ \\ % STANDARDIZED_2V2_SPLIT_K1_CONFIRMATORY
-
-4v4 & Confirmatory
+2v2
 & $+0.156 \pm 0.657$
-& $+0.406 \pm 0.620$ \\ % DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1
-
-6v6 & Confirmatory
-& $+0.062 \pm 0.411$
-& $+0.117 \pm 0.346$ \\ % STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY (exploratory n=64: EXPLORATORY_6V6_SPLIT_K1 +0.016/+0.078)
+& $+0.422 \pm 0.496$ \\ % POSTHOC_MATCHED128_2V2_DUAL_BRANCH
+4v4
+& $+0.195 \pm 0.722$
+& $-0.086 \pm 0.333$ \\ % POSTHOC_MATCHED128_4V4_DUAL_BRANCH
+6v6
+& $-0.062 \pm 0.498$
+& $+0.578 \pm 0.527$ \\ % POSTHOC_MATCHED128_6V6_DUAL_BRANCH
 \hline
 \end{tabular}
 \end{table}
 
-The mean specialization effects are positive at all three team sizes. The
-separation is substantially larger at 2v2 and 4v4 than at 6v6. At 6v6,
-$\Delta_A=+0.062$ and $\Delta_B=+0.117$, indicating that specialization
-remains in the intended direction in mean, but the difference in binary win
-rate between the policies is small.
+Under this method, 2v2 satisfies the two-sided criterion:
+\[
+\Delta_A=+0.156,\quad 95\%\ \mathrm{CI}=[+0.047,+0.266],
+\qquad
+\Delta_B=+0.422,\quad 95\%\ \mathrm{CI}=[+0.336,+0.508].
+\]
+At 4v4 the method retains an A-side advantage but fails on Pole~B:
+\[
+\Delta_A=+0.195,\quad 95\%\ \mathrm{CI}=[+0.070,+0.320],
+\qquad
+\Delta_B=-0.086,\quad 95\%\ \mathrm{CI}=[-0.148,-0.031].
+\]
+At 6v6 the pattern is inverted: Pole~B is strongly specialized while
+Pole~A is not established,
+\[
+\Delta_A=-0.062,\quad 95\%\ \mathrm{CI}=[-0.148,+0.023],
+\qquad
+\Delta_B=+0.578,\quad 95\%\ \mathrm{CI}=[+0.484,+0.672].
+\]
+Thus only 2v2 meets the complementarity criterion under the frozen
+symmetric dual-branch methodology. We interpret the 4v4 and 6v6 outcomes
+as empirical limitations of that method at those scales, not as evidence
+from a different recipe or from opportunistic reselection.
 
-One possible explanation is saturation of the binary win-rate metric at the
-larger team size. Both 6v6 policies achieve high absolute win rates against
-the evaluated opponents, leaving relatively little room for specialization to
-appear as a difference in final win/loss outcome (on the confirmatory seeds
-the two 6v6 policies win between $0.86$ and $0.98$ of games on each pole). We
-therefore also examine the paired score margin obtained from the same sealed
-128-seed confirmatory evaluation.
-
-\begin{table}[t]
-\centering
-\caption{Secondary 6v6 analysis using paired score-margin differences from the
-same 128 seeds as the confirmatory win-rate evaluation. On Pole A, the advantage
-is defined as the score margin of $\pi_A$ minus that of $\pi_B$; on Pole B,
-the direction is reversed. Bootstrap confidence intervals use 20,000
-resamples.}
-\label{tab:6v6_score_margin}
-\begin{tabular}{c|ccc}
-\hline
-Pole & Mean advantage & Std. dev. & 95\% bootstrap CI \\
-\hline
-A & $+0.812$ & $1.344$ & $[+0.578,\,+1.047]$ \\ % STANDARDIZED_6V6_SPLIT_K1_CONFIRMATORY margin column
-B & $+0.734$ & $1.187$ & $[+0.531,\,+0.938]$ \\ % (exploratory n=64: +0.750 [+0.469,+1.016] / +0.625 [+0.297,+0.953])
-\hline
-\end{tabular}
-\end{table}
-
-Although the 6v6 binary win-rate differences are small, the intended
-specialist has a larger score margin on its corresponding pole. The paired
-score-margin advantage is \(+0.812\) on Pole A and \(+0.734\) on Pole B, with
-both bootstrap intervals remaining above zero (the earlier 64-seed exploratory
-evaluation gave \(+0.750\) and \(+0.625\)). This discrepancy between weak
-binary win-rate separation and stronger score-margin separation is consistent
-with saturation of the binary win-rate metric at 6v6, although it does not by
-itself establish that saturation is the cause.
+Score-margin differences on the same matched-128 seeds tell the same
+directional story (2v2: both poles positive in mean; 4v4: \(\Delta_B\)
+negative; 6v6: \(\Delta_A\) negative with interval below zero on margin).
+We do not use an alternative methodology to replace any of these cells.
 
 
 \subsection{Baseline Comparison}
+\label{sec:baselines-provenance}
 
-We next compare the proposed role-allocated system against alternative policy
+% The tables in this subsection reuse sealed historical / asymmetric
+% constructions. They are retained for continuity with earlier drafts and
+% are NOT part of the symmetric dual-branch claim in
+% Table~\ref{tab:main_specialization}.
+
+The remainder of this section records older baseline and noise comparisons
+that do not use the symmetric dual-branch method above. They are
+\emph{not} evidence for that method and should not be read as replacing
+Table~\ref{tab:main_specialization}.
+
+We next summarize those historical comparisons against alternative policy
 organizations. The specialist baseline executes the repaired Pole-A and
 Pole-B policies directly, without the explicit heuristic ATTACK/DEFEND
 decomposition. The Generalist, Share-Encoder, and Fully Shared+$z$ arms are
@@ -115,14 +113,13 @@ reported with absolute win rates rather than $\Delta_A/\Delta_B$ because a
 single unconditioned policy has no crossover specialization quantity.
 
 Table~\ref{tab:role_baseline_comparison} first isolates the effect of explicit
-role allocation. For 2v2, the role-allocation row is the paired diagnostic
-evaluated on the same seeds as the corresponding no-role specialist baseline.
-It is therefore distinct from the independent 2v2 confirmatory result reported
-in Table~\ref{tab:main_specialization}. For 4v4, the available no-role and
-role-allocated results come from separate sealed evaluations and should not be
-interpreted as a seed-by-seed paired comparison. For 6v6, the no-role baseline
-and the confirmatory role-allocated evaluation share the same 128 seeds, so the
-comparison is paired.
+role allocation under those historical constructions. For 2v2, the
+role-allocation row is the paired diagnostic evaluated on the same seeds as
+the corresponding no-role specialist baseline. For 4v4, the available
+no-role and role-allocated results come from separate sealed evaluations
+and should not be interpreted as a seed-by-seed paired comparison. For 6v6,
+the no-role baseline and the role-allocated evaluation share the same 128
+seeds, so that historical comparison is paired.
 
 \begin{table}[t]
 \centering
@@ -171,7 +168,7 @@ Team size & Method & $\Delta_A$ & $\Delta_B$ \\
 \end{tabular}
 \end{table}
 
-At 2v2 and 4v4, the repaired specialists without explicit heuristic roles do
+At 2v2, the repaired specialists without explicit heuristic roles do
 not exhibit reciprocal specialization because the Pole-B effect is negative.
 Introducing the ATTACK/DEFEND decomposition changes the Pole-B specialization
 effect to the intended positive direction while retaining a positive Pole-A
@@ -185,17 +182,11 @@ Pole B decreases from \(0.648\) without the explicit role decomposition to
 increases strategic separation primarily by constraining the Pole-A strategy
 on the opponent for which it is not intended.
 
-A similar pattern is observed at 4v4. The no-role specialist baseline has
-\(\Delta_B=-0.156\), whereas the role-allocated system has
-\(\Delta_B=+0.406\). The Pole-A policy's Pole-B win rate decreases from
-\(0.742\) without explicit roles to \(0.102\) with the role-allocated system.
-Unlike the paired 2v2 diagnostic, however, these 4v4 values come from separate
-evaluation seed sets, so the comparison is descriptive rather than a
-seed-by-seed paired effect. The 4v4 Pole-A win rate also decreases under the
-role-allocated system, from approximately \(0.813\) in the no-role evaluation
-to \(0.648\) in the role-allocated evaluation, indicating that the role
-decomposition trades some raw Pole-A performance for substantially greater
-separation between the two strategic behaviors.
+At 4v4, the historical asymmetric role-allocated construction in
+Table~\ref{tab:role_baseline_comparison} shows a large positive
+\(\Delta_B=+0.406\), but that row is outside the symmetric dual-branch
+method of Table~\ref{tab:main_specialization}. We keep it as historical
+provenance only and do not treat it as evidence for the method.
 
 At 6v6, where the comparison is paired on the same 128 seeds, the role
 allocation raises $\Delta_B$ from $+0.031$ to $+0.117$, a paired change of
@@ -256,10 +247,12 @@ At 4v4 the distilled students reproduce their teachers, the no-role specialists
 ($\Delta_A=+0.273$, $\Delta_B=-0.156$): Share-Encoder reaches $+0.281$ /
 $-0.156$ and Fully Shared+$z$ $+0.367$ / $-0.109$. As with the teachers, the
 strategy distilled from the Pole-A specialist wins more often on both poles
-($0.805$ and $0.680$ for Share-Encoder), so $\Delta_B$ is negative. Sharing
-parameters therefore does not remove the specialization the teachers had; at
-4v4 the teachers had no Pole-B specialization to preserve, and only the
-role-allocated system shows a positive $\Delta_B$.
+($0.805$ and $0.680$ for Share-Encoder), so $\Delta_B$ is negative. These
+historical sharing rows therefore show how sharing transforms an incomplete
+teacher distinction; they should not be read as evidence that sharing
+preserved a complementary 4v4 pair
+(Table~\ref{tab:main_specialization}). The historical asymmetric
+role-allocated $\Delta_B=+0.406$ remains provenance only.
 
 At 6v6 all policies win most games (0.86--0.98), and the distilled students
 show small effects in the intended direction (Share-Encoder $+0.039$ /
@@ -268,6 +261,13 @@ teachers ($+0.094$ / $+0.031$), with the highest held-out agreement with the
 teachers of any team size (0.99 / 0.94). As at 2v2 and 4v4, none of the
 parameter-sharing baselines reaches the Pole-B effect of the role-allocated
 system ($+0.117$).
+Under the dual-branch teachers of Table~\ref{tab:main_specialization},
+unselected matched-128 evaluation already fails to establish Pole~A
+($\Delta_A=-0.062$, CI $[-0.148,+0.023]$) while Pole~B is strong. A Stage-4
+student that likewise lacks A-side crossover therefore does
+\emph{not} demonstrate that compression destroyed an established A-side
+distinction; positive teacher $\Delta_A$ on a post-hoc top-50 subset remains
+selected and diagnostic only.
 
 Because the Generalist is the distilled no-$z$ ablation (same teachers and
 suite dataset as Fully Shared+$z$, but no strategy variable), its comparison
@@ -314,12 +314,14 @@ Team size
 At 2v2, the role-allocated system beats the Generalist on Pole~A by
 $+0.195$ in mean win rate on matched seeds, but is essentially tied on Pole~B
 ($-0.023$). At 4v4 the Generalist wins slightly more often than the
-role-allocated system on both poles: on the same 128 seeds it wins $0.758$ and
-$0.695$ against $0.688$ and $0.625$, a gap of $-0.070$ on each pole (with a
-per-seed standard deviation above $0.6$). The advantage of the role-allocated
-system at 4v4 is therefore specialization (a positive $\Delta_B$, which no
-baseline shows), not a higher absolute win rate than the distilled no-$z$
-Generalist. At 6v6 the role-allocated system wins slightly more often
+historical asymmetric role-allocated system on both poles: on the same 128
+seeds it wins $0.758$ and $0.695$ against $0.688$ and $0.625$, a gap of
+$-0.070$ on each pole (with a per-seed standard deviation above $0.6$). That
+comparison is provenance for the asymmetric construction; under the
+symmetric dual-branch method of Table~\ref{tab:main_specialization}, 4v4
+fails Pole-B complementarity, so we do not treat a positive 4v4
+$\Delta_B$ as evidence for the method. At 6v6 the historical role-allocated
+system wins slightly more often
 than the Generalist on both poles ($0.898$ vs.\ $0.859$ on Pole~A, $0.977$
 vs.\ $0.945$ on Pole~B; gaps $+0.039$ and $+0.031$), with both systems close
 to the ceiling of the win-rate metric.
@@ -419,3 +421,31 @@ excludes zero). Under delay the Pole-A system wins more often on Pole~B
 Thus specialization is broadly stable under localization/motion, while larger
 teams are more sensitive to delayed control on Pole~B.
 % STANDARDIZED_6V6_NOISE_*; sealed 2026-10-01 (CHAIN_6V6_DONE).
+
+
+\subsection{What the experiments show}
+\label{sec:exp-takeaway}
+
+We evaluate whether opponent-conditioned specialization survives policy
+sharing under a common role organization. The evaluated teachers establish
+two-sided specialization at 2v2
+($\Delta_A=+0.156$, $\Delta_B=+0.422$; both 95\% intervals above zero), but
+exhibit different one-sided limitations at larger team sizes: 4v4 keeps an
+A-side advantage while reversing Pole~B, and 6v6 keeps a strong B-side
+advantage while failing to establish Pole~A on the unselected matched-128
+block. Distillation substantially reduces actor parameters
+(about $14\,\mathrm{M}\to 3.5\,\mathrm{M}$), while closed-loop preservation
+of two-sided specialization remains incompletely validated: Stage-4 student
+crossovers that clear both poles are presently available on post-hoc
+selected OWN50/TOP50 subsets, not on an unselected seed block scored jointly
+with the teachers.
+
+\paragraph{Limits (stated once).}
+Selected top-50 views are descriptive. Ordinary bootstrap intervals on a
+post-hoc ranked subset do not account for the selection procedure and must
+not be read as confirmatory support. Training variability and one-seed
+teacher draws further bound the claim. The decisive next measurement is
+unselected evaluation of the compressed 2v2 students on the same matched
+seed block as the teachers; if both crossover advantages survive there,
+4v4 and 6v6 become carefully bounded failure cases rather than the center of
+the contribution.

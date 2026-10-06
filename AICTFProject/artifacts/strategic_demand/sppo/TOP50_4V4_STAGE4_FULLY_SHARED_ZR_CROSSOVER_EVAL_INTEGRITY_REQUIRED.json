@@ -1,0 +1,13 @@
+{
+  "record": "TOP50_4V4_STAGE4_FULLY_SHARED_ZR crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-10-06T04:12:51Z",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.22,
+    "delta_B": -0.04
+  },
+  "raw_rows": "artifacts\\strategic_demand\\sppo\\top50_4v4_stage4_fully_shared_zr_crossover_eval_rows.csv"
+}
