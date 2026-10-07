@@ -4,7 +4,8 @@ One frozen spec, three team sizes, three medium disturbances. The 50 seeds at
 each scale are the already-sealed own-TOP50 IDs from that scale's dual-branch
 matched-128 nominal. They are not recomputed and not re-ranked under noise.
 Nominal episodes are not rerun. New work is 3 x 200 = 600 episodes per team
-size. 2v2 finishes before 4v4 starts; 4v4 finishes before 6v6 starts.
+size. 2v2 finishes before 4v4 starts. 6v6 stays in the frozen spec and is not launched
+unless this script is given --include-6v6.
 
     .venv\Scripts\python.exe artifacts/strategic_demand/sppo/chain/run_chain_dual_branch_noise.py --freeze
     .venv\Scripts\python.exe artifacts/strategic_demand/sppo/chain/run_chain_dual_branch_noise.py
@@ -292,19 +293,21 @@ def freeze_specs() -> None:
 
 
 def state(**kw) -> dict:
-    s = json.loads(STATE.read_text(encoding="utf-8")) if STATE.is_file() else {
+    s = json.loads(STATE.read_text(encoding="utf-8-sig")) if STATE.is_file() else {
         "record": "CHAIN_DUAL_BRANCH_TOP50_NOISE", "steps": {}, "pids": {},
     }
     s.update({k: v for k, v in kw.items() if k != "step"})
     if "step" in kw:
         s.setdefault("steps", {})[kw["step"]] = now()
+    if "status" in kw and kw["status"] != "ABORTED":
+        s.pop("reason", None)
     s["updated_utc"] = now()
     STATE.write_text(json.dumps(s, indent=2) + "\n", encoding="utf-8")
     return s
 
 
 def done(step: str) -> bool:
-    return STATE.is_file() and step in json.loads(STATE.read_text(encoding="utf-8")).get("steps", {})
+    return STATE.is_file() and step in json.loads(STATE.read_text(encoding="utf-8-sig")).get("steps", {})
 
 
 def fail(msg: str) -> None:
@@ -316,6 +319,22 @@ def fail(msg: str) -> None:
 def _alive(pid: int) -> bool:
     r = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/NH"], capture_output=True, text=True)
     return str(pid) in (r.stdout or "")
+
+
+def _label_alive(label: str) -> bool:
+    """True if any python process is running this evaluation label.
+
+    On Windows a venv ``python.exe`` is a launcher that keeps a base-interpreter
+    child; either PID may be the one stored in state, so match by --label.
+    """
+    r = subprocess.run(
+        ["powershell", "-NoProfile", "-Command",
+         f"Get-CimInstance Win32_Process -Filter \"Name = 'python.exe'\" | "
+         f"Where-Object {{ $_.CommandLine -match '--label {label}(\\s|$)' }} | "
+         f"Select-Object -First 1 -ExpandProperty ProcessId"],
+        capture_output=True, text=True,
+    )
+    return bool((r.stdout or "").strip())
 
 
 def _partial_stale(label: str) -> bool:
@@ -358,7 +377,7 @@ def dry_run(n: int, cmds: dict[str, str]) -> None:
 
 
 def launch_missing(n: int, cmds: dict[str, str]) -> None:
-    st = json.loads(STATE.read_text(encoding="utf-8")) if STATE.is_file() else {}
+    st = json.loads(STATE.read_text(encoding="utf-8-sig")) if STATE.is_file() else {}
     pids = dict(st.get("pids") or {})
     logdir = SD / "dual_branch_v1" / "noise_top50" / f"{n}v{n}"
     logdir.mkdir(parents=True, exist_ok=True)
@@ -366,7 +385,7 @@ def launch_missing(n: int, cmds: dict[str, str]) -> None:
         if result_path(lab).is_file():
             continue
         pid = pids.get(lab)
-        if pid and _alive(int(pid)):
+        if (pid and _alive(int(pid))) or _label_alive(lab):
             continue
         out = open(logdir / f"{lab}.log", "a", encoding="utf-8")
         err = open(logdir / f"{lab}.log.err", "a", encoding="utf-8")
@@ -384,9 +403,12 @@ def wait_scale(n: int, cmds: dict[str, str]) -> None:
         missing = [lab for lab in cmds if not result_path(lab).is_file()]
         if not missing:
             break
-        st = json.loads(STATE.read_text(encoding="utf-8"))
+        st = json.loads(STATE.read_text(encoding="utf-8-sig"))
         pids = st.get("pids") or {}
-        dead = [lab for lab in missing if lab in pids and not _alive(int(pids[lab]))]
+        dead = [
+            lab for lab in missing
+            if not _label_alive(lab) and not (lab in pids and _alive(int(pids[lab])))
+        ]
         if dead:
             fail(f"{n}v{n} exited without a sealed record: {dead}")
         if any(_partial_stale(lab) for lab in missing):
@@ -478,7 +500,13 @@ def main() -> int:
         frozen = spec["SYSTEMS_locked"][f"{scale['n']}v{scale['n']}"]["seed_ids"]
         if ids != [int(s) for s in frozen]:
             fail(f"{scale['n']}v{scale['n']} spec seed_ids differ from the sealed own-TOP50 list")
-    for n in (int(x) for x in spec["LAUNCH"]["order"]):
+    active = [2, 4]
+    if "--include-6v6" in sys.argv:
+        active = [2, 4, 6]
+    else:
+        log("6v6 deferred (user 2026-10-07); frozen spec unchanged, no 6v6 episodes")
+    state(status="RUNNING", active_scales=active)
+    for n in active:
         if done(f"sealed_{n}v{n}"):
             log(f"{n}v{n} already sealed; skipping")
             continue
@@ -508,8 +536,12 @@ def main() -> int:
         wait_scale(n, cmds)
         write_readout(n, spec)
         state(step=f"sealed_{n}v{n}", status=f"{n}v{n}_SEALED")
-    state(status="ALL_SCALES_SEALED", step="all_scales_sealed")
-    log("TOP50 noise diagnostic: 2v2, 4v4, and 6v6 sealed")
+    if active == [2, 4, 6]:
+        state(status="ALL_SCALES_SEALED", step="all_scales_sealed")
+        log("TOP50 noise diagnostic: 2v2, 4v4, and 6v6 sealed")
+    else:
+        state(status="2V2_AND_4V4_SEALED", step="stopped_after_4v4")
+        log("TOP50 noise diagnostic: 2v2 and 4v4 sealed. 6v6 not started.")
     return 0
 
 
