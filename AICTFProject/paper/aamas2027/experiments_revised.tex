@@ -5,11 +5,9 @@
 \section{Experimental Evaluation}
 \label{sec:experiments}
 
-\ADcomment{KB, add your draft description of the results with the key numbers
-(mean + std) in latex tables. I will take it from there. This includes baseline
-numbers as well as numbers for cases with different types of noises with 2v2,
-4v4 and 6v6. Claude can easily create those latex tables with proper captions +
-implications of the results.}
+% AD request (draft description + tables) addressed below. Primary specialization
+% numbers are the sealed dual-branch matched-128 evaluations (same as
+% experiments.tex Table~\ref{tab:main_specialization}).
 
 The evaluation asks three questions:
 \begin{enumerate}
@@ -29,9 +27,10 @@ mean, and confidence intervals are shown in the figures.
 
 \begin{table}[t]
 \centering
-\caption{Specialization of the role-allocated system. Mean $\pm$ std across
-128 confirmatory seeds. Positive $\Delta_A$ and $\Delta_B$ mean each strategy
-beats the other on its own regime.}
+\caption{Specialization of the symmetric dual-branch method. Mean $\pm$ std
+across matched-128 seeds. Positive $\Delta_A$ and $\Delta_B$ together mean
+each strategy beats the other on its own regime. Role rule
+$k=\lceil N/3\rceil$.}
 \label{tab:main_specialization}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -39,9 +38,9 @@ beats the other on its own regime.}
 \hline
 Team size & $\Delta_A$ & $\Delta_B$ \\
 \hline
-2v2 & $+0.117 \pm 0.749$ & $+0.539 \pm 0.546$ \\
-4v4 & $+0.156 \pm 0.657$ & $+0.406 \pm 0.620$ \\
-6v6 & $+0.062 \pm 0.411$ & $+0.117 \pm 0.346$ \\
+2v2 & $+0.156 \pm 0.657$ & $+0.422 \pm 0.496$ \\ % POSTHOC_MATCHED128_2V2_DUAL_BRANCH
+4v4 & $+0.195 \pm 0.722$ & $-0.086 \pm 0.333$ \\ % POSTHOC_MATCHED128_4V4_DUAL_BRANCH
+6v6 & $-0.062 \pm 0.498$ & $+0.578 \pm 0.527$ \\ % POSTHOC_MATCHED128_6V6_DUAL_BRANCH
 \hline
 \end{tabular}
 \end{table}
@@ -59,21 +58,20 @@ intervals over 128 seeds.}
 \label{fig:crossover}
 \end{figure}
 
-Both effects are positive in mean at 2v2 under the symmetric dual-branch
-method (Table~\ref{tab:main_specialization} of \texttt{experiments.tex}):
-\(\Delta_A=+0.156\), \(\Delta_B=+0.422\). At 4v4 the same method gives
-\(\Delta_A=+0.195\), \(\Delta_B=-0.086\); at 6v6,
-\(\Delta_A=-0.062\), \(\Delta_B=+0.578\). Only 2v2 meets the two-sided
-complementarity criterion. Historical asymmetric table rows
-(\(\Delta_B=+0.406\) at 4v4) are provenance only and are not the method.
-At 6v6 the binary effects are smaller (\(+0.062\), \(+0.117\)), largely
-because every evaluated system wins 0.86--0.98 of 6v6 games, which leaves
-little room for win/loss outcomes to differ. On score margin, which is not
-capped in this way, the 6v6 strategies separate clearly: the
-intended-direction margin advantage is \(+0.812\) on Pole~A and \(+0.734\)
-on Pole~B, with both bootstrap intervals above zero
-(Figure~\ref{fig:margin}). An earlier sealed
-\(n=64\) exploratory 6v6 evaluation showed the same pattern.
+Under the symmetric dual-branch method (Table~\ref{tab:main_specialization}),
+only 2v2 meets the two-sided complementarity criterion:
+\(\Delta_A=+0.156\) (95\% CI \([+0.047,+0.266]\)) and
+\(\Delta_B=+0.422\) (\([+0.336,+0.508]\)).
+At 4v4 the method keeps an A-side advantage
+(\(\Delta_A=+0.195\), CI \([+0.070,+0.320]\)) but fails on Pole~B
+(\(\Delta_B=-0.086\), CI \([-0.148,-0.031]\)).
+At 6v6 the pattern is inverted: Pole~B is strong
+(\(\Delta_B=+0.578\), CI \([+0.484,+0.672]\)) while Pole~A is not established
+(\(\Delta_A=-0.062\), CI \([-0.148,+0.023]\)).
+Historical asymmetric constructions (e.g.\ 4v4 \(\Delta_B=+0.406\), or the
+older 6v6 confirmatory \(+0.062/+0.117\)) are provenance only and are not
+the method claim. Score-margin differences on the same matched-128 seeds
+tell the same directional story (Figure~\ref{fig:margin}).
 
 \begin{figure}[t]
 \centering
@@ -99,9 +97,11 @@ preregistered criterion.
 \begin{table}[t]
 \centering
 \caption{Worst-pole specialization $\min(\Delta_A,\Delta_B)$ (mean, 128 seeds
-per arm). Negative values mean one strategy dominates the other on both
-regimes. Ours is the only system that is positive at every team size, and the
-highest at every team size.}
+per arm). Negative values mean one strategy dominates on both regimes.
+\textbf{Ours} is the sealed dual-branch matched-128 row
+(Table~\ref{tab:main_specialization}): only 2v2 is two-sided positive.
+Baseline rows are historical constructions for comparison and are not the
+method claim.}
 \label{tab:scorecard}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
@@ -112,7 +112,7 @@ Method & 2v2 & 4v4 & 6v6 \\
 Specialists (no roles) & $-0.055$ & $-0.156$ & $+0.031$ \\
 Share-Encoder          & $+0.070$ & $-0.156$ & $+0.039$ \\
 Fully Shared+$z$       & $+0.063$ & $-0.109$ & $+0.008$ \\
-Ours (heuristic roles) & $\mathbf{+0.117}$ & $\mathbf{+0.156}$ & $\mathbf{+0.062}$ \\
+Ours (dual-branch)     & $\mathbf{+0.156}$ & $-0.086$ & $-0.062$ \\
 \hline
 \end{tabular}
 \end{table}
@@ -126,7 +126,8 @@ intervals over 128 seeds. Moving right means Strategy~A is increasingly
 preferred on Pole~A; moving up means Strategy~B is increasingly preferred
 on Pole~B. Only the upper-right quadrant $(\Delta_A>0,\Delta_B>0)$ is
 shaded: both strategies are then useful for their intended opponent.
-Ours (black) lies in that quadrant at every team size. The 4v4 baselines
+Under the dual-branch method, only 2v2 Ours lies in that quadrant; 4v4 and
+6v6 fail one pole (Table~\ref{tab:main_specialization}). The 4v4 baselines
 fall into the lower-right quadrant because their Pole-A strategy dominates
 on both poles ($\Delta_B<0$).}
 \label{fig:complementarity}
@@ -154,16 +155,16 @@ copy the structure of their source policies, including the dominance.
 \paragraph{Role organization creates the missing distinction.}
 Committing \(k\) defenders turns the Pole-A strategy into an explicit
 attack-heavy posture that is strong on Pole~A and weak on Pole~B, which is
-exactly what makes the choice of strategy matter
-(Table~\ref{tab:role_baseline_comparison}).
-At 2v2 (matched seeds), \(\Delta_B\) rises from \(-0.055\) to \(+0.523\), and
-the Pole-A strategy's win rate on Pole~B falls from \(0.648\) to \(0.070\).
-At 4v4, \(\Delta_B\) changes from \(-0.156\) to \(+0.406\), and the Pole-A
-win rate on Pole~B falls from \(0.742\) to \(0.102\) (separate seed blocks;
+exactly what makes the choice of strategy matter. Under historical
+asymmetric role diagnostics (Table~\ref{tab:role_baseline_comparison};
+provenance, not the dual-branch claim), at 2v2 (matched seeds)
+\(\Delta_B\) rises from \(-0.055\) to \(+0.523\), and the Pole-A strategy's
+win rate on Pole~B falls from \(0.648\) to \(0.070\). At 4v4,
+\(\Delta_B\) changes from \(-0.156\) to \(+0.406\) (separate seed blocks;
 descriptive). At 6v6 (matched seeds), \(\Delta_B\) rises from \(+0.031\) to
-\(+0.117\); the paired change is \(+0.086\) with 95\% interval
-\([+0.023,+0.148]\), and the Pole-A win rate on Pole~B falls from \(0.945\)
-to \(0.859\).
+\(+0.117\). The sealed dual-branch method of
+Table~\ref{tab:main_specialization} is the primary claim: two-sided
+complementarity at 2v2 only.
 
 \begin{table}[t]
 \centering

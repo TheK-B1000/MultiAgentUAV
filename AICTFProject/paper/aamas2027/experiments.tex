@@ -8,11 +8,9 @@
 \section{Experimental Evaluation}
 \label{sec:experiments}
 
-\ADcomment{KB, add your draft description of the results with the key numbers
-(mean + std) in latex tables. I will take it from there. This includes baseline
-numbers as well as numbers for cases with different types of noises with 2v2,
-4v4 and 6v6. Claude can easily create those latex tables with proper captions +
-implications of the results.}
+% AD request (draft description + tables) addressed below: sealed dual-branch
+% matched-128 specialization, historical baseline/noise provenance tables, and
+% takeaways. All filled numbers re-derived from sealed per-seed rows.
 
 \subsection{Specialization Across Team Sizes}
 
@@ -20,11 +18,13 @@ The Experimental Evaluation reports one method at three team sizes:
 \[
 \text{same symmetric dual-branch method}\ \rightarrow\ 2\mathrm{v}2,\;4\mathrm{v}4,\;6\mathrm{v}6.
 \]
-Same A/B treatment, same training recipe and budget, same ATTACK/DEFEND
-construction, same role rule \(k=\lceil N/3\rceil\)
-(\(k=1,2,2\) at \(N=2,4,6\)), and the same crossover test. No candidate
-selection, no alternative role menu, and no historical asymmetric rescue
-enters this claim.
+Poles~A and~B are treated symmetrically (same recipe, budget, role rule
+\(k=\lceil N/3\rceil\) with \(k=1,2,2\) at \(N=2,4,6\), and the same
+crossover test). Within each pole, ATTACK and DEFEND are jointly trained in
+one shared 200\,k rollout: both branches receive PPO; DEFEND alone has an
+extra temporary supervised scaffold. Leaving ATTACK frozen is an ablation,
+not this method. No candidate selection, no alternative role menu, and no
+historical asymmetric rescue enters this claim.
 
 For each team size we report \(\Delta_A\) and \(\Delta_B\), the mean
 advantage of each strategy on its own regime. Positive values on
@@ -235,13 +235,14 @@ Team size & Method & $\Delta_A$ & $\Delta_B$ \\
 \end{table}
 
 At 2v2, both distilled students retain positive mean specialization, but the
-effects are much smaller than for the role-allocated system in
-Table~\ref{tab:main_specialization} ($\Delta_A=+0.117$, $\Delta_B=+0.539$).
+effects are much smaller than for the dual-branch teachers in
+Table~\ref{tab:main_specialization} ($\Delta_A=+0.156$, $\Delta_B=+0.422$).
 Share-Encoder reaches $\Delta_A=+0.125$ and $\Delta_B=+0.070$; Fully Shared+$z$
-reaches $\Delta_A=+0.078$ and $\Delta_B=+0.062$. Relative to the separated
-system, the main loss is on Pole~B: sharing preserves a weak intended-direction
-signal, but does not recover the large $\Delta_B$ of the role-allocated
-specialists.
+reaches $\Delta_A=+0.078$ and $\Delta_B=+0.062$. Relative to those teachers,
+the main loss is on Pole~B: sharing preserves a weak intended-direction
+signal, but does not recover the large $\Delta_B$ of the dual-branch system.
+(Historical asymmetric role-allocated rows elsewhere in this section remain
+provenance only and are not the method claim.)
 
 At 4v4 the distilled students reproduce their teachers, the no-role specialists
 ($\Delta_A=+0.273$, $\Delta_B=-0.156$): Share-Encoder reaches $+0.281$ /

@@ -63,12 +63,14 @@ applicable, and the same evaluation seeds.
   observation encoder (with private strategy bodies) or sharing all weights
   and receiving \(z\) as an input. These arms test whether specialization
   survives that compression when strategy identity remains available.
-  \item \textbf{Ours (heuristic roles)}: the specialists plus explicit team
-  organization. A deterministic rule, CLOSEST\_DEFENDS(\(k\)), assigns the
-  \(k\) living agents nearest their own flag to DEFEND for the whole episode
-  and the remaining agents to ATTACK (\(k=1\) at 2v2 and 6v6, \(k=2\) at 4v4).
-  The Pole-A strategy then runs a committed ATTACK/DEFEND split, while the
-  Pole-B strategy is the Pole-B specialist.
+  \item \textbf{Ours (dual-branch)}: Poles~A and~B are treated symmetrically.
+  A deterministic rule, CLOSEST\_DEFENDS(\(k\)), assigns the \(k\) living
+  agents nearest their own flag to DEFEND for the whole episode and the
+  remaining agents to ATTACK, with \(k=\lceil N/3\rceil\)
+  (\(k=1,2,2\) at \(N=2,4,6\)). ATTACK and DEFEND are jointly trained under
+  that shared organization (Section~\ref{sec:method-ppo}): both branches
+  receive on-policy PPO; DEFEND additionally receives a temporary supervised
+  scaffold. Leaving ATTACK frozen is an ablation, not this method.
 \end{itemize}
 
 \begin{table}[t]
@@ -96,12 +98,29 @@ isolates explicit strategy conditioning under matched teachers and data.
 \subsection{Training the specialists}
 \label{sec:method-ppo}
 
-Specialists are trained with an in-house multi-agent PPO implementation
-(\texttt{rl/custom\_ppo/}): decentralized actors with weights shared across
-the agents of a team, acting from local observations (an occupancy grid
-processed by a CNN plus a scalar feature vector), and a centralized critic
-used only during training. Advantages use GAE. Strategy-anchored SA-PPO is
-disabled for every suite teacher.
+\paragraph{PPO specialist training.}
+Each opponent-specific specialist is trained with centralized training and
+decentralized execution (CTDE) using an in-house PPO multi-agent learner
+(\texttt{rl/custom\_ppo/}). Blue agents share a single actor; a centralized
+value function is used only during training. The actor receives a
+\(7{\times}20{\times}20\) semantic observation grid, a \(20\)-dimensional
+scalar feature vector, and action-validity masks, and outputs a factorized
+\(\mathrm{MultiDiscrete}([5,50])\) action (macro-action and waypoint). The
+actor is a three-layer CNN (channels \(32\!\to\!64\!\to\!64\)) followed by a
+\(256\)--\(256\) MLP; the critic maps a \(34\)-dimensional global state to
+\(V(s)\). Training uses generalized advantage estimation with
+\(\gamma=0.995\) and \(\lambda=0.99\), together with a shared shaped team
+reward that combines terminal outcome (\(+1/-1/-0.5\) for win/lose/draw),
+dense task progress (weight \(0.25\); PBRS coefficients \(0.5\) with
+PBRS \(\gamma=0.995\); small team presence terms \(0.03/0.02/0.02\)),
+event rewards (flag pickup \(0.1\), carry-home \(0.5\); sparse capture
+\(\pm100\) points scaled by \(1/100\); tag/kill and opponent-OOB event
+rewards zeroed for specialists), and penalties (failed commit \(-0.004\),
+own OOB \(-70\) points, stalemate \(-0.08\), spin/idle coefficients
+\(0.05/0.03\)), followed by \(\tanh(\cdot/4)\) and clipping to
+\([-1,1]\). Strategy-anchored SA-PPO is disabled for every suite teacher.
+Each base specialist is trained exclusively against its associated opponent
+regime for approximately \(10^6\) environment steps.
 
 The same lineage is applied at every team size; only \(N\), \(k\), seeds,
 and tensor sizes that follow from \(N\) differ:
@@ -112,12 +131,16 @@ and tensor sizes that follow from \(N\) differ:
   (\texttt{entity\_residual.py}). It is bias-free, so
   \(g(\emptyset,\emptyset)=0\) exactly and the original observation pathway
   is unchanged.
-  \item \textbf{Defender stage} (200\,k steps, Ours only): with
-  CLOSEST\_DEFENDS active, DEFEND agents are additionally trained to imitate a
-  scripted defensive controller (cross-entropy on macro-action and waypoint,
-  weight annealed \(0.1\to0\) over 50\,k--150\,k steps;
-  \texttt{defend\_teacher.py}), while ATTACK agents execute a frozen copy of
-  the Pole-A specialist.
+  \item \textbf{Dual-branch stage} (200\,k joint steps, applied symmetrically
+  to A and to B): both \(\pi^{\mathrm{ATTACK}}_s\) and
+  \(\pi^{\mathrm{DEFEND}}_s\) are warm-started from the same foundation
+  specialist and updated in one shared rollout under CLOSEST\_DEFENDS.
+  ATTACK-assigned ticks update only the ATTACK network with standard PPO;
+  DEFEND-assigned ticks update only the DEFEND network with the same PPO
+  plus a temporary N-prime supervised scaffold (cross-entropy on
+  macro-action and waypoint, weight annealed \(0.1\to0\) over
+  50\,k--150\,k steps; \texttt{defend\_teacher.py}). ATTACK is not frozen;
+  the scaffold is DEFEND-only and temporary.
 \end{enumerate}
 
 \subsection{Building the distillation-family baselines}
@@ -136,11 +159,20 @@ students minimize
 =\tfrac12\,\mathrm{KL}\!\big(\pi_A(\cdot\mid o)\,\|\,\pi(\cdot\mid o,z_A)\big)
 +\tfrac12\,\mathrm{KL}\!\big(\pi_B(\cdot\mid o)\,\|\,\pi(\cdot\mid o,z_B)\big)
 \]
-on decision-eligible action heads; the Generalist uses the same mixture of
-targets but with a single unconditioned student \(\pi_G(\cdot\mid o)\) (no
-\(z\)). The optimization recipe is identical for every arm (Adam, learning
-rate \(3\times10^{-4}\), batch 256, 20 epochs, gradient-norm clip 1, actor
-parameters only, final weights kept, no checkpoint selection). At evaluation,
+on decision-eligible action heads; the Generalist (and Role-only) use the same
+mixture of targets but with a single unconditioned student \(\pi(\cdot\mid o)\)
+(no \(z\)). For every retained observation, a strategy-conditioned student is
+evaluated under both \(z_0\) and \(z_1\), so parameters shared across modes
+receive gradients from both teacher terms, while any mode-specific parameters
+are updated only through their corresponding term. Student actors are
+initialized independently of the teachers (fresh weights; architecture copied
+from the Pole-A teacher), so transfer must arise from the distillation signal
+rather than weight inheritance. The optimization recipe is identical for every
+arm: Adam with learning rate \(3\times10^{-4}\) and weight decay \(0\),
+minibatch size \(256\) stratified as half Pole-A and half Pole-B origin rows
+per update (permutation seeded by the arm's training seed), \(20\) epochs,
+gradient-norm clip \(1\) on actor parameters only (critic frozen), and terminal
+weights kept with no checkpoint selection. At evaluation,
 Share-Encoder and Fully Shared+\(z\) receive a forced \(z\); the role rule is
 not re-applied, so \(z\) is their only strategy signal. The Generalist has no
 \(z\) pathway.

@@ -1,0 +1,152 @@
+{
+  "record": "TOP50_4V4_STAGE4_SHARE_ENCODER crossover EVAL",
+  "one_shot": true,
+  "utc": "2026-10-06T00:53:24Z",
+  "arm": "SEALED_CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "STANDARDIZED_4V4_STAGE4_SHARING_EVAL_SPEC.json#EVALUATION",
+  "suite_arm": "share_encoder",
+  "team_size": 4,
+  "device": "cuda",
+  "checkpoint": "artifacts\\strategic_demand\\sppo\\suite_sharing_std\\4v4_stage4\\share_encoder\\ckpts\\final_share_encoder_4v4.pt",
+  "checkpoint_sha256": "46d3faf93c96891dd41984459b181c4ef4a37805759395ff5216740a54ec7abe",
+  "seeds": {
+    "block": [
+      21800001,
+      21800128
+    ],
+    "n": 50,
+    "shared_across_z_and_poles": true,
+    "seed_class": "sealed_confirmatory",
+    "registry_experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_EVAL",
+    "shared_by_labels": null,
+    "seed_ids": [
+      21800002,
+      21800003,
+      21800006,
+      21800007,
+      21800008,
+      21800009,
+      21800010,
+      21800011,
+      21800012,
+      21800015,
+      21800016,
+      21800019,
+      21800020,
+      21800022,
+      21800026,
+      21800028,
+      21800029,
+      21800031,
+      21800032,
+      21800033,
+      21800035,
+      21800036,
+      21800037,
+      21800039,
+      21800040,
+      21800041,
+      21800042,
+      21800044,
+      21800046,
+      21800047,
+      21800049,
+      21800052,
+      21800056,
+      21800057,
+      21800058,
+      21800059,
+      21800060,
+      21800061,
+      21800067,
+      21800073,
+      21800074,
+      21800075,
+      21800076,
+      21800078,
+      21800080,
+      21800081,
+      21800082,
+      21800085,
+      21800105,
+      21800113
+    ],
+    "post_hoc": {
+      "primary_record": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "block_status_unchanged": true
+    }
+  },
+  "poles": {
+    "A": {
+      "policy": "A",
+      "team_size": 4,
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "lock_defender": null,
+      "enable_2v1": null,
+      "min_alive_for_defender": 4
+    },
+    "B": {
+      "policy": "B",
+      "team_size": 4,
+      "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "base_opponent": "OP7",
+      "overlay": {
+        "enable_2v1": true,
+        "lock_defender": 10,
+        "min_alive_for_defender": 4
+      },
+      "opening_hold_steps": 0,
+      "pole_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "lock_defender": 10,
+      "enable_2v1": true,
+      "min_alive_for_defender": 4
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.18,
+      "lcb95": -0.02,
+      "ucb95": 0.38,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": -0.08,
+      "lcb95": -0.18,
+      "ucb95": 0.0,
+      "passes": false
+    },
+    "passes": false
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 200,
+  "claim_boundary": "",
+  "integrity_flag": "artifacts\\strategic_demand\\sppo\\TOP50_4V4_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+  "status": "SEALED",
+  "sealed_utc": "2026-10-06T00:53:26Z",
+  "git_sha": "c19458539d8baf6503f947b648ab03c30ae67c65",
+  "AUDIT": {
+    "path": "TOP50_4V4_STAGE4_SHARE_ENCODER_CROSSOVER_EVAL_AUDIT.json",
+    "passed": true,
+    "n_checks": 13,
+    "n_gating": 11,
+    "failed_checks": [],
+    "rows_sha256": "0083b7365e98b17dabb14e143159605168c6dacd01750cd138173080f09be7d3"
+  }
+}

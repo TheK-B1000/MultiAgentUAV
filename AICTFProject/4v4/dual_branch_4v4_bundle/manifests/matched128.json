@@ -1,0 +1,10 @@
+{
+  "step": "matched128",
+  "utc": "2026-10-05T18:58:35Z",
+  "status": "COMPLETE",
+  "team_size": 4,
+  "k_defend": 2,
+  "label": "PRIMARY_STAGE3",
+  "stops_the_chain": false,
+  "note": "sealed earlier outside this driver (POSTHOC_MATCHED128_4V4_DUAL_BRANCH result, readout in dual_branch_v1/matched128_4v4); manifest written at resume so the driver does not rewrite the frozen matched-128 spec"
+}

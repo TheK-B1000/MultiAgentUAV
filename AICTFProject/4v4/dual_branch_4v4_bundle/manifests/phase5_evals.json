@@ -1,0 +1,8 @@
+{
+  "step": "phase5_evals",
+  "utc": "2026-10-06T05:36:48Z",
+  "status": "COMPLETE",
+  "team_size": 4,
+  "k_defend": 2,
+  "stops_the_chain": false
+}

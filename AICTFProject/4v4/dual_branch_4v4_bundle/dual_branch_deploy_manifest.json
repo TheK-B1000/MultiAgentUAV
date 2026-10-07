@@ -1,0 +1,24 @@
+{
+  "architecture": "DUAL_BRANCH_ROLE_COMPOSITE_V1",
+  "team_size": 4,
+  "k_defend": 2,
+  "diagnostic": true,
+  "confirmatory": false,
+  "note": "ATTACK zips are trained branches exported from the dual-branch finals, not the 1M foundations.",
+  "pi_A_defend": {
+    "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/final_pi_A_specialist_4v4_dual_branch_v1.zip",
+    "sha256": "e51a667f2b8bd7cffa9d7bc31ec2b3d370a89782a24dd6da64f2af4f777bc695"
+  },
+  "pi_A_attack": {
+    "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/attack_pi_A_specialist_4v4_dual_branch_v1.zip",
+    "sha256": "591f12d52cfc5def26178a3e1cfa9585d98df9224537e16f1e48ef9b69dbe74a"
+  },
+  "pi_B_defend": {
+    "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/final_pi_B_specialist_4v4_dual_branch_v1.zip",
+    "sha256": "e0eeccc0b3e7191cc78943dcc9b2cb141213656d07fd07c477b0bd57fa09d9a7"
+  },
+  "pi_B_attack": {
+    "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/attack_pi_B_specialist_4v4_dual_branch_v1.zip",
+    "sha256": "826e50ed6d1b7ffe4ba6572594290e282d5067680d84d43af55c0e76d046a8a4"
+  }
+}

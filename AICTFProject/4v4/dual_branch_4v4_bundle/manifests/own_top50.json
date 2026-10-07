@@ -1,0 +1,10 @@
+{
+  "step": "own_top50",
+  "utc": "2026-10-05T18:58:35Z",
+  "status": "COMPLETE",
+  "team_size": 4,
+  "k_defend": 2,
+  "label": "SECONDARY_DESCRIPTIVE",
+  "stops_the_chain": false,
+  "note": "DUAL_BRANCH_4V4_OWN_TOP50 written 2026-10-05 with the driver's own select_own_top50 command (commit dd4747b8)"
+}

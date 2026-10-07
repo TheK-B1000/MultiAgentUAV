@@ -1,0 +1,163 @@
+{
+  "record_id": "STANDARDIZED_4V4_STAGE4_SHARING_SPEC",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "utc": "2026-10-05T21:43:07Z",
+  "classification": "DIAGNOSTIC Stage-4 sharing ladder under dual-branch teachers. Not PAPER-FAITHFUL.",
+  "decided_by": "PI via STAGE4_SHARING_INTERPRETATION_V1.json + STAGE4_4V4_FULL_SUITE_SPEC.json",
+  "scope": "4v4 Stage-4 family. Teachers = dual-branch composites; arms = Share-Encoder, Fully Shared+z+r, Role-only.",
+  "THE_QUESTION": "On one frozen 4v4 teacher-state set, with the same teachers, objective and budget, how much of the Separated system's specialization survives when the strategies share an encoder (Share-Encoder), share the whole network with a strategy ID (Fully Shared+z), or share the whole network with no strategy ID (Generalist)?",
+  "SCALE": {
+    "N": 4,
+    "k_defend": 2,
+    "allocator": "CLOSEST_DEFENDS, fixed_for_episode, hold_ticks_H_r=8"
+  },
+  "ARM_ORDER": [
+    "share_encoder",
+    "fully_shared",
+    "role_only"
+  ],
+  "ARM_ORDER_rule": "an arm may launch only after every earlier arm has written STUDENT_FROZEN.json; preflight is exempt",
+  "DATASET_locked": {
+    "manifest": "artifacts/strategic_demand/sppo/SUITE_DISTILLATION_4V4_STAGE4_DATASET.json",
+    "manifest_sha256": "a82c9bab6e4d66722bab60d3b682663b89558203aac34da7260848a6eec1ca64",
+    "content_sha256": "4da61c99a2f08e523521a3174a06d24e188ccf85b4fa4678347512576c6e78c3",
+    "content_sha256_definition": "sha256 of the sorted lines '<shard file>\\t<sha256 of shard bytes>' over every shard the manifest lists",
+    "status_required": "FROZEN_DATASET",
+    "collected_at": "27e60eb61bd64ae91f43382845fd9d9ddf18e2eb",
+    "decision_rows": 41700,
+    "audit_record": "artifacts/strategic_demand/sppo/SUITE_DATASETS_STAGE4_AUDIT_4V4.json",
+    "audit_required": "GREEN on disk AND a live re-run of this dataset's per-scale audit (audit_one) passes every check at preflight",
+    "same_for_every_arm": true
+  },
+  "TEACHERS_locked": {
+    "mode": "dual_branch_role_gated",
+    "pi_A": {
+      "defend": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/final_pi_A_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "e51a667f2b8bd7cffa9d7bc31ec2b3d370a89782a24dd6da64f2af4f777bc695"
+      },
+      "attack": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_dual_branch_v1/ckpts/attack_pi_A_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "591f12d52cfc5def26178a3e1cfa9585d98df9224537e16f1e48ef9b69dbe74a"
+      }
+    },
+    "pi_B": {
+      "defend": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/final_pi_B_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "e0eeccc0b3e7191cc78943dcc9b2cb141213656d07fd07c477b0bd57fa09d9a7"
+      },
+      "attack": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_dual_branch_v1/ckpts/attack_pi_B_specialist_4v4_dual_branch_v1.zip",
+        "sha256": "826e50ed6d1b7ffe4ba6572594290e282d5067680d84d43af55c0e76d046a8a4"
+      }
+    },
+    "must_equal": "the dataset manifest's teachers block"
+  },
+  "POLES_locked": {
+    "A": {
+      "pole_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85"
+    },
+    "B": {
+      "pole_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e"
+    },
+    "must_equal": "the dataset manifest's poles AND a fresh resolution through experiments/pole_attestation.py (checked by the live audit)"
+  },
+  "RECIPE_locked": {
+    "loss": "0.5*KL(pi_A||pi(.|o,z0)) + 0.5*KL(pi_B||pi(.|o,z1)), decision-eligible heads only",
+    "optimizer": "Adam",
+    "lr": 0.0003,
+    "weight_decay": 0.0,
+    "batch": 256,
+    "epochs": 20,
+    "grad_clip_norm": 1.0,
+    "parameters_trained": "actor only; critic frozen (requires_grad False, no gradient, not stepped)",
+    "early_stopping": false,
+    "weights_kept": "terminal only",
+    "fit_floor": "holdout agreement >= 0.50 on both z (status FIT_FAILED otherwise; the student is still frozen and reported)"
+  },
+  "SPLIT_AND_SAMPLING_locked": {
+    "holdout": "episode % 10 == 9, per pole (episodes 9,19,...,89 of each pole)",
+    "rows": {
+      "train_pole_A": 18159,
+      "train_pole_B": 19674,
+      "holdout": 3867
+    },
+    "sampling": "every batch half Pole A rows, half Pole B rows (run_teacher_distillation.Batches), permutation seeded by the arm's training seed",
+    "same_for_every_arm": true
+  },
+  "ARMS_locked": {
+    "share_encoder": {
+      "label": "Share-Encoder",
+      "builder": "rl/ladder_rung1.py::build_rung1",
+      "shared": "actor_cnn only, tied by module identity",
+      "private_per_z": [
+        "latent_actor.body",
+        "latent_actor.action_head",
+        "critic.*"
+      ],
+      "branch_arch": "the specialists' own architecture (from KL teacher pi_A)",
+      "init": "fresh; seeds 27201001..27201002",
+      "seed_block": "STAGE4_4V4_SHARE_ENCODER_TRAINING",
+      "role_conditioning": true,
+      "arch_source": "pi_A_defend (dual-branch)"
+    },
+    "fully_shared": {
+      "label": "Fully Shared+z+r",
+      "builder": "rl/suite_fully_shared_distill.py::build_fully_shared_student(role_conditioning=True)",
+      "policy": "pi(a | o, z, r)",
+      "seed_block": "STAGE4_4V4_FULLY_SHARED_ZR_TRAINING",
+      "init": "fresh; seeds 27301001..27301001"
+    },
+    "role_only": {
+      "label": "Role-only",
+      "builder": "rl/suite_fully_shared_distill.py::build_role_only_student",
+      "policy": "pi(a | o, r)",
+      "seed_block": "STAGE4_4V4_ROLE_ONLY_TRAINING",
+      "init": "fresh; seeds 27401001..27401001",
+      "controlled_difference_vs_fully_shared": "z removed"
+    }
+  },
+  "SEEDS_locked": {
+    "training": {
+      "STAGE4_4V4_SHARE_ENCODER_TRAINING": "27201001..27201002",
+      "STAGE4_4V4_FULLY_SHARED_ZR_TRAINING": "27301001..27301001",
+      "STAGE4_4V4_ROLE_ONLY_TRAINING": "27401001..27401001"
+    },
+    "evaluation": {
+      "mode": "POST-HOC on dual-branch own top-50 seeds when matched128/DUAL_BRANCH_4V4_OWN_TOP50_seed_ids.json exists; else historical Ours top-50 provenance fallback (STANDARDIZED_4V4_STAGE4_SHARING_EVAL_SPEC.json); no fresh evaluation block"
+    },
+    "all_must_be": "training blocks registered and RESERVED at preflight"
+  },
+  "OUTPUTS": {
+    "root": "artifacts/strategic_demand/sppo/suite_sharing_std/4v4_stage4/<arm tag>/"
+  },
+  "FORBIDDEN_INPUTS": [
+    "artifacts/strategic_demand/sppo/SUITE_DISTILLATION_4V4_DATASET.json (invalidated: wrong Pole B)",
+    "any student or result under artifacts/strategic_demand/sppo/suite_sharing/ (invalidated 4v4 and legacy 2v2)",
+    "SUITE_SHARE_*_4V4_CONSTRUCTION_AMENDMENT.json seeds (spent on the invalidated dataset)"
+  ],
+  "PREFLIGHT_REQUIRED": [
+    "this spec FROZEN; the arm is in ARM_ORDER",
+    "dataset manifest sha256 and content sha256 equal the pins; status FROZEN_DATASET",
+    "audit record GREEN and live re-audit of this dataset passes every check (pole identities vs certification, teacher pins, shards, k=1, N=2)",
+    "teacher checkpoints on disk equal TEACHERS_locked and the manifest's teachers",
+    "N=2, k_defend=1 from the manifest",
+    "scientific tree clean (experiments/ rl/ gpu_env/ configs/ root *.py)",
+    "the arm's training block and the evaluation block registered and RESERVED",
+    "recipe constants in the runner equal RECIPE_locked",
+    "split row counts equal SPLIT_AND_SAMPLING_locked",
+    "no forbidden input is read (dataset path resolves to DATASET_locked.manifest)",
+    "architecture checks per arm (existing): shared/private identity + arithmetic, z changes logits (sharing arms) / z has no pathway (generalist), fresh init, teacher self-KL 0, finite positive loss, gradient on actor only, round-trip"
+  ],
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "Generalist pi(a|o) as a Stage-4 rung",
+    "foundation specialists as teachers",
+    "claiming confirmatory or PAPER-FAITHFUL status"
+  ],
+  "derived_from": "STANDARDIZED_4V4_SHARING_SPEC.json",
+  "LAUNCH": {
+    "share_encoder": ".venv/Scripts/python.exe experiments/run_suite_sharing_distillation.py --arm share_encoder --team-size 4 --spec-tag STAGE4 --device cuda",
+    "fully_shared": ".venv/Scripts/python.exe experiments/run_suite_sharing_distillation.py --arm fully_shared --team-size 4 --spec-tag STAGE4 --device cuda",
+    "role_only": ".venv/Scripts/python.exe experiments/run_suite_sharing_distillation.py --arm role_only --team-size 4 --spec-tag STAGE4 --device cuda"
+  }
+}

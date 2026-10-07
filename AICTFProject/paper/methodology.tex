@@ -311,10 +311,21 @@ and no strategy-code mechanism. PPO's role here is only to produce behavioral
 experts with demonstrated complementary payoff specialization; it is not the
 claimed algorithmic novelty. These experts are the teachers for distillation and
 the verbatim actors behind Share-0.
+Training uses CTDE: blue agents share a single decentralized actor, while a
+centralized critic $V(s)$ over the $34$-dimensional global state is used only
+during training. Advantages use GAE with $\gamma=0.995$ and $\lambda=0.99$.
+The shared shaped team reward combines terminal outcome ($+1/-1/-0.5$ for
+win/lose/draw), dense task progress (weight $0.25$; PBRS coefficients $0.5$),
+event rewards (flag pickup $0.1$, carry-home $0.5$; sparse capture $\pm100$
+points scaled by $1/100$; tag/kill and opponent-OOB event rewards zeroed for
+specialists), and penalties (failed commit $-0.004$, own OOB $-70$ points,
+stalemate $-0.08$), followed by $\tanh(\cdot/4)$ clipping to $[-1,1]$.
+Each base specialist is trained for approximately $10^6$ environment steps
+against its regime.
 The complete policy-network architecture used for the experts is a non-recurrent
 decentralized actor with weights shared across blue agents.
 Each local observation comprises a $7{\times}20{\times}20$ channels-first grid and a
-$20$-dimensional scalar feature vector.
+$20$-dimensional scalar feature vector, with action-validity masks.
 A three-layer CNN encoder (channels $32\!\to\!64\!\to\!64$, $3{\times}3$ kernels,
 stride~$1$, padding~$1$, ReLU after each convolution) followed by a linear
 projection yields a $128$-dimensional visual feature; concatenating the scalar
