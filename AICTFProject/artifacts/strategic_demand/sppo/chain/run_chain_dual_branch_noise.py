@@ -323,6 +323,16 @@ def _partial_stale(label: str) -> bool:
     return partial.is_file() and time.time() - partial.stat().st_mtime > STALE_PARTIAL_S
 
 
+def checkpoints_present(spec: dict, n: int) -> list[str]:
+    info = spec["SYSTEMS_locked"][f"{n}v{n}"]
+    missing = []
+    for key in ("pi_A_defend", "pi_A_attack", "pi_B_defend", "pi_B_attack"):
+        rel = info[key]["path"]
+        if not (ROOT / rel).is_file():
+            missing.append(rel)
+    return missing
+
+
 def commands_for(spec: dict, n: int) -> dict[str, str]:
     block = spec["LAUNCH"]["by_scale"][str(n)]
     common = block["common"].split(" ", 1)[1]
@@ -468,15 +478,31 @@ def main() -> int:
         frozen = spec["SYSTEMS_locked"][f"{scale['n']}v{scale['n']}"]["seed_ids"]
         if ids != [int(s) for s in frozen]:
             fail(f"{scale['n']}v{scale['n']} spec seed_ids differ from the sealed own-TOP50 list")
-    queued = []
-    for n in spec["LAUNCH"]["order"]:
-        queued.append((int(n), commands_for(spec, int(n))))
-    for n, cmds in queued:
-        dry_run(n, cmds)
-    for n, cmds in queued:
+    for n in (int(x) for x in spec["LAUNCH"]["order"]):
         if done(f"sealed_{n}v{n}"):
             log(f"{n}v{n} already sealed; skipping")
             continue
+        missing = checkpoints_present(spec, n)
+        if missing:
+            hold = {
+                "record": f"DUAL_BRANCH_{n}V{n}_TOP50_NOISE_HOLD",
+                "utc": now(),
+                "reason": "dual-branch checkpoints are not on this machine",
+                "missing": missing,
+                "spec": SPEC_PATH.name,
+                "what_remains": (
+                    f"copy the four {n}v{n} dual-branch zips onto this machine "
+                    "(or run this chain where they already live), then rerun the chain; "
+                    "it resumes and does not re-rank seeds"
+                ),
+            }
+            hold_path = SD / f"DUAL_BRANCH_{n}V{n}_TOP50_NOISE_HOLD.json"
+            hold_path.write_text(json.dumps(hold, indent=2) + "\n", encoding="utf-8")
+            log(f"HOLD {n}v{n}: checkpoints missing ({missing[0]})")
+            state(status=f"HOLD_{n}v{n}_CHECKPOINTS_MISSING", step=f"hold_{n}v{n}")
+            return 0
+        cmds = commands_for(spec, n)
+        dry_run(n, cmds)
         log(f"starting {n}v{n} TOP50 noise (3 x 200 episodes)")
         launch_missing(n, cmds)
         wait_scale(n, cmds)
