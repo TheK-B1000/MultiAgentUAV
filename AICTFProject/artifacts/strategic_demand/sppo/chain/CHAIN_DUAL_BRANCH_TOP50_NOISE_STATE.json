@@ -1,0 +1,28 @@
+{
+  "record": "CHAIN_DUAL_BRANCH_TOP50_NOISE",
+  "status": "2V2_AND_4V4_SEALED",
+  "active_scales": [
+    2,
+    4
+  ],
+  "pids": {
+    "DUAL_BRANCH_2V2_TOP50_NOISE_LOCALIZATION_MEDIUM": 26792,
+    "DUAL_BRANCH_2V2_TOP50_NOISE_MOTION_MEDIUM": 448,
+    "DUAL_BRANCH_2V2_TOP50_NOISE_DELAY_MEDIUM": 29116,
+    "DUAL_BRANCH_4V4_TOP50_NOISE_LOCALIZATION_MEDIUM": 6304,
+    "DUAL_BRANCH_4V4_TOP50_NOISE_MOTION_MEDIUM": 47100,
+    "DUAL_BRANCH_4V4_TOP50_NOISE_DELAY_MEDIUM": 44492
+  },
+  "updated_utc": "2026-10-08T05:53:27Z",
+  "steps": {
+    "dry_run_2v2": "2026-10-07T21:29:20Z",
+    "dry_run_4v4": "2026-10-07T21:29:38Z",
+    "launched_2v2": "2026-10-07T21:42:26Z",
+    "readout_2v2": "2026-10-08T01:07:16Z",
+    "sealed_2v2": "2026-10-08T01:07:16Z",
+    "launched_4v4": "2026-10-08T01:07:17Z",
+    "readout_4v4": "2026-10-08T05:53:27Z",
+    "sealed_4v4": "2026-10-08T05:53:27Z",
+    "stopped_after_4v4": "2026-10-08T05:53:27Z"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "record": "DUAL_BRANCH_2V2_TOP50_NOISE_READOUT",
+  "paper_label": "TOP50 deployment-robustness diagnostic",
+  "classification": "POST-HOC DESCRIPTIVE DIAGNOSTIC. The 50 seeds at each team size were already selected from that scale's dual-branch matched-128 nominal. Not an unbiased confirmatory robustness test. Not a fresh seed block. Not PAPER-FAITHFUL.",
+  "utc": "2026-10-08T01:07:16Z",
+  "question": "On this own-TOP50 subset the nominal win deltas are two-sided (Delta_A +0.32, Delta_B +0.66). Report whether both stay positive and the paired change against those same seeds.",
+  "n_seeds": 50,
+  "seed_ids": [
+    23600001,
+    23600003,
+    23600004,
+    23600005,
+    23600006,
+    23600007,
+    23600008,
+    23600010,
+    23600011,
+    23600012,
+    23600013,
+    23600014,
+    23600015,
+    23600016,
+    23600017,
+    23600018,
+    23600020,
+    23600022,
+    23600023,
+    23600024,
+    23600025,
+    23600026,
+    23600027,
+    23600028,
+    23600029,
+    23600030,
+    23600031,
+    23600037,
+    23600038,
+    23600041,
+    23600042,
+    23600047,
+    23600058,
+    23600062,
+    23600064,
+    23600065,
+    23600066,
+    23600071,
+    23600073,
+    23600075,
+    23600083,
+    23600090,
+    23600094,
+    23600095,
+    23600097,
+    23600101,
+    23600109,
+    23600119,
+    23600121,
+    23600127
+  ],
+  "conditions": {
+    "DUAL_BRANCH_2V2_TOP50_NOISE_LOCALIZATION_MEDIUM": {
+      "Delta_A": {
+        "mean": 0.24,
+        "std": 0.6869037302955033
+      },
+      "Delta_B": {
+        "mean": 0.5,
+        "std": 0.5439837932759934
+      },
+      "paired_change_A": {
+        "mean": -0.08,
+        "lcb95": -0.28,
+        "ucb95": 0.1
+      },
+      "paired_change_B": {
+        "mean": -0.16,
+        "lcb95": -0.34,
+        "ucb95": 0.02
+      }
+    },
+    "DUAL_BRANCH_2V2_TOP50_NOISE_MOTION_MEDIUM": {
+      "Delta_A": {
+        "mean": 0.34,
+        "std": 0.6883876458946719
+      },
+      "Delta_B": {
+        "mean": 0.48,
+        "std": 0.5046720495044483
+      },
+      "paired_change_A": {
+        "mean": 0.02,
+        "lcb95": -0.22,
+        "ucb95": 0.26
+      },
+      "paired_change_B": {
+        "mean": -0.18,
+        "lcb95": -0.36,
+        "ucb95": 0.0
+      }
+    },
+    "DUAL_BRANCH_2V2_TOP50_NOISE_DELAY_MEDIUM": {
+      "Delta_A": {
+        "mean": 0.16,
+        "std": 0.6502746672423453
+      },
+      "Delta_B": {
+        "mean": 0.26,
+        "std": 0.6642473107178669
+      },
+      "paired_change_A": {
+        "mean": -0.16,
+        "lcb95": -0.44,
+        "ucb95": 0.12
+      },
+      "paired_change_B": {
+        "mean": -0.4,
+        "lcb95": -0.62,
+        "ucb95": -0.18
+      }
+    }
+  },
+  "nominal_top50": {
+    "Delta_A": {
+      "mean": 0.32,
+      "std": 0.6207303137828694
+    },
+    "Delta_B": {
+      "mean": 0.66,
+      "std": 0.47851812069840644
+    }
+  }
+}

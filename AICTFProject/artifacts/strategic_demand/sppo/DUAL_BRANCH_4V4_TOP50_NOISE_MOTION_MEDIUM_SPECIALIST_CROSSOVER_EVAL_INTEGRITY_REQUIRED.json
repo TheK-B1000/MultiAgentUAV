@@ -1,0 +1,14 @@
+{
+  "record": "DUAL_BRANCH_4V4_TOP50_NOISE_MOTION_MEDIUM specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-10-08T05:53:00Z",
+  "implements": "DUAL_BRANCH_TOP50_NOISE_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.18,
+    "delta_B": -0.08
+  },
+  "rule": "requires a row-level integrity audit before any scientific interpretation. Raw rows: dual_branch_4v4_top50_noise_motion_medium_specialist_crossover_eval_rows.csv. Sealing still proceeds for immutability."
+}

@@ -1426,6 +1426,18 @@
         {
           "utc": "2026-10-02T00:20:54Z",
           "note": "post-hoc matched ablation TOP50_4V4_NOROLE sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-08T05:44:11Z",
+          "note": "post-hoc matched ablation DUAL_BRANCH_4V4_TOP50_NOISE_DELAY_MEDIUM sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-08T05:52:17Z",
+          "note": "post-hoc matched ablation DUAL_BRANCH_4V4_TOP50_NOISE_LOCALIZATION_MEDIUM sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-08T05:53:00Z",
+          "note": "post-hoc matched ablation DUAL_BRANCH_4V4_TOP50_NOISE_MOTION_MEDIUM sealed SEALED on this already-spent block"
         }
       ]
     },
@@ -1835,6 +1847,18 @@
         {
           "utc": "2026-10-02T05:43:37Z",
           "note": "post-hoc matched ablation DUAL_BRANCH_2V2_ROLE_COMPOSITE sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-08T01:03:47Z",
+          "note": "post-hoc matched ablation DUAL_BRANCH_2V2_TOP50_NOISE_MOTION_MEDIUM sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-08T01:05:57Z",
+          "note": "post-hoc matched ablation DUAL_BRANCH_2V2_TOP50_NOISE_LOCALIZATION_MEDIUM sealed SEALED on this already-spent block"
+        },
+        {
+          "utc": "2026-10-08T01:06:26Z",
+          "note": "post-hoc matched ablation DUAL_BRANCH_2V2_TOP50_NOISE_DELAY_MEDIUM sealed SEALED on this already-spent block"
         }
       ]
     },
@@ -3085,7 +3109,7 @@
       ]
     }
   ],
-  "updated_utc": "2026-10-06T09:37:16Z",
+  "updated_utc": "2026-10-08T05:53:00Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
